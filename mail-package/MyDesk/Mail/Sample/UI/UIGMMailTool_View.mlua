@@ -1,0 +1,106 @@
+@Component
+script UIGMMailTool_View extends Component
+
+	property UIGMMailTool Parent = nil
+
+	property GridViewComponent GridViewComp = nil
+
+	property Entity Item = nil
+
+	property table Mails = {}
+
+	property any SortFunc = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		
+		local item = entity:GetChildByName("MailViewItemUI")
+		self.Item = item
+		
+		self.GridViewComp = entity:GetChildByName("GridView").GridViewComponent
+		self.GridViewComp.ItemEntity = item
+		self.GridViewComp.OnRefresh = self.OnRefresh
+		self.GridViewComp.OnClear = self.OnClear
+		
+		---@param a MailBase
+		---@param b MailBase
+		local function sortFunc(a, b)
+			return a.Index < b.Index
+		end
+		self.SortFunc = sortFunc
+		
+		local btn_refresh = entity:GetChildByName("Btn_Refresh")
+		btn_refresh:ConnectEvent(ButtonClickEvent, function(evt)
+			self:OnClick_Refresh(evt)
+		end)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Apply(table mails)
+		table.sort(mails, self.SortFunc)
+		
+		self.Mails = mails
+		self.GridViewComp.TotalCount = #mails
+		self.GridViewComp:Refresh(true, true)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnRefresh(integer index, Entity entity)
+		index += 1
+		local m = self.Mails[index]
+		entity.UIGMMailTool_ViewItem:Apply(m, self.Parent)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClear(integer index, Entity entity)
+		entity.UIGMMailTool_ViewItem:Clear()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClick_Refresh(ButtonClickEvent evt)
+		if _Util:IsNilorEmptyString(self.Parent.TargetUserID) then
+			_GMMailLogic:RequestDeleteExpiredAndFetchGlobalMails()
+		else
+			_GMMailLogic:RequestGetPlayerMails(self.Parent.TargetUserID)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		table.clear(self.Mails)
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("Logic", "GMMailLogic")
+	handler HandleAdminFetchedGlobalMailEvent(AdminFetchedGlobalMailEvent event)
+		-- Parameters
+		local GlobalMails = event.GlobalMails
+		---------------------------------------------------------
+		if not self.Entity.Enable then
+			return
+		end
+				
+		self:Apply(GlobalMails)
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("Logic", "GMMailLogic")
+	handler HandleAdminFetchedPlayerMailEvent(AdminFetchedPlayerMailEvent event)
+		-- Parameters
+		local PlayerMails = event.PlayerMails
+		local TargetUserID = event.TargetUserID
+		---------------------------------------------------------
+		if not self.Entity.Enable then
+			return
+		end
+		
+		if TargetUserID ~= self.Parent.TargetUserID then
+			log_error("The requested data does not match the targetUserId. Please check and retry the request.")
+			return
+		end
+		
+		self:Apply(PlayerMails)
+	end
+
+end

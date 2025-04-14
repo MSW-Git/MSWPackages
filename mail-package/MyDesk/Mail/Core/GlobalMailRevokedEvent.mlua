@@ -1,0 +1,8 @@
+@Event
+script GlobalMailRevokedEvent extends EventType
+
+	property string RevokedUUID = ""
+
+	property integer EndDate = 0
+
+end

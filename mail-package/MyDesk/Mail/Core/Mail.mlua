@@ -1,0 +1,120 @@
+@Struct
+script Mail extends MailBase
+
+	property integer DueDate = 0
+
+	property boolean IsRead = false
+
+	method table Serialize()
+		local result = {}
+		result["UUID"] = self.UUID
+		
+		result["Title"] = self.Title
+		result["Message"] = self.Message
+		result["Sender"] = self.Sender
+		
+		result["DueDate"] = self.DueDate
+		result["IsRead"] = self.IsRead
+		
+		if not _Util:IsNilorEmptyTable(self.Items) then
+			local items = {}
+			for _, i in pairs(self.Items) do
+				---@type ItemBase
+				local item = i		
+				table.insert(items, item:Serialize())
+			end
+			
+			result["Items"] = items
+		end
+		
+		return result
+	end
+
+	method void Deserialize(table deserTable)
+		self.UUID = deserTable["UUID"]
+		
+		self.Title = deserTable["Title"]
+		self.Message = deserTable["Message"]
+		self.Sender = deserTable["Sender"]
+		
+		self.DueDate = deserTable["DueDate"]
+		self.IsRead = deserTable["IsRead"] and deserTable["IsRead"] or false
+		
+		local items = deserTable["Items"]
+		if not _Util:IsNilorEmptyTable(items) then
+			for _, i in pairs(items) do
+				local item = ItemBase()
+				item:Deserialize(i)
+				table.insert(self.Items, item)
+			end
+		end
+	end
+
+	method void StrDeserialize(string dataString)
+		local deserTable = _HttpService:JSONDecode(dataString)
+		
+		self.UUID = deserTable["UUID"]
+		
+		self.Title = deserTable["Title"]
+		self.Message = deserTable["Message"]
+		self.Sender = deserTable["Sender"]
+		
+		self.DueDate = deserTable["DueDate"]
+		self.IsRead = deserTable["IsRead"] and deserTable["IsRead"] or false
+		
+		local items = deserTable["Items"]
+		if not _Util:IsNilorEmptyTable(items) then
+			for _, i in pairs(items) do
+				local item = ItemBase()
+				item:Deserialize(i)
+				table.insert(self.Items, item)
+			end
+		end
+	end
+
+	method integer CalcDueDate(integer retentionDays)
+		if self.DueDate > 0 then
+			return 0
+		end
+		
+		return _DateTimeLogic:GetTimeElapsed() + _DateTimeLogic:GetMillisecondsFromDays(retentionDays)
+	end
+
+	method boolean FillMailDataFromBase(MailBase mailData)
+		return self:FillMailData(mailData.UUID, mailData.Index, mailData.Title, mailData.Message, mailData.Sender, mailData.RetentionDays, mailData.StartDate, mailData.EndDate, mailData.Items)
+	end
+
+	method boolean FillMailData(string uuid, integer index, string title, string message, string sender, integer retentionDays, integer startDate, integer endDate, table items)
+		if _Util:IsNilorEmptyString(uuid) then
+			return false
+		end
+		
+		if index <= 0 then
+			return false
+		end
+		
+		local curElapsed = _DateTimeLogic:GetTimeElapsed()
+		if startDate > curElapsed then
+			return false
+		end
+		
+		if endDate <= curElapsed then
+			return false
+		end
+		
+		self.UUID = uuid
+		self.Index = index
+		
+		self.Title = title
+		self.Message = message
+		self.Sender = sender
+		
+		self.Items = items
+		
+		self.DueDate = self:CalcDueDate(retentionDays)
+		self.IsRead = false
+		
+		return true
+	end
+
+end

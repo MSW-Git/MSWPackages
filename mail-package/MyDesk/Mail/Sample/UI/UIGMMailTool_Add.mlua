@@ -1,0 +1,89 @@
+@Component
+script UIGMMailTool_Add extends Component
+
+	property UIGMMailTool Parent = nil
+
+	property Entity Text_Title = nil
+
+	property Entity Text_Message = nil
+
+	property Entity Text_Sender = nil
+
+	property Entity Text_RetentionDays = nil
+
+	property Entity Text_StartDate = nil
+
+	property Entity Text_EndDate = nil
+
+	property Entity ItemPopup = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		
+		local item = entity:GetChildByName("Item")
+		self.Text_Title = item:GetChildByName("Text_Title")
+		self.Text_Message = item:GetChildByName("Text_Message")
+		self.Text_Sender = item:GetChildByName("Text_Sender")
+		self.Text_RetentionDays = item:GetChildByName("Text_RetentionDays")
+		self.Text_StartDate = item:GetChildByName("Text_StartDate")
+		self.Text_EndDate = item:GetChildByName("Text_EndDate")
+		
+		local btnItemPopup = item:GetChildByName("Btn_Item")
+		btnItemPopup:ConnectEvent(ButtonClickEvent, function(evt) self:OnClick_OpenItemPopup(evt) end)
+		
+		local btnRegister = entity:GetChildByName("Btn_Register")
+		btnRegister:ConnectEvent(ButtonClickEvent, function(evt) self:OnClick_Register(evt) end)
+		
+		self.ItemPopup = _EntityService:GetEntityByPath(_SampleLogic.Root.Path.."/UIGMMailTool_ItemAddPopup")
+		if self.ItemPopup == nil then
+			local modelId = _EntryService:GetModelIdByName("Model_UIGMMailTool_ItemAddPopup")
+			self.ItemPopup = _SpawnService:SpawnByModelId(modelId, "UIGMMailTool_ItemAddPopup", Vector3.zero, _SampleLogic.Root)
+			self.ItemPopup:SetEnable(false)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		self.Text_Title.TextComponent.Text = ""
+		self.Text_Message.TextComponent.Text = ""
+		self.Text_Sender.TextComponent.Text = ""
+		self.Text_RetentionDays.TextComponent.Text = ""
+		self.Text_StartDate.TextComponent.Text = ""
+		self.Text_EndDate.TextComponent.Text = ""
+		
+		self.ItemPopup.UIGMMailTool_ItemAddPopup:Clear()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClick_OpenItemPopup(ButtonClickEvent evt)
+		self.ItemPopup.UIGMMailTool_ItemAddPopup:Open()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClick_Register(ButtonClickEvent evt)
+		local hourElapsed = 60 * 60 * 1000
+		local userTimeOffset = self.Parent.TimeOffset
+		local offsetElapsed = userTimeOffset * hourElapsed
+		
+		local title = self.Text_Title.TextComponent.Text
+		local message = self.Text_Message.TextComponent.Text
+		local sender = self.Text_Sender.TextComponent.Text
+		
+		local retentionDays = tonumber(self.Text_RetentionDays.TextComponent.Text)
+		local startDate = _DateTimeLogic:GetElapsedFromDateString(self.Text_StartDate.TextComponent.Text) - offsetElapsed
+		local endDate = _DateTimeLogic:GetElapsedFromDateString(self.Text_EndDate.TextComponent.Text) - offsetElapsed
+		
+		local item = nil
+		if self.ItemPopup ~= nil then
+			item = self.ItemPopup.UIGMMailTool_ItemAddPopup.ItemList
+		end
+		
+		if not _Util:IsNilorEmptyString(self.Parent.TargetUserID) then
+			_GMMailLogic:RequestSavePlayerMail(self.Parent.TargetUserID, title, message, sender, retentionDays, startDate, endDate, item)
+		else
+			_GMMailLogic:RequestSaveGlobalMail(title, message, sender, retentionDays, startDate, endDate, item)	
+		end
+	end
+
+end

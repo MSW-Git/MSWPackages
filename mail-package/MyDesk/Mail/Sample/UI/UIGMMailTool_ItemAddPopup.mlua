@@ -1,0 +1,105 @@
+@Component
+script UIGMMailTool_ItemAddPopup extends Component
+
+	property Entity Text_ID = nil
+
+	property Entity Text_Count = nil
+
+	property GridViewComponent GridView = nil
+
+	property table ItemList = {}
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		
+		local panel = entity:GetChildByName("Panel")
+		
+		
+		local title = panel:GetChildByName("Title")
+		local btnClose = title:GetChildByName("Btn_Exit")
+		btnClose:ConnectEvent(ButtonClickEvent, function(evt) self.Entity:SetEnable(false) end)
+		
+		local pageAdd = panel:GetChildByName("Pages"):GetChildByName("Page_Add")
+		local left = pageAdd:GetChildByName("Left")
+		
+		local leftItem = left:GetChildByName("Item")
+		self.Text_ID = leftItem:GetChildByName("Text_ID")
+		self.Text_Count = leftItem:GetChildByName("Text_Count")
+		
+		local btnAdd = left:GetChildByName("Btn_Add")
+		btnAdd:ConnectEvent(ButtonClickEvent, function(evt) self:OnAdd() end)
+		
+		local right = pageAdd:GetChildByName("Right")
+		
+		local item = right:GetChildByName("ItemInfoUI")
+		
+		self.GridView = right:GetChildByName("GridView").GridViewComponent
+		self.GridView.ItemEntity = item
+		self.GridView.OnRefresh = self.OnRefresh
+		self.GridView.OnClear = self.OnClear
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Open()
+		self:Refresh()
+		self.Entity:SetEnable(true)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		table.clear(self.ItemList)
+		self.Text_ID.TextComponent.Text = ""
+		self.Text_Count.TextComponent.Text = ""
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Refresh()
+		self.GridView.TotalCount = #self.ItemList
+		self.GridView:Refresh(true, true)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnRefresh(integer index, Entity entity)
+		index += 1
+		local item = self.ItemList[index]
+		entity.UIGMMailTool_ItemInfo:Apply(item, index, function(index)
+			self:OnRemoveItem(index)
+		end)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClear(integer index, Entity entity)
+		entity.UIGMMailTool_ItemInfo:Clear()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnAdd()
+		local itemID = self.Text_ID.TextComponent.Text
+		if _Util:IsNilorEmptyString(itemID) then
+			return
+		end
+		
+		local count = tonumber(self.Text_Count.TextComponent.Text)
+		if count == nil then
+			return
+		end
+		
+		if count <= 0 then
+			return
+		end
+		
+		local item = ItemBase()
+		item.ItemID = itemID
+		item.ItemCount = count
+		table.insert(self.ItemList, item)
+		self:Refresh()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnRemoveItem(integer index)
+		table.remove(self.ItemList, index)
+		self:Refresh()
+	end
+
+end

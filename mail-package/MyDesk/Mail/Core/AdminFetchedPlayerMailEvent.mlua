@@ -1,0 +1,8 @@
+@Event
+script AdminFetchedPlayerMailEvent extends EventType
+
+	property table PlayerMails = {}
+
+	property string TargetUserID = ""
+
+end

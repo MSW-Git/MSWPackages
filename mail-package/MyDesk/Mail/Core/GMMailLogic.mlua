@@ -1,0 +1,1013 @@
+@Logic
+script GMMailLogic extends Logic
+
+	property string GlobalMailStorage = ""
+
+	property string GlobalIndexStorage = ""
+
+	property string GlobalRevokedMailStorage = ""
+
+	property string PlayerMailStorage = ""
+
+	property string PlayerStagingMailStorage = ""
+
+	property string Version = ""
+
+	property table CachedGlobalMails = {}
+
+	property table CachedRevokedMails = {}
+
+	property integer CachedGlobalMailMaxIndex = 0
+
+	@ExecSpace("ServerOnly")
+	method void OnBeginPlay()
+		-- Set storage name.
+		self.GlobalIndexStorage = "GlobalIndex"
+		self.GlobalMailStorage = "GlobalMail"
+		self.GlobalRevokedMailStorage = "GlobalRevokedMail"
+		
+		self.PlayerMailStorage = "PMail"
+		self.PlayerStagingMailStorage = "PStagingMail"
+		
+		-- Set storage version
+		self.Version = "1"
+		
+		-- Caches the data
+		self.CachedGlobalMails = self:GetGlobalMailsFromDB()
+		self.CachedRevokedMails = self:GetGlobalRevokedMailsFromDB()
+		self.CachedGlobalMailMaxIndex = self:GetGlobalMaxIndexFromDB()
+	end
+
+	@ExecSpace("ServerOnly")
+	method any GetGlobalIndexStorage()
+		return _DataStorageService:GetGlobalDataStorage(self.GlobalIndexStorage)
+	end
+
+	@ExecSpace("ServerOnly")
+	method any GetGlobalMailStorage()
+		return _DataStorageService:GetGlobalDataStorage(self.GlobalMailStorage)
+	end
+
+	@ExecSpace("ServerOnly")
+	method any GetGlobalRevokedMailStorage()
+		return _DataStorageService:GetGlobalDataStorage(self.GlobalRevokedMailStorage)
+	end
+
+	@ExecSpace("ServerOnly")
+	method integer GetGlobalMaxIndex()
+		return self.CachedGlobalMailMaxIndex
+	end
+
+	@ExecSpace("ServerOnly")
+	method integer GetGlobalMaxIndexFromDB()
+		---@type GlobalDataStorage
+		local ds = self:GetGlobalIndexStorage()
+		local errorCode, currentKey = ds:GetAndWait(self.GlobalIndexStorage)
+		if errorCode ~= 0 then
+			log_error(string.format("[Error: %d] A database error has occurred.",errorCode))
+			return -1
+		end
+		
+		return tonumber(currentKey) or 0
+	end
+
+	@ExecSpace("ServerOnly")
+	method table GetGlobalMails()
+		table.sort(self.CachedGlobalMails, function(l, r)
+			---@type MailBase
+			local ml = l
+			
+			---@type MailBase
+			local mr = r
+			
+			return ml.Index < mr.Index
+		end)
+		
+		return self.CachedGlobalMails
+	end
+
+	@ExecSpace("ServerOnly")
+	method table GetGlobalMailsFromDB()
+		---@type GlobalDataStorage
+		local ds = self:GetGlobalMailStorage()
+		if ds == nil then
+			log_error("Failed to load data storage.")
+			return nil
+		end
+		
+		local errorCode, pages = ds:GetPagesAndWait(self.GlobalMailStorage)
+		if errorCode ~= 0 then
+			log_error(string.format("[Error: %d] A database error has occurred.",errorCode))
+			return nil
+		end
+		
+		local result = {}
+		while true do
+			local datas = pages:GetCurrentPageDatas()
+			for _, data in pairs(datas) do
+				if not _Util:IsNilorEmptyString(data.Value) then			
+					local mail = MailBase()
+					mail:StrDeserialize(data.Value)
+					
+					table.insert(result, mail) 
+				end
+			end
+				
+			if pages.IsLastPage == true then
+				break
+			end
+			
+			local loadResultCode = pages:LoadNextPageAndWait()
+			if loadResultCode ~= 0 then
+				break
+			end
+			     
+			pages:MoveToNextPageAndWait()
+		end
+		
+		table.sort(result, function(l, r)
+			---@type MailBase
+			local ml = l
+			
+			---@type MailBase
+			local mr = r
+			
+			return ml.Index < mr.Index
+		end)
+		
+		return result
+	end
+
+	@ExecSpace("ServerOnly")
+	method MailBase GetGlobalMail(string uuid)
+		for _, m in pairs(self.CachedGlobalMails) do
+			---@type MailBase
+			local mail = m
+			if mail.UUID == uuid then
+				return mail
+			end
+		end
+		
+		return nil
+	end
+
+	@ExecSpace("ServerOnly")
+	method MailBase GetGlobalMailFromDB(string uuid)
+		---@type GlobalDataStorage
+		local ds = self:GetGlobalMailStorage()
+		if ds == nil then
+			log_error("Failed to load data storage.")
+			return nil
+		end
+		
+		local keyInfo = DataStorageKeyInfo(uuid, self.Version, self.GlobalMailStorage)
+		local errorCode, strMail = ds:GetByInfoAndWait(keyInfo)
+		if errorCode ~= 0 then
+			log_error(string.format("[Error: %d] A database error has occurred.",errorCode))
+			return nil
+		end
+		
+		if strMail == nil then
+			return nil
+		end
+		
+		if _Util:IsNilorEmptyString(strMail) == false then			
+			local mail = MailBase()
+			mail:StrDeserialize(strMail)
+			
+			if mail.EndDate <= _DateTimeLogic:GetTimeElapsed() then
+				return nil
+			end
+			
+			return mail
+		end
+		
+		return nil
+	end
+
+	@ExecSpace("ServerOnly")
+	method table GetGlobalRevokedMails()
+		return self.CachedRevokedMails
+	end
+
+	@ExecSpace("ServerOnly")
+	method table GetGlobalRevokedMailsFromDB()
+		---@type GlobalDataStorage
+		local ds = self:GetGlobalRevokedMailStorage()
+		if ds == nil then
+			log_error("Failed to load data storage.")
+			return nil
+		end
+		
+		local errorCode, pages = ds:GetPagesAndWait(self.GlobalRevokedMailStorage)
+		if errorCode ~= 0 then
+			log_error(string.format("[Error: %d] A database error has occurred.",errorCode))
+			return nil
+		end
+		
+		local result = {}
+		while true do
+			local datas = pages:GetCurrentPageDatas()
+			for _, data in pairs(datas) do
+			    if not _Util:IsNilorEmptyString(data.Value) then
+			        local mailDatas = _HttpService:JSONDecode(data.Value)   	        
+		    	    table.insert(result, mailDatas)
+			    end
+			end
+			
+			if pages.IsLastPage == true then
+				break
+			end
+			
+			local loadResultCode = pages:LoadNextPageAndWait()
+			if loadResultCode ~= 0 then
+				break
+			end
+			
+			pages:MoveToNextPageAndWait()
+		end
+		
+		return result
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean SaveIndex(integer currentKey, integer nextKey)
+		---@type GlobalDataStorage
+		local ds = self:GetGlobalIndexStorage()
+		if ds == nil then
+			log_error("Failed to load data storage.")
+			return false
+		end
+		
+		local error, result;
+		if currentKey <= 0 then
+			-- A value of 0 indicates that it has never been recorded before.
+			error = ds:SetAndWait(self.GlobalIndexStorage, tostring(nextKey))
+		else
+			error, result = ds:UpdateAndWait(self.GlobalIndexStorage, tostring(currentKey), tostring(nextKey))
+		end
+		
+		if error ~= 0 then
+			log_error(string.format("[Error: %d] A database error has occurred.", error))
+			return false
+		end
+		
+		return true
+	end
+
+	@ExecSpace("Server")
+	method void RequestSaveGlobalMail(string title, string desc, string sender, integer retentionDays, integer startDate, integer endDate, table items)
+		-- Please write the code to check administrator permissions here.
+		if not _AdminLogic:IsAdmin(senderUserId) then
+			return
+		end
+		
+		self:SaveGlobalMail(title, desc, sender, retentionDays, startDate, endDate, items)
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean SaveGlobalMail(string title, string desc, string sender, integer retentionDays, integer startDate, integer endDate, table items)
+		local currentIdx = self:GetGlobalMaxIndexFromDB()
+		local nextIndex = currentIdx + 1
+		if nextIndex <= 0 then
+			log_error("Failed to set the index.")
+			return false
+		end
+		
+		---@type GlobalDataStorage
+		local ds = self:GetGlobalMailStorage()
+		if ds == nil then
+			log_error("Failed to load data storage.")
+			return false
+		end
+		
+		local newUUID = _UUIDLogic:GenerateUUIDv4()
+		local keyInfo = DataStorageKeyInfo(newUUID, self.Version, self.GlobalMailStorage)
+		local errorCode, strMail = ds:GetByInfoAndWait(keyInfo)
+		if errorCode ~= 0 then
+			log_error(string.format("[Error: %d] A database error has occurred.",errorCode))
+			return false
+		end
+		
+		if strMail ~= nil then
+			log_error("Cannot add a mail that already exists.")
+			return false
+		end
+		
+		local newMail = MailBase()
+		if not newMail:FillMailData(newUUID, nextIndex, title, desc, sender, retentionDays, startDate, endDate, items) then
+			log_error("Failed to create the mail. Please check the data.")
+			return false
+		end
+		
+		if not self:SaveIndex(currentIdx, nextIndex) then
+			log_error("Failed to save the index.")
+			return false
+		end
+		
+		local error = ds:SetByInfoAndWait(keyInfo, _HttpService:JSONEncode(newMail:Serialize()))
+		if error ~= 0 then
+			log_error(string.format("[Error: %d] A database error has occurred.",errorCode))
+			return false
+		end
+		
+		local evt = GlobalMailSentEvent()
+		evt.UUID = newMail.UUID
+		evt.Index = newMail.Index
+		evt.Title = newMail.Title
+		evt.Message = newMail.Message
+		evt.Sender = newMail.Sender
+		evt.RetentionDays = newMail.RetentionDays
+		evt.StartDate = newMail.StartDate
+		evt.EndDate = newMail.EndDate
+		evt.Items = newMail.Items
+		
+		local code = _WorldInstanceService:RequestSendEventToAllWorldInstancesAndWait(evt)
+		if code ~= SendEventRequestResultCode.OK then
+		     log_error("_WorldInstanceService:RequestSendEventToAllWorldInstancesAndWait failed.")
+		end
+		
+		return true
+	end
+
+	@ExecSpace("Server")
+	method void RequestRevokeMail(string uuid)
+		-- Please write the code to check administrator permissions here.
+		if not _AdminLogic:IsAdmin(senderUserId) then
+			return
+		end
+		
+		self:RevokeMail(uuid)
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean RevokeMail(string uuid)
+		if _Util:IsNilorEmptyString(uuid) then
+			log_error("UUID is empty.")
+			return false
+		end
+		
+		---@type GlobalDataStorage
+		local ds = self:GetGlobalMailStorage()
+		if ds == nil then
+			log_error("Failed to load data storage.")
+			return false
+		end
+		
+		local keyInfo = DataStorageKeyInfo(uuid, self.Version, self.GlobalMailStorage)
+		local errorCode, strMailData = ds:GetByInfoAndWait(keyInfo)
+		if errorCode ~= 0 then
+			log_error(string.format("[Error: %d] A database error has occurred.",errorCode))
+			return false
+		end
+		
+		if _Util:IsNilorEmptyString(strMailData) then
+			log_error("Registered email does not exist.")
+			return false
+		end
+		
+		local mail = MailBase()
+		mail:StrDeserialize(strMailData)
+		
+		local deleteError = ds:DeleteAndWait(uuid)
+		if deleteError ~= 0 then
+			log_error(string.format("[Error: %d] A database error has occurred.",errorCode))
+			return false
+		end
+		
+		if not self:SaveRevokeMail(mail) then
+			local setError = ds:SetByInfoAndWait(keyInfo, _HttpService:JSONEncode(mail:Serialize()))
+			if setError ~= 0 then
+				log_error(string.format("[Error: %d] A database error has occurred.",errorCode))
+				return false
+			end
+			
+			log_error(string.format("[Error: %d] Failed to save data.", error))
+			return false
+		end
+		
+		return true
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean SaveRevokeMail(MailBase mail)
+		---@type GlobalDataStorage
+		local ds = self:GetGlobalRevokedMailStorage()
+		if ds == nil then
+			log_error("Failed to load data storage.")
+			return false
+		end
+		
+		
+		if _Util:IsNilorEmptyString(mail.UUID) then
+			log_error("UUID is empty.")
+			return false
+		end
+		
+		local keyInfo = DataStorageKeyInfo(mail.UUID, self.Version, self.GlobalRevokedMailStorage)
+		local errorCode, strRevokedMail = ds:GetByInfoAndWait(keyInfo)
+		if errorCode ~= 0 then
+			log_error(string.format("[Error: %d] A database error has occurred.",errorCode))
+			return false
+		end
+		
+		if strRevokedMail ~= nil then
+			log_error("Cannot add a revoked mail that already exists.")
+			return false
+		end
+		
+		local saveData = {}
+		saveData[mail.UUID] = mail.EndDate
+		
+		local error = ds:SetByInfoAndWait(keyInfo, _HttpService:JSONEncode(saveData))
+		if error ~= 0 then
+			log_error(string.format("[Error: %d] A database error has occurred.",errorCode))
+			return false
+		end
+		
+		-- Global Mail retrieval event.
+		local evt = GlobalMailRevokedEvent()
+		evt.RevokedUUID = mail.UUID
+		evt.EndDate = mail.EndDate
+		
+		local code = _WorldInstanceService:RequestSendEventToAllWorldInstancesAndWait(evt)
+		if code ~= SendEventRequestResultCode.OK then
+		     log_error("_WorldInstanceService:RequestSendEventToAllWorldInstancesAndWait failed.")
+		end
+		
+		return true
+	end
+
+	@ExecSpace("Server")
+	method void RequestDeleteExpiredAndFetchGlobalMails()
+		-- Please write the code to check administrator permissions here.
+		if not _AdminLogic:IsAdmin(senderUserId) then
+			return
+		end
+		
+		self:DeleteExpiredAndFetchGlobalMails(senderUserId)
+	end
+
+	@ExecSpace("ServerOnly")
+	method void DeleteExpiredAndFetchGlobalMails(string adminId)
+		if not self:DeleteExpiredGlobalMails() then
+			return
+		end
+		
+		if not self:DeleteExpiredGlobalRevokedMails() then
+			return
+		end
+		
+		local globalMails = self:GetGlobalMailsFromDB()
+		self:ResponseRemoveExpiredAndFetchGlobalMail(globalMails, adminId)
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean DeleteExpiredGlobalMails()
+		---@type GlobalDataStorage
+		local ds = self:GetGlobalMailStorage()
+		if ds == nil then
+			log_error("Failed to load data storage.")
+			return false
+		end
+		
+		local errorCode, pages = ds:GetPagesAndWait(self.GlobalMailStorage)
+		if errorCode ~= 0 then
+			log_error(string.format("[Error: %d] A database error has occurred.",errorCode))
+			return false
+		end
+		
+		local deleteUUIDs = {}
+		local curElapsed = _DateTimeLogic:GetTimeElapsed()
+		while true do
+			local datas = pages:GetCurrentPageDatas()
+			for _, data in pairs(datas) do
+			    if not _Util:IsNilorEmptyString(data.Value) then			
+					local mail = MailBase()
+					mail:StrDeserialize(data.Value)
+		    		if mail.EndDate <= curElapsed then
+		    			table.insert(deleteUUIDs, mail.UUID)
+		    		end
+			    end
+			end
+			
+			if pages.IsLastPage == true then
+				break
+			end
+			
+			local loadResultCode = pages:LoadNextPageAndWait()
+			if loadResultCode ~= 0 then
+				break
+			end
+		
+			pages:MoveToNextPageAndWait()
+		end
+		
+		if not _Util:IsNilorEmptyTable(deleteUUIDs) then
+			local error, keys = ds:TransactDeleteAndWait(deleteUUIDs)
+			if error ~= 0 then
+				log_error(string.format("[Error: %d] A database error has occurred.",error))
+				return false
+			end
+		end
+		
+		local evt = GlobalMailExpiredEvent()
+		evt.DeleteUUIDs = deleteUUIDs
+		evt.IsRevoked = false
+		
+		local code = _WorldInstanceService:RequestSendEventToAllWorldInstancesAndWait(evt)
+		if code ~= SendEventRequestResultCode.OK then
+		     log_error("_WorldInstanceService:RequestSendEventToAllWorldInstancesAndWait failed.")
+		end
+		
+		return true
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean DeleteExpiredGlobalRevokedMails()
+		---@type GlobalDataStorage
+		local ds = self:GetGlobalRevokedMailStorage()
+		if ds == nil then
+			log_error("Failed to load data storage.")
+			return false
+		end
+		
+		local errorCode, pages = ds:GetPagesAndWait(self.GlobalRevokedMailStorage)
+		if errorCode ~= 0 then
+			log_error(string.format("[Error: %d] A database error has occurred.",errorCode))
+			return false
+		end
+		
+		local deleteUUIDs = {}
+		local curElapsed = _DateTimeLogic:GetTimeElapsed()
+		while true do
+			local datas = pages:GetCurrentPageDatas()
+			for _, data in pairs(datas) do
+			    if not _Util:IsNilorEmptyString(data.Value) then
+					local mailDatas = _HttpService:JSONDecode(data.Value)
+					for uuid, endDate in pairs(mailDatas) do
+						if endDate <= curElapsed then
+			    			table.insert(deleteUUIDs, uuid)
+			    		end
+					end
+			    end
+			end
+			
+			if pages.IsLastPage == true then
+				break
+			end
+			
+			local loadResultCode = pages:LoadNextPageAndWait()
+			if loadResultCode ~= 0 then
+				break
+			end
+		
+			pages:MoveToNextPageAndWait()
+		end
+		
+		if not _Util:IsNilorEmptyTable(deleteUUIDs) then
+			local error, keys = ds:TransactDeleteAndWait(deleteUUIDs)
+			if error ~= 0 then
+				log_error(string.format("[Error: %d] A database error has occurred.",error))
+				return false
+			end
+		end
+		
+		local evt = GlobalMailExpiredEvent()
+		evt.DeleteUUIDs = deleteUUIDs
+		evt.IsRevoked = true
+		
+		local code = _WorldInstanceService:RequestSendEventToAllWorldInstancesAndWait(evt)
+		if code ~= SendEventRequestResultCode.OK then
+		     log_error("_WorldInstanceService:RequestSendEventToAllWorldInstancesAndWait failed.")
+		end
+		
+		return true
+	end
+
+	@ExecSpace("Client")
+	method void ResponseRemoveExpiredAndFetchGlobalMail(table globalMails)
+		-- Sending event to the client.
+		local evt = AdminFetchedGlobalMailEvent()
+		evt.GlobalMails = globalMails
+		self:SendEvent(evt)
+	end
+
+	@ExecSpace("Server")
+	method void RequestSavePlayerMail(string userId, string title, string desc, string sender, integer retentionDays, integer startDate, integer endDate, table items)
+		-- Please write the code to check administrator permissions here.
+		if not _AdminLogic:IsAdmin(senderUserId) then
+			return
+		end
+				
+		self:SavePlayerMail(userId, title, desc, sender, retentionDays, startDate, endDate, items)
+	end
+
+	@ExecSpace("ServerOnly")
+	method void SavePlayerMail(string userId, string title, string desc, string sender, integer retentionDays, integer startDate, integer endDate, table items)
+		if _Util:IsNilorEmptyString(userId) then
+			log_error("userId is empty.")
+			return
+		end
+		
+		local ds = _DataStorageService:GetUserDataStorage(userId)
+		if ds == nil then
+			log_error("Failed to load data storage.")
+			return
+		end
+		
+		local dataTable = {}
+		local originalData = ""
+		local returnCode, strData = ds:GetAndWait(self.PlayerStagingMailStorage)
+		if returnCode ~= 0 then
+			log_error(string.format("[Error: %d] A database error has occurred.",returnCode))
+			return
+		end
+		
+		if not _Util:IsNilorEmptyString(strData) then
+			dataTable = _HttpService:JSONDecode(strData)
+			originalData = strData
+		end
+		
+		local stagingMails = dataTable["StagingMails"]
+		if _Util:IsNilorEmptyTable(stagingMails) then
+			dataTable["StagingMails"] = {}
+			stagingMails = dataTable["StagingMails"]
+		end
+		
+		local uuid = _UUIDLogic:GenerateUUIDv4()
+		local newMail = MailBase()
+		if not newMail:FillMailData(uuid, 1, title, desc, sender, retentionDays, startDate, endDate, items) then
+			log_error("Failed to create the mail. Please check the data.")
+			return
+		end
+		
+		stagingMails[newMail.UUID] = newMail:Serialize()
+		
+		local error = -1
+		local result = ""
+		if _Util:IsNilorEmptyString(originalData) then
+			error = ds:SetAndWait(self.PlayerStagingMailStorage, _HttpService:JSONEncode(dataTable))
+		else
+			error, result = ds:UpdateAndWait(self.PlayerStagingMailStorage, originalData, _HttpService:JSONEncode(dataTable))
+		end
+		if error ~= 0 then
+			log_error(string.format("[Error: %d] A database error has occurred.",error))
+			return
+		end
+	end
+
+	@ExecSpace("Server")
+	method void RequestRevokePlayerMail(string userId, string uuid)
+		-- Please write the code to check administrator permissions here.
+		if not _AdminLogic:IsAdmin(senderUserId) then
+			return
+		end
+		
+		self:RevokePlayerMail(userId, uuid)
+	end
+
+	@ExecSpace("ServerOnly")
+	method void RevokePlayerMail(string userId, string uuid)
+		local ds = _DataStorageService:GetUserDataStorage(userId)
+		if ds == nil then
+			return
+		end
+		
+		local errorCode, strData = ds:GetAndWait(self.PlayerStagingMailStorage)
+		if errorCode ~= 0 then
+			log_error(string.format("[Error: %d] A database error has occurred.",errorCode))
+			return
+		end
+		
+		local error, strMailData = ds:GetAndWait(self.PlayerMailStorage)
+		if error ~= 0 then
+			log_error(string.format("[Error: %d] A database error has occurred.",error))
+			return
+		end
+		
+		local dataTable = {}
+		local originalData = ""
+		if not _Util:IsNilorEmptyString(strData) then
+			dataTable = _HttpService:JSONDecode(strData)
+			originalData = strData
+		end
+		
+		local hasMail = false
+		if not _Util:IsNilorEmptyString(strMailData) then
+			local mailDataTable = _HttpService:JSONDecode(strMailData)
+			local mails = mailDataTable["Mails"]
+			if not _Util:IsNilorEmptyTable(mails) then
+				for _, m in pairs(mails) do
+					local mailUUID = m["UUID"]				
+					if mailUUID == uuid then
+						hasMail = true
+						break
+					end
+				end
+			end
+			
+			if not hasMail then
+				local scheduledMails = mailDataTable["ScheduledMails"]
+				if not _Util:IsNilorEmptyTable(scheduledMails) then
+					for _, m in pairs(scheduledMails) do
+						local mailUUID = m["UUID"]
+						if mailUUID == uuid then
+							hasMail = true
+							break
+						end
+					end
+				end
+			end
+		end
+		
+		if hasMail then
+			local revokedMails = dataTable["RevokedMails"]
+			if _Util:IsNilorEmptyTable(revokedMails) then
+				dataTable["RevokedMails"] = {}
+				revokedMails = dataTable["RevokedMails"]
+			end
+			
+			if revokedMails[uuid] then
+				log_error("The mail has already been retrieved.")
+				return
+			end
+			
+			revokedMails[uuid] = 1
+		else
+			local removeMail = false
+			local stagingMails = dataTable["StagingMails"]
+			if not _Util:IsNilorEmptyTable(stagingMails) then
+				for _, m in pairs(stagingMails) do
+					local mailUUID = m["UUID"]			
+					if mailUUID == uuid then
+						removeMail = true
+						break
+					end
+				end
+				
+				if removeMail then
+					stagingMails[uuid] = nil
+					hasMail = true	
+				end
+			end
+			
+			if _Util:IsNilorEmptyTable(stagingMails) then
+				dataTable["StagingMails"] = nil
+			end
+		end
+		
+		if not hasMail then
+			log_error("The mail does not belong to the user")
+			return
+		end
+		
+		local dsError = -1
+		local result = ""
+		if _Util:IsNilorEmptyString(originalData) then
+			dsError = ds:SetAndWait(self.PlayerStagingMailStorage, _HttpService:JSONEncode(dataTable))
+		else
+			dsError, result = ds:UpdateAndWait(self.PlayerStagingMailStorage, originalData, _HttpService:JSONEncode(dataTable))
+		end
+		
+		if dsError ~= 0 then
+			log_error(string.format("[Error: %d] A database error has occurred.",dsError))
+			return
+		
+		end	
+	end
+
+	@ExecSpace("Server")
+	method void RequestGetPlayerMails(string userId)
+		-- Please write the code to check administrator permissions here.
+		if not _AdminLogic:IsAdmin(senderUserId) then
+			return
+		end
+		
+		self:GetPlayerMails(userId, senderUserId)
+	end
+
+	@ExecSpace("ServerOnly")
+	method void GetPlayerMails(string userId, string adminId)
+		local ds = _DataStorageService:GetUserDataStorage(userId)
+		if ds == nil then
+			log_error("Failed to load data storage.")
+			return
+		end
+		
+		local result = {}
+		local returnCode, strData = ds:GetAndWait(self.PlayerStagingMailStorage)
+		if returnCode ~= 0 then
+			log_error(string.format("[Error: %d] A database error has occurred.",returnCode))
+			return
+		end
+		
+		local revokedMails = {}
+		if not _Util:IsNilorEmptyString(strData) then
+			local dataTable = _HttpService:JSONDecode(strData)
+			revokedMails = dataTable["RevokedMails"]
+			
+			local stagingMails = dataTable["StagingMails"]
+			if stagingMails ~= nil then
+				for _, m in pairs(stagingMails) do
+					local mail = MailBase()
+					mail:Deserialize(m)
+					
+					table.insert(result, mail)
+				end
+			end
+		end
+		
+		local mailReturnCode, strMailData = ds:GetAndWait(self.PlayerMailStorage)
+		if mailReturnCode ~= 0 then
+			log_error(string.format("[Error: %d] A database error has occurred.",mailReturnCode))
+			return
+		end
+		
+		if not _Util:IsNilorEmptyString(strMailData) then
+			local dataTable = _HttpService:JSONDecode(strMailData)
+			local scheduledMails = dataTable["ScheduledMails"]
+			if scheduledMails ~= nil then
+				for _, m in pairs(scheduledMails) do
+					local mail = MailBase()
+					mail:Deserialize(m)
+					
+					if self:IsRevokedMail(revokedMails, mail.UUID) then
+						continue
+					end
+					
+					table.insert(result, mail)
+				end
+			end
+			
+			local mails = dataTable["Mails"]
+			if mails ~= nil then
+				for _, m in pairs(mails) do
+					local mail = Mail()
+					mail:Deserialize(m)
+					
+					if self:IsRevokedMail(revokedMails, mail.UUID) then
+						continue
+					end
+					
+					table.insert(result, mail)
+				end
+			end
+		end
+		
+		-- Sending event to the client.
+		self:ResponseGetPlayerMails(result, userId, adminId)
+	end
+
+	@ExecSpace("Client")
+	method void ResponseGetPlayerMails(table playerMails, string userId)
+		local evt = AdminFetchedPlayerMailEvent()
+		evt.PlayerMails = playerMails
+		evt.TargetUserID = userId
+		self:SendEvent(evt)
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean IsRevokedMail(table revokedMails, string uuid)
+		if _Util:IsNilorEmptyTable(revokedMails) then
+			return false
+		end
+		
+		local time = revokedMails[uuid]
+		if time ~= nil then
+			return true
+		end
+		
+		return false
+	end
+
+	@ExecSpace("ServerOnly")
+	method void AddGlobalMailToCache(GlobalMailSentEvent event)
+		local uuid = event.UUID
+		local index = event.Index
+		local title = event.Title
+		local message = event.Message
+		local sender = event.Sender
+		local retentionDays = event.RetentionDays
+		local startDate = event.StartDate
+		local endDate = event.EndDate
+		local items = event.Items
+		---------------------------------------------------------
+		
+		self.CachedGlobalMailMaxIndex = index
+		
+		if self.CachedGlobalMails[uuid] then
+			log_error("The mail already exists.")
+			return
+		end
+		
+		local mail = MailBase()
+		if not mail:FillMailData(uuid, index, title, message, sender, retentionDays, startDate, endDate, items) then
+			log_error("Failed to create the mail. Please check the data.")
+			return
+		end
+		
+		table.insert(self.CachedGlobalMails, mail)		
+	end
+
+	@ExecSpace("ServerOnly")
+	method void AddGlobalRevokedMailToCache(GlobalMailRevokedEvent event)
+		local revokedUUID = event.RevokedUUID
+		local endDate = event.EndDate
+		---------------------------------------------------------
+		if self.CachedRevokedMails[revokedUUID] then
+			log_error("The mail already exists.")
+			return
+		end
+		
+		self.CachedRevokedMails[revokedUUID] = endDate
+	end
+
+	@ExecSpace("ServerOnly")
+	method void DeleteCacheMails(GlobalMailExpiredEvent event)
+		local deleteUUIDs = event.DeleteUUIDs
+		local isRevoked = event.IsRevoked
+		---------------------------------------------------------
+		
+		if isRevoked then
+			for _, uuid in pairs(deleteUUIDs) do
+				self.CachedRevokedMails[uuid] = nil
+			end
+		else
+			local uuids = {}
+			for _, uuid in pairs(deleteUUIDs) do
+				uuids[uuid] = true
+			end
+			
+			for i = #self.CachedGlobalMails, 1, -1 do
+				---@type MailBase
+				local mail = self.CachedGlobalMails[i]
+			    if uuids[mail.UUID] then
+			        table.remove(self.CachedGlobalMails, i)
+			    end
+			end
+		end	
+	end
+
+	@ExecSpace("ServerOnly")
+	@EventSender("Service", "WorldInstanceService")
+	handler HandleGlobalMailSentEvent(GlobalMailSentEvent event)
+		-- Parameters
+		local uuid = event.UUID
+		local index = event.Index
+		local title = event.Title
+		local message = event.Message
+		local sender = event.Sender
+		local retentionDays = event.RetentionDays
+		local startDate = event.StartDate
+		local endDate = event.EndDate
+		local items = event.Items
+		---------------------------------------------------------
+		self:AddGlobalMailToCache(event)
+		
+		for i, user in pairs(_UserService.UserEntities) do
+			if not isvalid(user) then
+				return
+			end
+			
+			local playerMail = user.PlayerMail
+			playerMail:ReadNewGlobalMail(uuid)
+		end
+	end
+
+	@ExecSpace("ServerOnly")
+	@EventSender("Service", "WorldInstanceService")
+	handler HandleGlobalMailRevokedEvent(GlobalMailRevokedEvent event)
+		-- Parameters
+		local revokedUUID = event.RevokedUUID
+		local endDate = event.EndDate
+		---------------------------------------------------------
+		self:AddGlobalRevokedMailToCache(event)
+		
+		for i, user in pairs(_UserService.UserEntities) do
+			if not isvalid(user) then
+				continue
+			end
+			
+			local playerMail = user.PlayerMail
+			
+			local mail = playerMail:GetMail(revokedUUID)
+			if mail == nil then
+				playerMail:DeleteScheduledMail(revokedUUID)
+			else
+				playerMail:DeleteMail(revokedUUID, true)		
+			end	
+		end
+	end
+
+	@ExecSpace("ServerOnly")
+	@EventSender("Service", "WorldInstanceService")
+	handler HandleGlobalMailExpiredEvent(GlobalMailExpiredEvent event)
+		-- Parameters
+		--local deleteUUIDs = event.DeleteUUIDs
+		--local isRevoked = event.IsRevoked
+		---------------------------------------------------------
+		self:DeleteCacheMails(event)
+	end
+
+end

@@ -1,0 +1,662 @@
+@Component
+script PlayerMail extends Component
+
+	@Description("A property that represents the maximum number of mails that can be stored.")
+	property integer MaxCount = 100
+
+	@Description("A property that indicates how much of the global mail has been read.")
+	property integer GlobalMailLastReadIndex = 0
+
+	@Description("A property that represents the list of mails in the user's mailbox.")
+	property table Mails = {}
+
+	@Description("A property that represents a list of mails that have not yet reached their sending time.")
+	property table ScheduledMails = {}
+
+	property boolean IsSaveDB = false
+
+	property boolean ResetStagingDB = false
+
+	property any handleReceiveMailItems = nil
+
+	@ExecSpace("ServerOnly")
+	method boolean SaveToDB(table saveData)
+		if self.IsSaveDB == false then
+			return false
+		end
+		
+		local total = {}
+		local mails = {}
+		for uuid, m in pairs(self.Mails) do
+			---@type Mail
+			local mail = m
+			local result = mail:Serialize()
+			table.insert(mails, result)
+		end
+		
+		if not _Util:IsNilorEmptyTable(mails) then
+			total["Mails"] = mails
+		end
+		
+		local scheduledMails = {}
+		for uuid, m in pairs(self.ScheduledMails) do
+			---@type MailBase
+			local mail = m
+			local result = mail:Serialize()
+			table.insert(scheduledMails, result)
+		end
+		if not _Util:IsNilorEmptyTable(scheduledMails) then
+			total["ScheduledMails"] = scheduledMails
+		end
+		
+		total["GlobalReadIndex"] = self.GlobalMailLastReadIndex
+		
+		local dbString = ""
+		if not _Util:IsNilorEmptyTable(total) then
+			dbString = _HttpService:JSONEncode(total)
+		end
+		
+		saveData[_GMMailLogic.PlayerMailStorage] = dbString
+		
+		if self.ResetStagingDB then
+			saveData[_GMMailLogic.PlayerStagingMailStorage] = ""	
+		end
+		
+		
+		return true
+	end
+
+	@ExecSpace("ServerOnly")
+	method void LoadFromDB(table loadKeys)
+		table.insert(loadKeys, _GMMailLogic.PlayerMailStorage)
+		table.insert(loadKeys, _GMMailLogic.PlayerStagingMailStorage)
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean OnLoadedDataFromDB(table loadedData)
+		local mailCandidates = {}
+		local scheduledMailCandidates = {}
+		local revokedMails = {}
+		
+		-- load staging mails
+		---@type DataStorageItem
+		local sds = loadedData[_GMMailLogic.PlayerStagingMailStorage]
+		if sds ~= nil and (_Util:IsNilorEmptyString(sds.Value) == false) then
+			local dataTable = _HttpService:JSONDecode(sds.Value)
+			
+			revokedMails = dataTable["RevokedMails"]	
+			local stagingMails = dataTable["StagingMails"]
+			local curElapsed = _DateTimeLogic:GetTimeElapsed()
+			if not _Util:IsNilorEmptyTable(stagingMails) then
+				for _, m in pairs(stagingMails) do
+					local mail = MailBase()
+					mail:Deserialize(m)
+					
+					if _GMMailLogic:IsRevokedMail(revokedMails, mail.UUID) then
+						continue
+					end
+					
+					self:FinalizeStagedMail(mail, curElapsed)
+				end
+			end
+			
+			self.ResetStagingDB = true
+		end
+		
+		-- load mails
+		---@type DataStorageItem
+		local sd = loadedData[_GMMailLogic.PlayerMailStorage]
+		if sd ~= nil and (_Util:IsNilorEmptyString(sd.Value) == false) then
+			local dataTable = _HttpService:JSONDecode(sd.Value)
+			
+			self.GlobalMailLastReadIndex = dataTable["GlobalReadIndex"]
+				
+			local scheduledMails = dataTable["ScheduledMails"]
+			if not _Util:IsNilorEmptyTable(scheduledMails) then
+				for _, m in pairs(scheduledMails) do
+					local mail = MailBase()
+					mail:Deserialize(m)
+					
+					if _GMMailLogic:IsRevokedMail(revokedMails, mail.UUID) then
+						self.IsSaveDB = true
+						continue
+					end
+					
+					scheduledMailCandidates[mail.UUID] = mail
+				end
+			end
+			
+			local mails = dataTable["Mails"]
+			if not _Util:IsNilorEmptyTable(mails) then
+				for _, m in pairs(mails) do
+					local mail = Mail()
+					mail:Deserialize(m)
+					
+					if _GMMailLogic:IsRevokedMail(revokedMails, mail.UUID) then
+						self.IsSaveDB = true
+						continue
+		
+					end
+					
+					mailCandidates[mail.UUID] = mail
+				end
+			end
+		end
+		
+		local globalRevokedMails = _GMMailLogic:GetGlobalRevokedMails()
+		
+		self:LoadMail(globalRevokedMails, mailCandidates)
+		
+		self:LoadScheduledMail(globalRevokedMails, scheduledMailCandidates)
+		
+		self:LoadNewGlobalMail(globalRevokedMails)
+		
+		self:DeleteExcessMails(false)
+		
+		self:SyncInitMails(self.Mails, self.Entity.PlayerComponent.UserId)
+		return true
+	end
+
+	@ExecSpace("ServerOnly")
+	method void LoadMail(table globalRevokedMails, table mailCandidates)
+		local curElapsed = _DateTimeLogic:GetTimeElapsed()
+		for id, m in pairs(mailCandidates) do
+			---@type Mail
+			local mail = m
+			
+			if _GMMailLogic:IsRevokedMail(globalRevokedMails, mail.UUID) then
+				self.IsSaveDB = true
+				continue
+			end
+			
+			if  mail.DueDate ~= 0 and mail.DueDate <= curElapsed then
+				self.IsSaveDB = true
+				continue
+		
+			end
+				
+			self.Mails[mail.UUID] = mail
+		end
+	end
+
+	@ExecSpace("ServerOnly")
+	method void LoadScheduledMail(table globalRevokedMails, table scheduledMailCandidates)
+		local curElapsed = _DateTimeLogic:GetTimeElapsed()
+		for uuid, m in pairs(scheduledMailCandidates) do
+			---@type MailBase
+			local mail = m
+			
+			if _GMMailLogic:IsRevokedMail(globalRevokedMails, mail.UUID) then
+				self.IsSaveDB = true
+				continue
+			end
+		
+			if mail.EndDate <= curElapsed then
+				self.IsSaveDB = true
+				continue
+			end
+			
+			if mail.StartDate <= curElapsed then
+				self:AddMail(mail, false)
+				continue
+			end
+			
+			self:AddScheduledMail(mail)
+		end
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean LoadNewGlobalMail(table globalRevokedMails)
+		local maxIndex = _GMMailLogic:GetGlobalMaxIndex()
+		
+		local lastNo = self.GlobalMailLastReadIndex ~= nil and self.GlobalMailLastReadIndex or 0
+		if lastNo < 0 then
+			return false
+		end
+		
+		if maxIndex <= lastNo then
+			return false
+		end
+		
+		local curElapsed = _DateTimeLogic:GetTimeElapsed()
+		local globalMails = _GMMailLogic:GetGlobalMails()
+		if _Util:IsNilorEmptyTable(globalMails) then
+			return false
+		end
+		
+		local max = lastNo
+		for _, m in pairs(globalMails) do
+			---@type MailBase
+			local mail = m
+			local index = mail.Index
+			if index <= lastNo then
+				continue
+			end
+				
+			max = index
+			
+			if _GMMailLogic:IsRevokedMail(globalRevokedMails, mail.UUID) then
+				continue		
+			end
+			
+			if mail.EndDate <= curElapsed then
+				continue
+			end
+		
+			if  mail.StartDate > curElapsed then
+				self:AddScheduledMail(mail)
+				continue
+			end
+			
+			self:AddMail(mail, false)
+		end
+		
+		self.GlobalMailLastReadIndex = max
+		
+		self.IsSaveDB = true
+		return true
+	end
+
+	@ExecSpace("ServerOnly")
+	method void ReadNewGlobalMail(string uuid)
+		if _Util:IsNilorEmptyString(uuid) then
+			return
+		end
+		
+		local revokedMails = _GMMailLogic:GetGlobalRevokedMails()
+		if not self:LoadNewGlobalMail(revokedMails) then
+			return
+		end
+		
+		self.IsSaveDB = true
+		
+		self:DeleteExcessMails(true)
+		
+		local syncTable = {}
+		if self.Mails[uuid] ~= nil then
+			syncTable[uuid] = self.Mails[uuid]
+		end
+		if not _Util:IsNilorEmptyTable(syncTable) then
+			self:SyncMails(syncTable, nil, self.Entity.PlayerComponent.UserId)	
+		end
+	end
+
+	@ExecSpace("Client")
+	method void SyncInitMails(table mails)
+		table.clear(self.Mails)
+		self.Mails = mails
+		
+		local event = ClientMailChangedEvent()
+		self.Entity:SendEvent(event)
+	end
+
+	@ExecSpace("Client")
+	method void SyncMail(string uuid, Mail mail)
+		self.Mails[uuid] = mail
+		
+		local event = ClientMailChangedEvent()
+		self.Entity:SendEvent(event)
+	end
+
+	@ExecSpace("Client")
+	method void SyncMails(table newMails, table deleteMails)
+		if not _Util:IsNilorEmptyTable(newMails) then
+			for uuid, data in pairs(newMails) do
+				self.Mails[uuid] = data		
+			end
+		end
+		
+		if not _Util:IsNilorEmptyTable(deleteMails) then
+			for _, uuid in pairs(deleteMails) do
+				self.Mails[uuid] = nil		
+			end
+		end
+		
+		local event = ClientMailChangedEvent()
+		self.Entity:SendEvent(event)
+	end
+
+	@ExecSpace("ServerOnly")
+	method Mail GetMail(string uuid)
+		return self.Mails[uuid]
+	end
+
+	@ExecSpace("ServerOnly")
+	method void AddMail(MailBase mail, boolean isSync)
+		if mail == nil then
+			return
+		end
+		
+		local newMail = Mail()
+		if not newMail:FillMailDataFromBase(mail) then
+			return
+		end
+		
+		self.Mails[mail.UUID] = newMail
+		
+		if isSync then
+			self:SyncMail(newMail.UUID, newMail, self.Entity.PlayerComponent.UserId)	
+		end
+		
+		self.IsSaveDB = true
+	end
+
+	@ExecSpace("Server")
+	method void RequestDeleteExpiredMails()
+		self:DeleteExpiredMails()
+	end
+
+	@ExecSpace("ServerOnly")
+	method void DeleteExpiredMails()
+		local curElapsed = _DateTimeLogic:GetTimeElapsed()
+		local deleteUUIDs = {}
+		for _, m in pairs(self.Mails) do
+			---@type Mail
+			local mail = m
+			if mail.DueDate <= curElapsed then
+				table.insert(deleteUUIDs, mail.UUID)
+			end
+		end
+		
+		self:DeleteMails(deleteUUIDs, true)
+	end
+
+	@ExecSpace("Server")
+	method void RequestDeleteReadMails()
+		self:DeleteReadMails()
+	end
+
+	@ExecSpace("ServerOnly")
+	method void DeleteReadMails()
+		local deleteUUIDs = {}
+		for _, m in pairs(self.Mails) do
+			---@type Mail
+			local mail = m
+			if mail.IsRead then
+				table.insert(deleteUUIDs, mail.UUID)
+			end
+		end
+		
+		self:DeleteMails(deleteUUIDs, true)
+	end
+
+	@ExecSpace("Server")
+	method void RequestDeleteCurrentMail(string uuid)
+		self:DeleteMail(uuid, true)
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean DeleteExcessMails(boolean isSync)
+		-- Calculates the number of exceeded mails.
+		local excessMailCount = _Util:TableLen(self.Mails) - self.MaxCount
+		if excessMailCount <= 0 then
+			return false
+		end
+		
+		local sortList = {}
+		for id, data in pairs(self.Mails) do
+			table.insert(sortList, data)
+		end
+		
+		-- Sorts in ascending order based on expiration time.
+		table.sort(sortList, function(l, r)
+			---@type Mail
+			local left = l
+			
+			---@type Mail
+			local right = r
+			
+			if left.DueDate < right.DueDate then
+				return true	
+			end
+			
+			return false
+		end)
+		
+		local deleteUUIDs = {}
+		for i, data in ipairs(sortList) do
+			if i > excessMailCount then
+				break
+			end
+			
+			---@type Mail
+			local mail = data
+			table.insert(deleteUUIDs, mail.UUID)
+		end
+		
+		self:DeleteMails(deleteUUIDs, isSync)
+		return true
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean DeleteMail(string uuid, boolean isSync)
+		local mail = self:GetMail(uuid)
+		if mail == nil then
+			return false
+		end
+		
+		self.Mails[uuid] = nil
+		self.IsSaveDB = true
+		
+		if isSync then
+			self:SyncMail(uuid, nil, self.Entity.PlayerComponent.UserId)	
+		end
+		
+		return true
+	end
+
+	@ExecSpace("ServerOnly")
+	method void DeleteMails(table deleteUUIDs, boolean isSync)
+		if _Util:IsNilorEmptyTable(deleteUUIDs) then
+			return
+		end
+		
+		
+		local syncDeleteLists = {}
+		for _, uuid in ipairs(deleteUUIDs) do	
+			local mail = self:GetMail(uuid)
+			if mail == nil then
+				continue
+			end
+			
+			self.Mails[uuid] = nil
+			table.insert(syncDeleteLists, uuid)
+		end
+		
+		self.IsSaveDB = true
+		
+		if isSync then
+			self:SyncMails(nil, syncDeleteLists, self.Entity.PlayerComponent.UserId)	
+		end
+	end
+
+	@ExecSpace("Server")
+	method void RequestReceiveMail(string uuid)
+		self:ReceiveMail(uuid)
+	end
+
+	@ExecSpace("ServerOnly")
+	method void ReceiveMail(string uuid)
+		-- This function marks mail as read and grants the attached items.
+		---@type Mail
+		local mail = self:GetMail(uuid)
+		if mail == nil then
+			log_error("No mail found.")
+			return
+		end
+		
+		if mail.IsRead then
+			log_error("The mail has already been read.")
+			return
+		end
+		
+		if mail.DueDate <= _DateTimeLogic:GetTimeElapsed() then
+			log_error("The mail has expired.")
+			return
+		end
+		
+		if not _Util:IsNilorEmptyTable(mail.Items) then
+			-- The logic for granting items via mail is implemented here.
+			if self.handleReceiveMailItems then
+				local result = self.handleReceiveMailItems(mail.Items)	
+				if type(result) ~= "boolean" then
+					log_error("The return value of handleReceiveMailItems must be a boolean.")
+					return
+				end
+				
+				if not result then
+					log_error("Item grant failed.")
+					return
+				end
+			end
+		end
+		
+		mail.IsRead = true
+		self.IsSaveDB = true
+		
+		self:SyncMail(uuid, mail, self.Entity.PlayerComponent.UserId)
+	end
+
+	@ExecSpace("Server")
+	method void RequestReceiveMails(table uuids)
+		self:ReceiveMails(uuids)
+	end
+
+	@ExecSpace("ServerOnly")
+	method void ReceiveMails(table uuids)
+		-- This function marks multiple mails as read and grants the attached items.
+		local curElapsed = _DateTimeLogic:GetTimeElapsed()
+		local receiveMails = {}
+		for _, uuid in ipairs(uuids) do
+			---@type Mail
+			local mail = self:GetMail(uuid)
+			if mail == nil then
+				log_error("No mail found.")
+				continue
+			end
+			
+			if mail.IsRead then
+				log_error("The mail has already been read.")
+				continue
+			end
+			
+			if mail.DueDate <= curElapsed then
+				log_error("The mail has expired.")
+				continue
+			end
+			
+			if not _Util:IsNilorEmptyTable(mail.Items) then
+				-- The logic for granting items via mail is implemented here.
+				if self.handleReceiveMailItems then
+					local result = self.handleReceiveMailItems(mail.Items)	
+					if type(result) ~= "boolean" then
+						log_error("The return value of handleReceiveMailItems must be a boolean.")
+						continue
+					end
+					
+					if not result then
+						log_error("Item grant failed.")
+						continue
+					end
+				end
+			end
+			
+			mail.IsRead = true	
+			receiveMails[mail.UUID] = mail
+		end
+		
+		
+		if _Util:TableLen(receiveMails) > 0 then
+			self:SyncMails(receiveMails, nil, self.Entity.PlayerComponent.UserId)
+			self.IsSaveDB = true
+		end
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean FinalizeStagedMail(MailBase stagingMail, integer currentTime)
+		-- Moves stored mails to the user's mail data.
+		if stagingMail.StartDate > currentTime then	
+			self:AddScheduledMail(stagingMail)
+		else	
+			self:AddMail(stagingMail, false)
+		end
+		
+		self.IsSaveDB = true
+		return true
+	end
+
+	@ExecSpace("ServerOnly")
+	method void AddScheduledMail(MailBase mail)
+		if mail == nil then
+			return
+		end
+		
+		self.ScheduledMails[mail.UUID] = mail
+		self.IsSaveDB = true
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean DeleteScheduledMail(string uuid)
+		if self.ScheduledMails[uuid] == nil then
+			return false
+		end
+		
+		self.ScheduledMails[uuid] = nil
+		self.IsSaveDB = true
+		
+		return true
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean SendScheduledMail(MailBase mail)
+		if isvalid(self.Entity) == false then
+			return false
+		end
+		
+		if self.ScheduledMails[mail.UUID] == nil then
+			return false
+		end
+		
+		local curElapsed = _DateTimeLogic:GetTimeElapsed()
+		if mail.EndDate <= curElapsed then
+			self:DeleteScheduledMail(mail.UUID)
+			return false
+		end
+		
+		if mail.StartDate > curElapsed then
+			return false
+		end
+		
+		if not self:DeleteScheduledMail(mail.UUID) then
+			return false
+		end
+		
+		self:AddMail(mail, true)
+		
+		self:DeleteExcessMails(true)
+	end
+
+	@ExecSpace("ServerOnly")
+	method void OnUpdate(number delta)
+		-- Scheduled mail time check.
+		local mailsToSend = {}
+		
+		local curElapsed = _DateTimeLogic:GetTimeElapsed()
+		for uuid, m in pairs(self.ScheduledMails) do
+			---@type MailBase
+			local mail = m
+			
+			if mail.StartDate <= curElapsed then
+				table.insert(mailsToSend, m)
+			end
+		end
+		
+		for _, m in pairs(mailsToSend) do
+			---@type MailBase
+			local mail = m
+			
+			self:SendScheduledMail(mail)		
+		end
+	end
+
+end

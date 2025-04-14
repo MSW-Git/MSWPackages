@@ -1,0 +1,22 @@
+@Event
+script GlobalMailSentEvent extends EventType
+
+	property string UUID = ""
+
+	property integer Index = 0
+
+	property string Title = ""
+
+	property string Message = ""
+
+	property string Sender = ""
+
+	property integer RetentionDays = 0
+
+	property integer StartDate = 0
+
+	property integer EndDate = 0
+
+	property table Items = {}
+
+end

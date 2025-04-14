@@ -1,0 +1,22 @@
+@Component
+script PlayerInventory extends Component
+
+	@ExecSpace("ServerOnly")
+	method void OnBeginPlay()
+		self.Entity.PlayerMail.handleReceiveMailItems = function(items)
+			return self:ReceiveMailItems(items)
+		end
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean ReceiveMailItems(table items)
+		for _, i in pairs(items) do
+			---@type ItemBase
+			local item = i
+			log(string.format("ItemID: %s, ItemCount: %d", item.ItemID, item.ItemCount))
+		end
+		
+		return true
+	end
+
+end

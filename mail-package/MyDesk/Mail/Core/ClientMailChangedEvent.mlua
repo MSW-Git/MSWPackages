@@ -1,0 +1,4 @@
+@Event
+script ClientMailChangedEvent extends EventType
+
+end

@@ -1,0 +1,71 @@
+@Component
+script UIGMMailTool_ViewItem extends Component
+
+	property TextComponent UUID = nil
+
+	property TextComponent Index = nil
+
+	property TextComponent StartDate = nil
+
+	property TextComponent EndDate = nil
+
+	property Entity DetailPopup = nil
+
+	property TextComponent ShowSeconds = nil
+
+	property any MailData = nil
+
+	property UIGMMailTool Root = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		self.UUID = entity:GetChildByName("Text_UUID").TextComponent
+		self.Index = entity:GetChildByName("Text_Idx").TextComponent
+		
+		local btnInfo = entity:GetChildByName("Btn_Info")
+		btnInfo:ConnectEvent(ButtonClickEvent, function(evt) self:OnClick_DetailInfo() end)
+		
+		local btnRevoke = entity:GetChildByName("Btn_Revoke")
+		btnRevoke:ConnectEvent(ButtonClickEvent, function(evt) self:OnClick_Revoke() end)
+		
+		self.DetailPopup = _EntityService:GetEntityByPath(_SampleLogic.Root.Path.."/UIGMMailTool_DetailPopup")
+		if self.DetailPopup == nil then
+			local modelId = _EntryService:GetModelIdByName("Model_UIGMMailTool_DetailPopup")
+			self.DetailPopup = _SpawnService:SpawnByModelId(modelId, "UIGMMailTool_DetailPopup", Vector3.zero, _SampleLogic.Root)
+			self.DetailPopup:SetEnable(false)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Apply(MailBase m, UIGMMailTool root)
+		self.UUID.Text = tostring(m.UUID)
+		self.Index.Text = tostring(m.Index)
+		
+		self.MailData = m
+		
+		self.Root = root
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		self.UUID.Text = ""
+		self.Index.Text = ""
+		self.MailData = nil
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClick_DetailInfo()
+		self.DetailPopup.UIGMMailTool_DetailPopup:Open(self.MailData, self.Root.TimeOffset, self.Root.TargetUserID)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClick_Revoke()
+		if _Util:IsNilorEmptyString(self.Root.TargetUserID) then
+			_GMMailLogic:RequestRevokeMail(self.UUID.Text)	
+		else
+			_GMMailLogic:RequestRevokePlayerMail(self.Root.TargetUserID, self.UUID.Text)
+		end
+	end
+
+end

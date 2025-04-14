@@ -1,0 +1,148 @@
+@Struct
+script MailBase
+
+	property string UUID = ""
+
+	property integer Index = 0
+
+	property string Title = ""
+
+	property string Message = ""
+
+	property string Sender = ""
+
+	property integer RetentionDays = 0
+
+	property integer StartDate = 0
+
+	property integer EndDate = 0
+
+	property table Items = {}
+
+	method table Serialize()
+		local result = {}
+		result["UUID"] = self.UUID
+		result["Index"] = self.Index
+		
+		result["Title"] = self.Title		
+		result["Message"] = self.Message
+		result["Sender"] = self.Sender
+				
+		result["RetentionDays"] = self.RetentionDays
+		result["StartDate"] = self.StartDate
+		result["EndDate"] = self.EndDate
+		
+		if not _Util:IsNilorEmptyTable(self.Items) then
+			local items = {}
+			for _, i in pairs(self.Items) do
+				---@type ItemBase
+				local item = i		
+				table.insert(items, item:Serialize())
+			end
+			
+			result["Items"] = items
+		end
+		
+		return result
+	end
+
+	method void Deserialize(table deserTable)
+		self.UUID = deserTable["UUID"]
+		self.Index = deserTable["Index"]
+		
+		self.Title = deserTable["Title"]		
+		self.Message = deserTable["Message"]
+		self.Sender = deserTable["Sender"]
+		
+		self.RetentionDays = deserTable["RetentionDays"]
+		self.StartDate = deserTable["StartDate"]
+		self.EndDate = deserTable["EndDate"]
+		
+		local items = deserTable["Items"]
+		if not _Util:IsNilorEmptyTable(items) then
+			for _, i in pairs(items) do
+				local item = ItemBase()
+				item:Deserialize(i)
+				table.insert(self.Items, item)
+			end
+		end
+	end
+
+	method void StrDeserialize(string dataString)
+		local deserTable = _HttpService:JSONDecode(dataString)
+		
+		self.UUID = deserTable["UUID"]
+		self.Index = deserTable["Index"]
+		
+		self.Title = deserTable["Title"]		
+		self.Message = deserTable["Message"]
+		self.Sender = deserTable["Sender"]
+		
+		self.RetentionDays = deserTable["RetentionDays"]
+		self.StartDate = deserTable["StartDate"]
+		self.EndDate = deserTable["EndDate"]
+		
+		local items = deserTable["Items"]
+		if not _Util:IsNilorEmptyTable(items) then
+			for _, i in pairs(items) do
+				local item = ItemBase()
+				item:Deserialize(i)
+				table.insert(self.Items, item)
+			end
+		end
+	end
+
+	method boolean FillMailData(string uuid, integer index, string title, string message, string sender, integer retentionDays, integer startDate, integer endDate, table items)
+		if _Util:IsNilorEmptyString(uuid) then
+			return false
+		end
+		
+		if index <= 0 then
+			return false
+		end
+		
+		if _Util:IsNilorEmptyString(title) then
+			return false
+		end
+		
+		if _Util:IsNilorEmptyString(message) then
+			return false
+		end
+		
+		if _Util:IsNilorEmptyString(sender) then
+			return false
+		end
+		
+		if startDate <= 0 then
+			return false
+		end
+		
+		if endDate <= 0 then
+			return false
+		end
+		
+		if startDate >= endDate then
+			return false
+		end
+		
+		if retentionDays <= 0 then
+			return false
+		end
+		
+		self.UUID = uuid
+		self.Index = index
+		
+		self.Title = title
+		self.Message = message
+		self.Sender = sender
+		
+		self.RetentionDays = retentionDays
+		self.StartDate = startDate
+		self.EndDate = endDate
+		
+		self.Items = items
+		
+		return true
+	end
+
+end

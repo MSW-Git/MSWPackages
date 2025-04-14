@@ -1,0 +1,96 @@
+@Component
+script UIMailBoxItem extends Component
+
+	property Entity Text_Title = nil
+
+	property Entity Text_Message = nil
+
+	property Entity Text_Sender = nil
+
+	property GridViewComponent GridView = nil
+
+	property Entity Text_DueDate = nil
+
+	property Entity Text_IsRead = nil
+
+	property table Items = {}
+
+	property string UUID = ""
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		
+		self.Text_Title = entity:GetChildByName("Text_Title")
+		self.Text_Message = entity:GetChildByName("Text_Message")
+		self.Text_Sender = entity:GetChildByName("Text_Sender")
+		self.Text_DueDate = entity:GetChildByName("Text_DueDate")
+		self.Text_IsRead = entity:GetChildByName("Text_IsRead")
+		
+		self.GridView = entity:GetChildByName("GridView").GridViewComponent
+		
+		local itemUI = entity:GetChildByName("ItemUI")
+		self.GridView.ItemEntity = itemUI
+		self.GridView.OnRefresh = self.OnRefresh
+		self.GridView.OnClear = self.OnClear
+		
+		local btnReceive = entity:GetChildByName("BtnReceive")
+		btnReceive:ConnectEvent(ButtonClickEvent, function(evt) self:OnReceive() end)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Apply(Mail mail)
+		self.UUID = mail.UUID
+		
+		self.Text_Title.TextComponent.Text = mail.Title
+		self.Text_Message.TextComponent.Text = mail.Message
+		self.Text_Sender.TextComponent.Text = mail.Sender
+		self.Text_DueDate.TextComponent.Text = tostring(mail.RetentionDays)
+		self.Text_IsRead.TextComponent.Text = tostring(mail.RetentionDays)
+		
+		self.Text_DueDate.TextComponent.Text = DateTime(mail.DueDate):ToFormattedString("yyyy-MM-dd HH:mm:ss")
+		if mail.IsRead then
+			self.Text_IsRead.TextComponent.Text = "O"
+		else
+			self.Text_IsRead.TextComponent.Text = "X"		
+		end
+		
+		self.Items = mail.Items
+		self.GridView.TotalCount = #mail.Items
+		self.GridView:Refresh(true, true)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		self.Items = nil
+		self.UUID = ""
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnRefresh(integer index, Entity entity)
+		index += 1
+		---@type ItemBase
+		local item = self.Items[index]
+		entity.UIGMMailTool_ItemInfo:Apply(item, index, nil)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClear(integer index, Entity entity)
+		entity.UIGMMailTool_ItemInfo:Clear()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnReceive()
+		if _Util:IsNilorEmptyString(self.UUID) then
+			return
+		end
+		
+		local playerMail = _UserService.LocalPlayer.PlayerMail
+		if not playerMail then
+			return
+		end
+		
+		playerMail:RequestReceiveMail(self.UUID)	
+	end
+
+end

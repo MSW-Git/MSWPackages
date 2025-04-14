@@ -1,0 +1,53 @@
+@Component
+script UIGMMailTool_ItemInfo extends Component
+
+	property Entity ItemId = nil
+
+	property Entity ItemCount = nil
+
+	property Entity BtnRemove = nil
+
+	property any onRemove = nil
+
+	property integer Index = 0
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		self.ItemId = self.Entity:GetChildByName("Text_ID")
+		self.ItemCount = self.Entity:GetChildByName("Text_Count")
+		self.BtnRemove = self.Entity:GetChildByName("Btn_Remove")
+		
+		if self.BtnRemove then
+			self.BtnRemove:ConnectEvent(ButtonClickEvent, function(evt) self:OnRemoveItem() end)	
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Apply(ItemBase item, integer index, any onRemove)
+		self.onRemove = onRemove
+		self.ItemId.TextComponent.Text = item.ItemID
+		self.ItemCount.TextComponent.Text = tostring(item.ItemCount)
+		self.Index = index
+		
+		if self.BtnRemove then
+			local activeRevmoeBtn = onRemove and true or false
+			self.BtnRemove:SetEnable(activeRevmoeBtn)	
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		self.onRemove = nil
+		self.Index = 0
+		self.ItemId.TextComponent.Text = ""
+		self.ItemCount.TextComponent.Text = ""
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnRemoveItem()
+		if self.onRemove then
+			self.onRemove(self.Index)
+		end
+	end
+
+end

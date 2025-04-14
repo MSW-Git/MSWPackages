@@ -1,0 +1,92 @@
+@Component
+script UIMailBox extends Component
+
+	property GridViewComponent GridView = nil
+
+	property table Mails = {}
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		
+		local panel = entity:GetChildByName("Panel")
+		local page = panel:GetChildByName("Page")
+		
+		self.GridView = page:GetChildByName("GridView").GridViewComponent
+		
+		local itemUI = page:GetChildByName("Item")
+		self.GridView.ItemEntity = itemUI
+		self.GridView.OnRefresh = self.OnRefresh
+		self.GridView.OnClear = self.OnClear
+		
+		local title = panel:GetChildByName("Title")
+		local btnClose = title:GetChildByName("Btn_Exit")
+		btnClose:ConnectEvent(ButtonClickEvent, function(evt) self.Entity:SetEnable(false) end)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Open()
+		if self:IsExpired() then
+			local playerMail = _UserService.LocalPlayer.PlayerMail
+			playerMail:RequestDeleteExpiredMails()
+		end
+		
+		self:SetMailData()
+		
+		self.Entity:SetEnable(true)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetMailData()
+		local mails = _UserService.LocalPlayer.PlayerMail.Mails
+		local tmpMails = {}
+		for uuid, m in pairs(mails) do
+			table.insert(tmpMails, m)
+		end
+		
+		self.Mails = tmpMails
+		
+		self.GridView.TotalCount = _Util:TableLen(self.Mails)
+		self.GridView:Refresh(true, true)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnRefresh(integer index, Entity entity)
+		index += 1
+		---@type Mail
+		local mail = self.Mails[index]
+		entity.UIMailBoxItem:Apply(mail)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClear(integer index, Entity entity)
+		entity.UIMailBoxItem:Clear()
+	end
+
+	@ExecSpace("ClientOnly")
+	method boolean IsExpired()
+		local playerMail = _UserService.LocalPlayer.PlayerMail
+		local mails = playerMail.Mails
+		local time = _DateTimeLogic:GetTimeElapsed()
+		for uuid, m in pairs(mails) do
+			---@type Mail
+			local mail = m
+			if mail.DueDate <= time then
+				return true
+			end
+		end
+		
+		return false
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("LocalPlayer")
+	handler HandleClientMailChangedEvent(ClientMailChangedEvent event)
+		if not self.Entity.Enable then
+			return
+		end
+		
+		self:SetMailData()
+	end
+
+end

@@ -1,0 +1,6 @@
+@Event
+script AdminFetchedGlobalMailEvent extends EventType
+
+	property table GlobalMails = {}
+
+end

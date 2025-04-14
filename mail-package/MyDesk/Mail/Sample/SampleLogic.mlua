@@ -1,0 +1,74 @@
+@Logic
+script SampleLogic extends Logic
+
+	property Entity AdminUI = nil
+
+	property Entity Root = nil
+
+	property Entity MailBoxUI = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		self.Root = _EntityService:GetEntityByPath("/ui/DefaultGroup")
+		self.AdminUI = _EntityService:GetEntityByPath(_SampleLogic.Root.Path.."/UIGMMailTool")
+		
+		if self.AdminUI == nil then	
+			local modelId = _EntryService:GetModelIdByName("Model_UIGMMailTool")
+			self.AdminUI = _SpawnService:SpawnByModelId(modelId, "UIGMMailTool", Vector3.zero, self.Root)
+			self.AdminUI:SetEnable(false)
+		end
+		
+		self.MailBoxUI = _EntityService:GetEntityByPath(_SampleLogic.Root.Path.."/UIMailBox")
+		if self.MailBoxUI == nil then	
+			local modelId = _EntryService:GetModelIdByName("Model_UIMailBox")
+			self.MailBoxUI = _SpawnService:SpawnByModelId(modelId, "UIMailBox", Vector3.zero, self.Root)
+			self.MailBoxUI:SetEnable(false)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OpenAdminPanel()
+		_GMMailLogic:RequestDeleteExpiredAndFetchGlobalMails()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OpenMailBox()
+		if self.MailBoxUI.Enable then
+			return
+		end
+		
+		self.MailBoxUI.UIMailBox:Open()
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("Service", "InputService")
+	handler HandleKeyDownEvent(KeyDownEvent event)
+		--------------- Native Event Sender Info ----------------
+		-- Sender: InputService
+		-- Space: Client
+		---------------------------------------------------------
+		
+		-- Parameters
+		local key = event.key
+		---------------------------------------------------------
+		if key == KeyboardKey.F9 then
+			self:OpenAdminPanel()
+		elseif key == KeyboardKey.F10 then
+			self:OpenMailBox()
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("Logic", "GMMailLogic")
+	handler HandleAdminFetchedGlobalMailEvent(AdminFetchedGlobalMailEvent event)
+		-- Parameters
+		local GlobalMails = event.GlobalMails
+		---------------------------------------------------------
+		if self.AdminUI.Enable then
+			return
+		end
+		
+		self.AdminUI.UIGMMailTool:Open(GlobalMails)
+	end
+
+end

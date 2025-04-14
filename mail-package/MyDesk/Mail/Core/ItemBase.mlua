@@ -1,0 +1,26 @@
+@Struct
+script ItemBase
+
+	property string ItemID = ""
+
+	property integer ItemCount = 0
+
+	method void Set(string itemId, integer itemCount)
+		self.ItemID = itemId
+		self.ItemCount = itemCount
+	end
+
+	method table Serialize()
+		local result = {}
+		result["ID"] = self.ItemID
+		result["Count"] = self.ItemCount
+		
+		return result
+	end
+
+	method void Deserialize(table deserTable)
+		self.ItemID = deserTable["ID"]
+		self.ItemCount = deserTable["Count"]
+	end
+
+end

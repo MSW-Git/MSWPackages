@@ -1,0 +1,8 @@
+@Event
+script GlobalMailExpiredEvent extends EventType
+
+	property table DeleteUUIDs = {}
+
+	property boolean IsRevoked = false
+
+end
