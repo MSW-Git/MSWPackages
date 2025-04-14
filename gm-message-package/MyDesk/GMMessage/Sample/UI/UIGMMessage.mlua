@@ -1,0 +1,88 @@
+@Component
+script UIGMMessage extends Component
+
+	property Entity Item = nil
+
+	property table ItemPool = {}
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		self:Init()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Init()
+		local entity = self.Entity
+		self.Item = entity:GetChildByName("Item")
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Add(integer id, string str, integer showSec)
+		local item = self:GetItem()
+		item.UIGMMessageItem:Set(id, str, showSec)
+	end
+
+	@ExecSpace("ClientOnly")
+	method Entity GetItem()
+		---@type Entity
+		local item = nil
+		
+		local itemPool = self.ItemPool
+		if #itemPool == 0 then
+			item = self:SpawnItem()
+		else
+			item = table.remove(itemPool, #itemPool) 
+		end
+		
+		return item
+	end
+
+	@ExecSpace("ClientOnly")
+	method Entity SpawnItem()
+		local item = _SpawnService:SpawnByEntity(self.Item, "Item", Vector3.zero, self.Entity)
+		item.Enable = false
+		
+		local uiTransComp = item.UITransformComponent
+		uiTransComp.AlignmentOption = AlignmentType.TopCenter
+		uiTransComp.Pivot = Vector2(0.5, 1)
+		uiTransComp.anchoredPosition = Vector2(0, -20)
+		
+		return item
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Remove(integer id)
+		-- Removes all message UIs corresponding to the given ID.
+		for i, v in ipairs(self.Entity.Children) do
+			if v.Enable == false then
+				continue
+			end
+			
+			local itemComp = v.UIGMMessageItem
+			if itemComp.Id ~= id then
+				continue
+			end
+			
+			itemComp:ReturnToPool()
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void RemoveAll()
+		for i, v in ipairs(self.Entity.Children) do
+			if v.Enable == false then
+				continue
+			end
+			
+			v.UIGMMessageItem:ReturnToPool()
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ReturnToPool(Entity item)
+		-- Instead of creating a new UIEntity each time, the used UIEntity is placed in a pool for reuse later.
+		item.Enable = false
+		table.insert(self.ItemPool, item)
+	end
+
+end

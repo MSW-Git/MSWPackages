@@ -1,0 +1,504 @@
+@Logic
+script GMMessageLogic extends Logic
+
+	property string StorageName = "GMMessage"
+
+	property string TagName = "GMMessage"
+
+	property string ModelName = "UIGMMessage"
+
+	property string ModelToolName = "UIGMMessageTool"
+
+	property string ParentUIPath = "/ui/DefaultGroup"
+
+	property string ParentUIToolPath = "/ui/DefaultGroup"
+
+	property table DataTable = {}
+
+	property table UpdateTable = {}
+
+	property table PendingEventList = {}
+
+	property number UpdateDeltaAcc = 0
+
+	property Entity UIEntity = nil
+
+	property Entity UIToolEntity = nil
+
+	property boolean IsInitComplete = false
+
+	method void OnBeginPlay()
+		self:InitServer()
+		self:InitClient()
+	end
+
+	@ExecSpace("ServerOnly")
+	method void InitServer()
+		if self:LoadAndWait() == false then
+			return
+		end
+		
+		self.IsInitComplete = true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void InitClient()
+		self.IsInitComplete = true
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean LoadAndWait()
+		local dataTable = self.DataTable
+		table.clear(dataTable)
+		
+		if self:GetMessageDataTableAndWait(dataTable) == false then
+			return false
+		end
+		
+		-- Handles events that occur during MoveToNextPageAndWait
+		---@type table<GMMessageEvent>
+		local pendingEventList = self.PendingEventList
+		for i = 1, #pendingEventList do
+			local evt = pendingEventList[i]
+			local id = evt.Id
+			
+			if evt.IsRemove then
+				dataTable[id] = nil
+				continue
+			end
+			
+			local s = GMMessageStruct()
+			s:FromEvent(evt)
+			dataTable[id] = s
+		end
+		table.clear(pendingEventList)
+		
+		self:Invalidate()
+		return true
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean GetMessageDataTableAndWait(table outTable)
+		-- Retrieves all announcement data from DataStorage, converts it into GMMessageStruct,
+		-- and returns it in a table where the message ID serves as the key.
+		local dsName = self.StorageName
+		local ds = _DataStorageService:GetGlobalDataStorage(dsName)
+		local errorCode, itemPages = ds:GetPagesAndWait(dsName)
+		if errorCode ~= 0 then
+			log_error(string.format("GMMessageLogic GetPagesAndWait Failed. ErrorCode : %d", errorCode))
+			return false
+		end
+		
+		while true do
+			local items = itemPages:GetCurrentPageDatas()
+			for _, item in pairs(items) do
+				local value = item.Value
+				if _Util:IsNilorEmptyString(value) then
+					continue
+				end
+				
+				local dbItem = _HttpService:JSONDecode(value)
+				local s = GMMessageStruct()
+				if not s:Deserialize(dbItem) then
+					continue
+				end
+				
+				outTable[s.Id] = s
+			end
+			
+			if itemPages.IsLastPage == true then
+				break
+			end
+			
+			itemPages:MoveToNextPageAndWait()
+		end
+		
+		return true
+	end
+
+	@ExecSpace("ServerOnly")
+	method void Invalidate()
+		-- All messages are invalidated, and new messages are registered by recalculating based on the server time.
+		self:RemoveMessageAll()
+		
+		local curElapsed = _DateTimeLogic:GetTimeElapsed()
+		---@type table<integer, GMMessageStruct>
+		local dataTable = self.DataTable
+		for id, s in pairs(dataTable) do
+			self:TryRegisterMessage(s, curElapsed)
+		end
+	end
+
+	@ExecSpace("ServerOnly")
+	method void AddOrModifyMessageData(GMMessageStruct s, integer curElapsed)
+		-- Adds new message data or modifies existing registered message data.
+		local id = s.Id
+		---@type table<integer, GMMessageStruct>
+		local dataTable = self.DataTable
+		
+		local sBef = dataTable[id]
+		if sBef ~= nil then
+			-- Deletes the existing message and reapplies it.
+			self:RemoveMessage(id)
+		end
+		
+		dataTable[id] = s
+		self:TryRegisterMessage(s, curElapsed)
+	end
+
+	@ExecSpace("ServerOnly")
+	method void TryRegisterMessage(GMMessageStruct s, integer curElapsed)
+		-- Registers scheduled or ongoing announcements in the table as update targets.
+		local targetElapsed = s:GetTargetElapsed(curElapsed)
+		if targetElapsed == nil then
+			return
+		end
+		
+		self.UpdateTable[s.Id] = targetElapsed
+	end
+
+	@ExecSpace("ServerOnly")
+	method void RemoveMessageData(integer id)
+		-- Removes both the message data and the displayed message in the client.
+		---@type table<integer, GMMessageStruct>
+		local dataTable = self.DataTable
+		dataTable[id] = nil
+		
+		self:RemoveMessage(id)
+	end
+
+	@ExecSpace("ServerOnly")
+	method void RemoveMessage(integer id)
+		-- Removes the currently displayed message in the client that corresponds to the given ID, if any.
+		self.UpdateTable[id] = nil
+		self:RemoveMessageToClient(id)
+	end
+
+	@ExecSpace("ServerOnly")
+	method void RemoveMessageAll()
+		-- Removes scheduled and ongoing announcements, as well as all currently displayed messages in the client.
+		table.clear(self.UpdateTable)
+		self:RemoveAllMessageToClient()
+	end
+
+	@ExecSpace("Client")
+	method void AddMessageToClient(integer id, string text, integer showSeconds)
+		if not self.IsInitComplete then
+			return
+		end
+		
+		local ui = self:ActiveUI()
+		ui.UIGMMessage:Add(id, text, showSeconds)
+	end
+
+	@ExecSpace("Client")
+	method void RemoveMessageToClient(integer id)
+		if not self.IsInitComplete then
+			return
+		end
+		
+		local ui = self:GetUI()
+		if ui == nil then
+			return
+		end
+		
+		ui.UIGMMessage:Remove(id)
+	end
+
+	@ExecSpace("Client")
+	method void RemoveAllMessageToClient()
+		if not self.IsInitComplete then
+			return
+		end
+		
+		local ui = self:GetUI()
+		if ui == nil then
+			return
+		end
+		
+		ui.UIGMMessage:RemoveAll()
+	end
+
+	@ExecSpace("ServerOnly")
+	method void OnUpdate(number delta)
+		if not self.IsInitComplete then
+			return
+		end
+		
+		-- Updates every 1 second.
+		self.UpdateDeltaAcc += delta
+		if self.UpdateDeltaAcc < 1 then
+			return
+		end
+		self.UpdateDeltaAcc = 0
+		
+		local curElapsed = _DateTimeLogic:GetTimeElapsed()
+		
+		---@type table<integer, integer>
+		local updateTable = self.UpdateTable
+		
+		for id, targetElapsed in pairs(updateTable) do
+			if curElapsed < targetElapsed then
+				continue
+			end
+			
+			---@type table<integer, GMMessageStruct>
+			local dataTable = self.DataTable
+			local s = dataTable[id]
+			if s == nil then
+				continue
+			end
+			
+			self:AddMessageToClient(s.Id, s.Message, s.ShowSeconds)
+			
+			-- Registers the next time the message will be displayed.
+			-- If there is no time, it returns nil and removes the entry from the table.
+			updateTable[id] = s:GetTargetElapsed(curElapsed)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method Entity ActiveUI()
+		-- Spawns the UIGMMessage model or activates the existing UI entity.
+		local entity = self:GetUI()
+		if entity ~= nil then
+			entity.Enable = true
+			return entity
+		end
+		
+		entity = self:Inner_SpawnUI(self.ModelName, self.ParentUIPath)
+		self.UIEntity = entity
+		
+		return entity
+	end
+
+	@ExecSpace("ClientOnly")
+	method Entity GetUI()
+		-- Retrieves the existing UIGMMessage entity.
+		local entity = self.UIEntity
+		if not isvalid(entity) then
+			return nil
+		end
+		
+		return entity
+	end
+
+	@ExecSpace("ClientOnly")
+	method Entity ActiveUITool()
+		-- Spawns the UIGMMessageTool model or activates the existing UI entity.
+		local entity = self:GetUITool()
+		if entity ~= nil then
+			entity.Enable = true
+			return entity
+		end
+		
+		entity = self:Inner_SpawnUI(self.ModelToolName, self.ParentUIToolPath)
+		self.UIToolEntity = entity
+		
+		return entity
+	end
+
+	@ExecSpace("ClientOnly")
+	method Entity GetUITool()
+		-- Retrieves the existing UIGMMessageTool entity.
+		local entity = self.UIToolEntity
+		if not isvalid(entity) then
+			return nil
+		end
+		
+		return entity
+	end
+
+	@ExecSpace("ClientOnly")
+	method Entity Inner_SpawnUI(string modelName, string parentUIPath)
+		-- Spawns the model corresponding to modelName as a child of ParentUIPath.
+		local modelId = _EntryService:GetModelIdByName(modelName)
+		if _Util:IsNilorEmptyString(modelId) then
+			log_error(string.format("Cannot find modelId with the name (%s)",  modelName))
+			return nil
+		end
+		
+		local parent = _EntityService:GetEntityByPath(parentUIPath)
+		if not isvalid(parent) then
+			log_error(string.format("Cannot find an entity with the path (%s)",  parentUIPath))
+			return nil
+		end
+		
+		local entity = _SpawnService:SpawnByModelId(modelId, modelName, Vector3.zero, parent)
+		if entity == nil then
+			log_error("GMMessageLogic SpawnByModelId Failed.")
+			return nil
+		end
+		
+		return entity
+	end
+
+	@ExecSpace("Server")
+	method void RequestOpenUITool()
+		-- Requests the MessageData from the server and opens the tool in the client using the received data.
+		if not _AdminLogic:IsAdmin(senderUserId) then
+			return
+		end
+		
+		---@type table<integer, GMMessageStruct>
+		local dataTable = {}
+		if not self:GetMessageDataTableAndWait(dataTable) then
+			return
+		end
+		
+		local dbItems = {}
+		for _, s in pairs(dataTable) do
+			local dbItem = s:Serialize()
+			table.insert(dbItems, dbItem)
+		end
+		
+		local dbItemsStr = ""
+		if #dbItems ~= 0 then
+			dbItemsStr = _HttpService:JSONEncode(dbItems)
+		end
+		
+		self:ResponseOpenUITool(dbItemsStr, senderUserId)
+	end
+
+	@ExecSpace("Client")
+	method void ResponseOpenUITool(string dbItemsStr)
+		local dataTable = {}
+		
+		if not _Util:IsNilorEmptyString(dbItemsStr) then
+			local dbItems = _HttpService:JSONDecode(dbItemsStr)
+			for i = 1, #dbItems do
+				local s = GMMessageStruct()
+				s:Deserialize(dbItems[i])
+				table.insert(dataTable, s)
+			end
+		end
+		
+		local uiEntity = self:ActiveUITool()
+		if uiEntity == nil then
+			return
+		end
+		
+		uiEntity.UIGMMessageTool:SetDataTable(dataTable)
+	end
+
+	@ExecSpace("Server")
+	method void RequestAddOrModifyMessage(GMMessageStruct s)
+		-- Requests the server to add or modify the message data.
+		if not _AdminLogic:IsAdmin(senderUserId) then
+			return
+		end
+		
+		local id = s.Id
+		local dbItem = s:Serialize()
+		local dataStr = _HttpService:JSONEncode(dbItem)
+		
+		local dsName = self.StorageName
+		local tag = self.TagName
+		
+		local keyInfo = DataStorageKeyInfo()
+		keyInfo.Key = tostring(id)
+		keyInfo.Tag = tag
+		
+		local ds = _DataStorageService:GetGlobalDataStorage(dsName)
+		local errorCode = ds:SetByInfoAndWait(keyInfo, dataStr)
+		if errorCode ~= 0 then
+			local errorStr = string.format("GMMessageLogic:RequestAddOrModifyMessage SetByInfoAndWait Error. ErroCode : %d", errorCode)
+			self:LogErrorAndShowMessage(errorStr, senderUserId)
+			return
+		end
+		
+		local evt = s:ToEvent(false)
+		local resultCode = _WorldInstanceService:RequestSendEventToAllWorldInstancesAndWait(evt)
+		if resultCode ~= SendEventRequestResultCode.OK then
+			local errorStr = "GMMessageLogic:RequestAddOrModifyMessage RequestSendEventToAllWorldInstancesAndWait Error. ErroCode : " .. tostring(resultCode)
+			self:LogErrorAndShowMessage(errorStr, senderUserId)
+			return
+		end
+		
+		local successStr = string.format("GMMessageLogic:AddOrModifyMessage Success. Id : %d", id)
+		self:LogAndShowMessage(successStr, senderUserId)
+	end
+
+	@ExecSpace("Server")
+	method void RequestRemoveMessage(integer id)
+		-- Requests the server to delete the message data.
+		local dsName = self.StorageName
+		local tag = self.TagName
+		
+		local ds = _DataStorageService:GetGlobalDataStorage(dsName)
+		local errorCode = ds:DeleteAndWait(tostring(id))
+		if errorCode ~= 0 then
+			local errorStr = string.format("GMMessageLogic:RequestRemoveMessage SetByInfoAndWait Error. ErroCode : %d", errorCode)
+			self:LogErrorAndShowMessage(errorStr, senderUserId)
+			return
+		end
+		
+		local evt = GMMessageEvent()
+		evt.Id = id
+		evt.IsRemove = true
+		
+		local resultCode = _WorldInstanceService:RequestSendEventToAllWorldInstancesAndWait(evt)
+		if resultCode ~= SendEventRequestResultCode.OK then
+			local errorStr = "GMMessageLogic:RequestRemoveMessage RequestSendEventToAllWorldInstancesAndWait Error. ErroCode : " .. tostring(errorCode)
+			self:LogErrorAndShowMessage(errorStr, senderUserId)
+			return
+		end
+		
+		local successStr = string.format("GMMessageLogic:RequestRemoveMessage Success. Id : %d", id)
+		self:LogAndShowMessage(successStr, senderUserId)
+	end
+
+	@ExecSpace("ServerOnly")
+	method void LogAndShowMessage(string str, string userId)
+		log(str)
+		_UIToast:ShowMessage(str, userId)
+	end
+
+	@ExecSpace("ServerOnly")
+	method void LogErrorAndShowMessage(string str, string userId)
+		log_error(str)
+		_UIToast:ShowMessage(str, userId)
+	end
+
+	@ExecSpace("ServerOnly")
+	@EventSender("Logic", "DateTimeLogic")
+	handler HandleServerTimeOffsetChangedEvent(ServerTimeOffsetChangedEvent event)
+		-- If the server time changes, it recalculates the messages to be displayed.
+		self:Invalidate()
+	end
+
+	@ExecSpace("ServerOnly")
+	@EventSender("Service", "WorldInstanceService")
+	handler HandleGMMessageEvent(GMMessageEvent event)
+		-- Applies the event when the message data has been changed, upon receiving the event.
+		if not self.IsInitComplete then
+			table.insert(self.PendingEventList, event)
+		end
+		
+		if event.IsRemove then
+			self:RemoveMessageData(event.Id)
+			return
+		end
+		
+		local s = GMMessageStruct()
+		s:FromEvent(event)
+		self:AddOrModifyMessageData(s, _DateTimeLogic:GetTimeElapsed())
+	end
+
+	@EventSender("Service", "InputService")
+	handler HandleKeyDownEvent(KeyDownEvent event)
+		if event.key == KeyboardKey.F11 then
+			local uiEntity = self:GetUITool()
+			
+			-- Open
+			if uiEntity == nil or uiEntity.Enable == false then
+				self:RequestOpenUITool()
+				return
+			end
+			
+			-- Close
+			uiEntity.Enable = false
+		end
+	end
+
+end

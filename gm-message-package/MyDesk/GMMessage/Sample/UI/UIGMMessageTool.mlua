@@ -1,0 +1,203 @@
+@Component
+script UIGMMessageTool extends Component
+
+	property table ButtonList = {}
+
+	property table PageList = {}
+
+	property Entity Page_View = nil
+
+	property Entity Page_AddAndModify = nil
+
+	property Entity Page_Delete = nil
+
+	property Entity Btn_View = nil
+
+	property Entity Btn_AddAndModify = nil
+
+	property Entity Btn_Delete = nil
+
+	property Entity Text_UserTimeOffset = nil
+
+	property integer UserTimeOffset = 9
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		local panel = entity:GetChildByName("Panel")
+		
+		-- Title
+		local title = panel:GetChildByName("Title")
+		
+		local text_UserTimeOffset = title:GetChildByName("Text_UserTimeOffset")
+		local userTimeOffsetStr = self:ToStringWithSign(self.UserTimeOffset)
+		text_UserTimeOffset.TextComponent.Text = userTimeOffsetStr
+		text_UserTimeOffset.TextInputComponent.Text = userTimeOffsetStr
+		text_UserTimeOffset:ConnectEvent(TextInputEndEditEvent, self.OnEndEditText_UserTimeOffset)
+		self.Text_UserTimeOffset = text_UserTimeOffset
+		
+		local btn_tooltip = text_UserTimeOffset:GetChildByName("Btn_Tooltip")
+		local panel_tooltip = btn_tooltip:GetChildByName("Panel_TooTip")
+		btn_tooltip:ConnectEvent(ButtonClickEvent, function(event) panel_tooltip.Enable = not panel_tooltip.Enable end)
+		
+		local btn_Exit = title:GetChildByName("Btn_Exit")
+		btn_Exit:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Exit)
+		
+		-- ButtonList
+		local buttonList = self.ButtonList
+		local tabButtons = panel:GetChildByName("TabButtons")
+		
+		local btn_View = tabButtons:GetChildByName("Btn_View")
+		btn_View:ConnectEvent(ButtonClickEvent, self.OnClickBtn_View)
+		table.insert(buttonList, btn_View)
+		self.Btn_View = btn_View
+		
+		local btn_AddAndModify = tabButtons:GetChildByName("Btn_AddAndModify")
+		btn_AddAndModify:ConnectEvent(ButtonClickEvent, self.OnClickBtn_AddAndModify)
+		table.insert(buttonList, btn_AddAndModify)
+		self.Btn_AddAndModify = btn_AddAndModify
+		
+		local btn_Delete = tabButtons:GetChildByName("Btn_Delete")
+		btn_Delete:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Delete)
+		table.insert(buttonList, btn_Delete)
+		self.Btn_Delete = btn_Delete
+		
+		-- Pages
+		local pageList = self.PageList
+		local pages = panel:GetChildByName("Pages")
+		
+		local page_view = pages:GetChildByName("Page_View")
+		page_view.UIGMMessageTool_View.Parent = self
+		table.insert(pageList, page_view)
+		self.Page_View = page_view
+		
+		local page_addAndModify = pages:GetChildByName("Page_AddAndModify")
+		page_addAndModify.UIGMMessageTool_AddAndModify.Parent = self
+		table.insert(pageList, page_addAndModify)
+		self.Page_AddAndModify = page_addAndModify
+		
+		local page_delete = pages:GetChildByName("Page_Delete")
+		page_delete.UIGMMessageTool_Delete.Parent = self
+		table.insert(pageList, page_delete)
+		self.Page_Delete = page_delete
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetDataTable(table dataTable)
+		self.Page_View.UIGMMessageTool_View:SetDataTable(dataTable)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Exit()
+		self.Entity.Enable = false
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_View()
+		self:SetEnableButtons(false)
+		self:SetEnableButton(self.Btn_View, true)
+		
+		self:SetEnablePages(false)
+		self.Page_View.Enable = true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_AddAndModify()
+		self:SetEnableButtons(false)
+		self:SetEnableButton(self.Btn_AddAndModify, true)
+		
+		self:SetEnablePages(false)
+		self.Page_AddAndModify.Enable = true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Delete()
+		self:SetEnableButtons(false)
+		self:SetEnableButton(self.Btn_Delete, true)
+		
+		self:SetEnablePages(false)
+		self.Page_Delete.Enable = true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetEnablePages(boolean enable)
+		---@type table<Entity>
+		local pageList = self.PageList
+		
+		for i = 1, #pageList do
+			pageList[i].Enable = enable
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetEnableButtons(boolean enable)
+		---@type table<Entity>
+		local buttonList = self.ButtonList
+		
+		for i = 1, #buttonList do
+			self:SetEnableButton(buttonList[i], enable)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetEnableButton(Entity entity, boolean enable)
+		local spriteGUIComp = entity.SpriteGUIRendererComponent
+		local textComp = entity.TextComponent
+		
+		if enable then
+			spriteGUIComp.ImageRUID = "e22dca176e7c48b39d5b40554b546e22"
+			textComp.FontColor = Color.FromHexCode("#653122")
+		else
+			spriteGUIComp.ImageRUID = "9bb8e4d004fb46bb9c1b528b3c1ebf9f"
+			textComp.FontColor = Color.FromHexCode("#ffe398")
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnEndEditText_UserTimeOffset(TextInputEndEditEvent event)
+		local offset = math.tointeger(tonumber(event.text))
+		local textInputComp = self.Text_UserTimeOffset.TextInputComponent
+		
+		if offset == nil then
+			textInputComp.Text = self:ToStringWithSign(self.UserTimeOffset)
+			return
+		end
+		
+		-- The UTC time offset ranges from -23 hours to +23 hours.
+		if offset <= -24 or offset >= 24 then
+			textInputComp.Text = self:ToStringWithSign(self.UserTimeOffset)
+			return
+		end
+		
+		self.UserTimeOffset = offset
+		textInputComp.Text = self:ToStringWithSign(offset)
+		
+		self:Invalidate()
+	end
+
+	@ExecSpace("ClientOnly")
+	method integer ToIntegerWithSign(string str)
+		-- If there is a '+' sign, it is excluded and converted to an integer; if not, it is processed as is.
+		if str:sub(1, 1) == "+" then
+			return math.tointeger(tonumber(str))
+		else
+			return math.tointeger(tonumber(str)) or 0
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method string ToStringWithSign(integer num)
+		-- Return the positive number with a '+' sign attached.
+		if num >= 0 then
+			return "+" .. tostring(num)
+		else
+			return tostring(num)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Invalidate()
+		self.Page_View.UIGMMessageTool_View:Invalidate()
+	end
+
+end

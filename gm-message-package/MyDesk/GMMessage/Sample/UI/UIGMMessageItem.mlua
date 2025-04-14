@@ -1,0 +1,44 @@
+@Component
+script UIGMMessageItem extends Component
+
+	property integer Id = 0
+
+	property integer Index = 0
+
+	property integer TimerId = 0
+
+	@ExecSpace("ClientOnly")
+	method void Set(integer id, string str, integer showSec)
+		local entity = self.Entity
+		
+		self.Id = id
+		entity.TextComponent.Text = str
+		entity.Enable = true
+		
+		self.TimerId = _TimerService:SetTimerOnce(function()
+			self:ReturnToPool()
+		end, showSec)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ReturnToPool()
+		-- Instead of creating a new UIEntity each time, the used UIEntity is placed in a pool for reuse later.
+		local entity = self.Entity
+		entity.Enable = false
+		self:ClearTimer()
+		
+		entity.TextComponent.Text = ""
+		
+		local parentUI = entity.Parent
+		parentUI.UIGMMessage:ReturnToPool(entity)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ClearTimer()
+		if self.TimerId ~= 0 then
+			_TimerService:ClearTimer(self.TimerId)
+			self.TimerId = 0
+		end
+	end
+
+end

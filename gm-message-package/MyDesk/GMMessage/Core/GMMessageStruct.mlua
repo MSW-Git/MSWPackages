@@ -1,0 +1,106 @@
+@Struct
+script GMMessageStruct
+
+	property integer Id = 0
+
+	property string Message = ""
+
+	property integer StartTime = 0
+
+	property integer EndTime = 0
+
+	property integer ShowSeconds = 0
+
+	property integer ShowIntervalSeconds = 0
+
+	method table Serialize()
+		local dbItem = {}
+		dbItem["id"] = self.Id
+		dbItem["message"] = self.Message
+		dbItem["startTime"] = self.StartTime
+		dbItem["endTime"] = self.EndTime
+		dbItem["showSeconds"] = self.ShowSeconds
+		dbItem["showIntervalSeconds"] = self.ShowIntervalSeconds
+		
+		return dbItem
+	end
+
+	method boolean Deserialize(table dbItem)
+		self.Id = dbItem["id"]
+		self.Message = dbItem["message"]
+		self.StartTime = dbItem["startTime"]
+		self.EndTime = dbItem["endTime"]
+		self.ShowSeconds = dbItem["showSeconds"]
+		self.ShowIntervalSeconds = dbItem["showIntervalSeconds"]
+		
+		return true
+	end
+
+	method GMMessageEvent ToEvent(boolean isRemove)
+		local evt = GMMessageEvent()
+		evt.Id = self.Id
+		evt.IsRemove = isRemove
+		
+		if isRemove then
+			return
+		end
+		
+		evt.Message = self.Message
+		evt.StartTime = self.StartTime
+		evt.EndTime = self.EndTime
+		evt.ShowSeconds = self.ShowSeconds
+		evt.ShowIntervalSeconds = self.ShowIntervalSeconds
+		
+		return evt
+	end
+
+	method void FromEvent(GMMessageEvent evt)
+		self.Id = evt.Id
+		
+		if evt.IsRemove then
+			return
+		end
+		
+		self.Message = evt.Message
+		self.StartTime = evt.StartTime
+		self.EndTime = evt.EndTime
+		self.ShowSeconds = evt.ShowSeconds
+		self.ShowIntervalSeconds = evt.ShowIntervalSeconds
+	end
+
+	method integer GetTargetElapsed(integer curElapsed)
+		-- Returns the next scheduled announcement time based on the current time, or nil if there is no scheduled announcement.  
+		if curElapsed == nil then
+			curElapsed = _DateTimeLogic:GetTimeElapsed()
+		end
+		
+		local startElapsed = self.StartTime
+		local endElapsed = self.EndTime
+		
+		-- Invalid time setting
+		if startElapsed >= endElapsed then
+			return nil
+		end
+		
+		-- Announcement already ended
+		if curElapsed >= endElapsed then
+			return nil
+		end
+		
+		-- Scheduled announcement
+		if curElapsed < startElapsed then
+			return startElapsed
+		end
+		
+		-- Ongoing announcement  
+		local intervalElapsed = math.floor(self.ShowIntervalSeconds * 1000)
+		local intervalCount = (curElapsed - startElapsed + intervalElapsed) // intervalElapsed
+		local targetElapsed = startElapsed + intervalCount * intervalElapsed
+		if endElapsed < targetElapsed then
+			return nil
+		end
+		
+		return targetElapsed
+	end
+
+end

@@ -1,0 +1,20 @@
+@Event
+script GMMessageEvent extends EventType
+
+	property integer Id = 0
+
+	property boolean IsRemove = false
+
+	property integer MessageType = 0
+
+	property string Message = ""
+
+	property integer StartTime = 0
+
+	property integer EndTime = 0
+
+	property integer ShowSeconds = 0
+
+	property integer ShowIntervalSeconds = 0
+
+end

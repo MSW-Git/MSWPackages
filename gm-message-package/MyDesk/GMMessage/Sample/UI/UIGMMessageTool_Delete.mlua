@@ -1,0 +1,35 @@
+@Component
+script UIGMMessageTool_Delete extends Component
+
+	property UIGMMessageTool Parent = nil
+
+	property TextComponent Text_Id = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		
+		self.Text_Id = entity:GetChildByName("Text_Id").TextComponent
+		
+		local btn_delete = entity:GetChildByName("Btn_Delete")
+		btn_delete:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Delete)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Delete(ButtonClickEvent event)
+		local id = math.tointeger(tonumber(self.Text_Id.Text))
+		if id == nil then
+			self:LogErrorAndShowMessage("The id format is incorrect.")
+			return
+		end
+		
+		_GMMessageLogic:RequestRemoveMessage(id)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void LogErrorAndShowMessage(string str)
+		log(str)
+		_UIToast:ShowMessage(str)
+	end
+
+end

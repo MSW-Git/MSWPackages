@@ -1,0 +1,51 @@
+@Component
+script UIGMMessageTool_ViewItem extends Component
+
+	property TextComponent Id = nil
+
+	property TextComponent Message = nil
+
+	property TextComponent StartDate = nil
+
+	property TextComponent EndDate = nil
+
+	property TextComponent ShowIntervalSeconds = nil
+
+	property TextComponent ShowSeconds = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		self.Id = entity:GetChildByName("Text_Id").TextComponent
+		self.Message = entity:GetChildByName("Scroll_Text"):GetChildByName("Text_Message").TextComponent
+		self.StartDate = entity:GetChildByName("Text_StartDate").TextComponent
+		self.EndDate = entity:GetChildByName("Text_EndDate").TextComponent
+		self.ShowIntervalSeconds = entity:GetChildByName("Text_ShowIntervalSeconds").TextComponent
+		self.ShowSeconds = entity:GetChildByName("Text_ShowSeconds").TextComponent
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Set(GMMessageStruct s, integer userTimeOffset)
+		self.Id.Text = tostring(s.Id)
+		self.Message.Text = s.Message
+		
+		local hourElapsed = 60 * 60 * 1000
+		local offsetElapsed = userTimeOffset * hourElapsed
+		self.StartDate.Text = DateTime(s.StartTime + offsetElapsed):ToFormattedString("yyyy-MM-dd HH:mm:ss")
+		self.EndDate.Text = DateTime(s.EndTime + offsetElapsed):ToFormattedString("yyyy-MM-dd HH:mm:ss")
+		
+		self.ShowIntervalSeconds.Text = tostring(s.ShowIntervalSeconds)
+		self.ShowSeconds.Text = tostring(s.ShowSeconds)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		self.Id.Text = ""
+		self.Message.Text = ""
+		self.StartDate.Text = ""
+		self.EndDate.Text = ""
+		self.ShowIntervalSeconds.Text = ""
+		self.ShowSeconds.Text = ""
+	end
+
+end

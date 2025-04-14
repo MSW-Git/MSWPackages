@@ -1,0 +1,104 @@
+@Component
+script UIGMMessageTool_AddAndModify extends Component
+
+	property UIGMMessageTool Parent = nil
+
+	property TextComponent Text_Id = nil
+
+	property TextComponent Text_Message = nil
+
+	property TextComponent Text_StartDate = nil
+
+	property TextComponent Text_EndDate = nil
+
+	property TextComponent Text_ShowIntervalSeconds = nil
+
+	property TextComponent Text_ShowSeconds = nil
+
+	property any GetElapsedFunc = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		local item = entity:GetChildByName("Item")
+		
+		self.Text_Id = item:GetChildByName("Text_Id").TextComponent
+		self.Text_Message = item:GetChildByName("Text_Message").TextComponent
+		self.Text_StartDate = item:GetChildByName("Text_StartDate").TextComponent
+		self.Text_EndDate = item:GetChildByName("Text_EndDate").TextComponent
+		self.Text_ShowIntervalSeconds = item:GetChildByName("Text_ShowIntervalSeconds").TextComponent
+		self.Text_ShowSeconds = item:GetChildByName("Text_ShowSeconds").TextComponent
+		
+		local btn_Register = entity:GetChildByName("Btn_Register")
+		btn_Register:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Register)
+		
+		local function getElapsedFunc(dateTimeStr)
+			return DateTime(dateTimeStr).Elapsed
+		end
+		self.GetElapsedFunc = getElapsedFunc
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Register()
+		local s = GMMessageStruct()
+		local id = math.tointeger(tonumber(self.Text_Id.Text))
+		if id == nil then
+			self:LogErrorAndShowMessage("The Id format is incorrect.")
+			return
+		end
+		s.Id = id
+		
+		s.Message = self.Text_Message.Text
+		
+		local hourElapsed = 60 * 60 * 1000
+		local userTimeOffset = self.Parent.UserTimeOffset
+		local offsetElapsed = userTimeOffset * hourElapsed
+		
+		local success, result = pcall(self.GetElapsedFunc, self.Text_StartDate.Text)
+		if not success then
+			self:LogErrorAndShowMessage("The StartDate text format is incorrect.")
+			return
+		end
+		s.StartTime = result - offsetElapsed
+		
+		success, result = pcall(self.GetElapsedFunc, self.Text_EndDate.Text)
+		if not success then
+			self:LogErrorAndShowMessage("The EndDate text format is incorrect.")
+			return
+		end
+		s.EndTime = result - offsetElapsed
+		
+		local showIntervalSeconds = math.tointeger(tonumber(self.Text_ShowIntervalSeconds.Text))
+		if showIntervalSeconds == nil or showIntervalSeconds <= 1 then
+			self:LogErrorAndShowMessage("The ShowIntervalSeconds text format is incorrect.")
+			return
+		end
+		s.ShowIntervalSeconds = showIntervalSeconds
+		
+		local showSeconds = math.tointeger(tonumber(self.Text_ShowSeconds.Text))
+		if showSeconds == nil or showSeconds <= 1 then
+			self:LogErrorAndShowMessage("The ShowSeconds text format is incorrect.")
+			return
+		end
+		s.ShowSeconds = showSeconds
+		
+		if s.StartTime >= s.EndTime then
+			self:LogErrorAndShowMessage("EndTime is earlier than StartTime.")
+			return
+		end
+		
+		if showIntervalSeconds < showSeconds then
+			self:LogErrorAndShowMessage("The value of showIntervalSeconds is smaller than showSeconds.")
+			return
+		end
+		
+		_GMMessageLogic:RequestAddOrModifyMessage(s)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void LogErrorAndShowMessage(string str)
+		log(str)
+		_UIToast:ShowMessage(str)
+	end
+
+end
