@@ -39,3 +39,11 @@ luac.out
 *.x86_64
 *.hex
 
+# Non-source files used in MSW
+*.codeblock
+*.directory
+*.scriptfile
+*.model
+
+# Basic source files
+*/MyDesk/*.mlua
