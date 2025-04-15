@@ -1,0 +1,36 @@
+@Component
+script RecycleViewTest extends Component
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		self.Entity.RecycleScrollView.onUpdateCell = function(index, entity) self:UpdateCell(index, entity) end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void UpdateCell(integer index, Entity cellItem)
+		cellItem.TextComponent.Text = " Current : "..index
+	end
+
+	@EventSender("Service", "InputService")
+	handler HandleKeyDownEvent(KeyDownEvent event)
+		--------------- Native Event Sender Info ----------------
+		-- Sender: InputService
+		-- Space: Client
+		---------------------------------------------------------
+		
+		-- Parameters
+		local key = event.key
+		---------------------------------------------------------
+		
+		if key == KeyboardKey.M  then
+			self.Entity.RecycleScrollView:ScrollToIndex(25, _ScrollAlignmentType.End)
+		elseif key == KeyboardKey.K  then
+			self.Entity.RecycleScrollView:SetTotalCount(100, true)
+		elseif key == KeyboardKey.L  then
+			self.Entity.RecycleScrollView:OnScroll(Vector2(30000,30000))
+		elseif key == KeyboardKey.J  then
+			self.Entity.RecycleScrollView:OnDrag(Vector2(-10000,-1000))
+		end
+	end
+
+end

@@ -1,0 +1,15 @@
+@Struct
+script ScrollItem
+
+	property integer RealIndex = 0
+
+	property integer CurrentIndex = 0
+
+	property Entity Entity = nil
+
+	method void Set(integer realIndex, integer currentIndex, Entity entity)
+		self.RealIndex = realIndex
+		self.CurrentIndex = currentIndex
+		self.Entity = entity
+	end
+end

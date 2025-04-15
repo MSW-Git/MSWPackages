@@ -1,0 +1,855 @@
+@Component
+script RecycleScrollView extends Component
+
+	@Description("Sets the inner margin of the scroll area.")
+	property Vector4 Padding = Vector4(0,0,0,0)
+
+	@Description("Sets the spacing between scroll items.")
+	property Vector2 Spacing = Vector2(0,0)
+
+	@Description("Sets the scroll direction (0: horizontal, 1: vertical).")
+	property integer ScrollingType = 0
+
+	@Description("Sets the total number of scroll items.")
+	property integer TotalCount = 0
+
+	@Description("Sets the number of items arranged along the cross axis.")
+	property integer CrossAxisItemCount = 1
+
+	@Description("Sets how child items are aligned within the layout.")
+	property integer ChildAlignmentType = 0
+
+	@Description("Sets the item entity to be instantiated.")
+	property Entity Item = nil
+
+	@Description("Sets the sensitivity of the scroll wheel.")
+	property number ScrollSensitivity = 1
+
+	@Description("Sets the horizontal scroll bar.")
+	property ScrollBar HorizontalBar = nil
+
+	@Description("Sets the vertical scroll bar.")
+	property ScrollBar VerticalBar = nil
+
+	@Description("Sets the callback function that is invoked when a cell is updated. Provides the index and the corresponding cell entity.")
+	property any onUpdateCell = nil
+
+	@Description("Represents the content area where child items are placed.")
+	@HideFromInspector
+	property Entity ViewPort = nil
+
+	@Description("Represents the minimum corner of the visible content box in the viewport.")
+	@HideFromInspector
+	property Vector2 ViewportContentBoundsMin = Vector2(0,0)
+
+	@Description("Represents the maximum corner of the visible content box in the viewport.")
+	@HideFromInspector
+	property Vector2 ViewportContentBoundsMax = Vector2(0,0)
+
+	@Description("Represents the minimum position of the full content bounds affected by scrolling.")
+	@HideFromInspector
+	property Vector2 ScrolledContentBoundsMin = Vector2(0,0)
+
+	@Description("Represents the maximum position of the full content bounds affected by scrolling.")
+	@HideFromInspector
+	property Vector2 ScrolledContentBoundsMax = Vector2(0,0)
+
+	@Description("The total static size of all scrollable content, based on the initial scroll bounds.")
+	@HideFromInspector
+	property Vector2 TotalContentSize = Vector2(0,0)
+
+	@Description("The layout size of the content area formed by the currently active items, including spacing.")
+	@HideFromInspector
+	property integer ActiveContentAreaSize = 0
+
+	@Description("Stores the last recorded touch position.")
+	@HideFromInspector
+	property Vector2 PreviousTouchPosition = Vector2(0,0)
+
+	@Description("Indicates whether the pointer is over the scroll area.")
+	@HideFromInspector
+	property boolean IsPointerOver = false
+
+	@Description("Indicates whether scrolling is enabled.")
+	@HideFromInspector
+	property boolean IsScrollable = false
+
+	@Description("Indicates whether the scroll area has been clicked or touched.")
+	@HideFromInspector
+	property boolean IsPressed = false
+
+	@Description("A list of currently active and reused cells.")
+	@HideFromInspector
+	property table ActiveCells = {}
+
+	@Description("Used to determine whether two positions are approximately equal.")
+	@HideFromInspector
+	property number EPSILON_POSITION = 0.001
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		self.Entity:AddComponent(MaskComponent)
+		self.Entity:AddComponent(UITouchReceiveComponent)
+		self:Clear()
+		
+		self.ViewPort = self.Entity
+		
+		self:SetItem(self.Item)
+		
+		self:Initialize()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Initialize()
+		self:SetViewportBounds()
+		self:Refresh(true)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetViewportBounds()
+		local minX = 0
+		local minY = 0
+		
+		local maxX = self.ViewPort.UITransformComponent.RectSize.x
+		local maxY = -self.ViewPort.UITransformComponent.RectSize.y
+		
+		self.ViewportContentBoundsMin = Vector2(minX, minY)
+		self.ViewportContentBoundsMax = Vector2(maxX, maxY)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetItem(Entity item)
+		if item == nil then
+			return
+		end
+		
+		self.Item = item
+		self.Item:SetEnable(false)
+	end
+
+	@ExecSpace("ClientOnly")
+	method Entity GetOrCreateItem(integer index, Vector3 pos)
+		local result = self.ViewPort:GetChildByName("Item"..index)
+		if result == nil then
+			result = _SpawnService:SpawnByEntity(self.Item, "Item"..index, pos, self.ViewPort)
+		end
+		
+		return result	
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnMapLeave(Entity leftMap)
+		self:Clear()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		self.IsPressed = false
+		self.PreviousTouchPosition = Vector2.zero
+		self.ActiveContentAreaSize = 0
+		self.IsScrollable = false
+		self.IsPointerOver = false
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetViewportRectSize(Vector2 rectSize)
+		self.ViewPort.UITransformComponent.RectSize = rectSize
+		self:SetViewportBounds()
+		self:ChangedScroll()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetTotalCount(integer count, boolean isResetPos)
+		self.TotalCount = count
+		self:Refresh(isResetPos)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ScrollToIndex(integer index, integer scrollAlignmentType)
+		-- Moves the selected index by the given offset.
+		self:Refresh(true)
+		
+		local rectSize = self.Item.UITransformComponent.RectSize
+		
+		local rowIndex = self:CalculateRowIndex(index)
+		local isHorizontal = self.ScrollingType == _ScrollingType.Horizontal		
+		local baseOffset = rectSize * rowIndex + self.Spacing * rowIndex	
+		
+		local moveDir = 0
+		if scrollAlignmentType == _ScrollAlignmentType.Start then
+			moveDir = isHorizontal and -baseOffset.x or baseOffset.y
+		elseif scrollAlignmentType == _ScrollAlignmentType.Center then
+			moveDir = isHorizontal and -baseOffset.x + (self.ViewportContentBoundsMax.x /2) or baseOffset.y + (self.ViewportContentBoundsMax.y /2)
+		elseif scrollAlignmentType == _ScrollAlignmentType.End then
+			moveDir = isHorizontal and -baseOffset.x + (self.ViewportContentBoundsMax.x) - rectSize.x - self.Spacing.x or baseOffset.y + (self.ViewportContentBoundsMax.y) + rectSize.y + self.Spacing.y
+		end
+		
+		if self.ScrollingType == _ScrollingType.Horizontal then
+			self:OnDrag(Vector2(moveDir, 0))
+		elseif self.ScrollingType == _ScrollingType.Vertical then
+			self:OnDrag(Vector2(0, moveDir))
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Refresh(boolean isResetPosition)
+		if self.ViewPort == nil or self.Item == nil then
+			return
+		end
+		
+		if self.CrossAxisItemCount <= 0 then
+			log_error("CrossAxisItemCount is less than or equal to 0.")	
+			return
+		end
+		
+		self:ResetVisibleCells()
+		
+		local isHorizontal = self.ScrollingType == _ScrollingType.Horizontal
+		
+		-- Retrieves the size of the visible viewport area.
+		local viewportSize = self.ViewPort.UITransformComponent.RectSize
+
+		-- Retrieves the size of a single item (cell).
+		local itemSize = self.Item.UITransformComponent.RectSize
+		
+		-- The number of items visible per row or column, depending on the scroll direction.
+		local visibleItemCount = 0
+		
+		-- The total number of rows (or columns) to render, including buffer rows.
+		local visibleLinesWithBuffer = 0
+		if isHorizontal then
+			visibleItemCount = math.tointeger(viewportSize.x / (itemSize.x + self.Spacing.x))	
+			local remain = (viewportSize.x % (itemSize.x + self.Spacing.x))
+			
+			if remain == 0 then
+				visibleLinesWithBuffer = visibleItemCount + 1
+			else
+				visibleLinesWithBuffer = visibleItemCount + 2
+			end
+		else
+			visibleItemCount = math.tointeger(viewportSize.y / (itemSize.y + self.Spacing.y))
+			local remain = (viewportSize.y % (itemSize.y + self.Spacing.y))
+			
+			if remain == 0 then
+				visibleLinesWithBuffer = visibleItemCount + 1
+			else
+				visibleLinesWithBuffer = visibleItemCount + 2		
+			end
+		end
+		
+		local lastRowIndex = self:CalculateRowIndex(self.TotalCount)
+		local totalRowCount = self:CalculateRowCount(self.TotalCount)
+		
+		local visibleItemsInMainAxis = 0
+		local visibleItemsInCrossAxis = 0
+		if isHorizontal then
+			visibleItemsInMainAxis = math.min(visibleItemCount, totalRowCount)
+			visibleItemsInCrossAxis = math.min(self.TotalCount, self.CrossAxisItemCount)
+		else
+			visibleItemsInMainAxis = math.min(self.TotalCount, self.CrossAxisItemCount)
+			visibleItemsInCrossAxis = math.min(visibleItemCount, totalRowCount)
+		end
+		
+		local itemRectSize = self.Item.UITransformComponent.RectSize
+		local itemPivot = self.Item.UITransformComponent.Pivot
+		
+		-- Computes the starting offset for initial item placement along horizontal or vertical axis.
+		local horizontalStartOffset = self:GetStartOffset((visibleItemsInMainAxis) * itemRectSize.x + self.Spacing.x * (visibleItemsInMainAxis - 1), _ScrollingType.Horizontal)
+		local verticalStartOffset = self:GetStartOffset((visibleItemsInCrossAxis)* itemRectSize.y + self.Spacing.y * (visibleItemsInCrossAxis - 1), _ScrollingType.Vertical)
+		
+		local totalSize = self.TotalContentSize - self.ViewportContentBoundsMax
+		local previousNormalizedPosition = (-self.ScrolledContentBoundsMin) / totalSize
+		
+		-- Sets the minimum and maximum bounds for scrollable content based on direction.
+		if isHorizontal then
+			self.ScrolledContentBoundsMin = Vector2(0, self.Padding.y)
+			self.ScrolledContentBoundsMax = Vector2(totalRowCount * (itemRectSize.x + self.Spacing.x) + self.Padding.z + horizontalStartOffset, -verticalStartOffset - self.Padding.w)
+		else
+			self.ScrolledContentBoundsMin = Vector2(-self.Padding.x, 0)
+			self.ScrolledContentBoundsMax = Vector2(self.Padding.z + horizontalStartOffset, -verticalStartOffset - totalRowCount * (itemRectSize.y + self.Spacing.y) - self.Padding.w)
+		end
+		
+		self.TotalContentSize = self.ScrolledContentBoundsMax
+		
+		local nextPosition = Vector2.zero
+
+		-- Restores previous scroll position if not resetting.
+		if not isResetPosition then
+			local newTotalSize = self.TotalContentSize - self.ViewportContentBoundsMax
+			nextPosition = previousNormalizedPosition * newTotalSize
+		end
+		
+		for i = 1, math.min(visibleLinesWithBuffer, totalRowCount) * self.CrossAxisItemCount, 1 do	
+			local pos = Vector2.zero
+			local item = self:GetOrCreateItem(i, pos:ToVector3())
+			
+			-- Aligns the item's pivot by setting its anchor values.
+			item.UITransformComponent.AnchorsMin = self:GetAnchorsMin()
+			item.UITransformComponent.AnchorsMax = self:GetAnchorsMax()
+			
+			local cellIndex = i - 1
+			local xIndex = math.tointeger(cellIndex % self.CrossAxisItemCount)
+			local yIndex = math.tointeger(cellIndex / self.CrossAxisItemCount)
+			
+			if isHorizontal then
+				pos.x = horizontalStartOffset + (itemRectSize.x * yIndex) + (itemPivot.x * itemRectSize.x) + (self.Spacing.x * yIndex)
+				pos.y = -verticalStartOffset -(itemRectSize.y * xIndex) - ((1- itemPivot.y) * itemRectSize.y) - (self.Spacing.y * xIndex)
+			else
+				pos.x = horizontalStartOffset + (itemRectSize.x * xIndex) + (itemPivot.x * itemRectSize.x) + (self.Spacing.x * xIndex)
+				pos.y = -verticalStartOffset -(itemRectSize.y * yIndex) - ((1 - itemPivot.y) * itemRectSize.y) - (self.Spacing.y * yIndex)
+			end
+		
+			item.UITransformComponent.anchoredPosition = pos
+			
+			local currentRowIndex = self:CalculateRowIndex(i)
+			if lastRowIndex >= currentRowIndex then
+				local scrollItem = ScrollItem()
+				scrollItem:Set(cellIndex, i, item)
+				self.ActiveCells[i] = scrollItem
+				
+				self:UpdateCell(self.ActiveCells[i], pos, i)			
+			else
+				item:SetEnable(false)
+			end
+		end
+		
+		if isHorizontal then
+			self.ActiveContentAreaSize = math.tointeger(self:CalculateRowCount(#self.ActiveCells)* (itemRectSize.x + self.Spacing.x))
+		else
+			self.ActiveContentAreaSize = math.tointeger(self:CalculateRowCount(#self.ActiveCells)* (itemRectSize.y + self.Spacing.y))
+		end
+		
+		self:ChangedScroll()
+		
+		if not isResetPosition then
+			self:OnDrag(-nextPosition)	
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ResetVisibleCells()
+		for i, c in pairs(self.ActiveCells) do
+			---@type ScrollItem
+			local cell = c
+			cell.Entity:SetEnable(false)
+		end
+		
+		table.clear(self.ActiveCells)
+	end
+
+	@ExecSpace("ClientOnly")
+	method number GetStartOffset(number requiredSpaceWithoutPadding, integer axis)
+		local paddingOffset = 0
+		if axis == _ScrollingType.Horizontal then
+			paddingOffset = self.Padding.z + self.Padding.x
+		elseif axis == _ScrollingType.Vertical then
+			paddingOffset = self.Padding.w + self.Padding.y
+		end
+		
+		local requiredSpace = requiredSpaceWithoutPadding + paddingOffset
+		local availableSpace = 0
+		
+		if axis == _ScrollingType.Horizontal then
+			availableSpace = self.ViewPort.UITransformComponent.RectSize.x
+		elseif axis == _ScrollingType.Vertical then
+			availableSpace = self.ViewPort.UITransformComponent.RectSize.y
+		end
+		
+		local surplusSpace = availableSpace - requiredSpace;
+		
+		local alignmentOnAxis = 0
+		if axis == _ScrollingType.Horizontal then
+			alignmentOnAxis = math.tointeger(self.ChildAlignmentType % 3) * 0.5;
+			return self.Padding.x + surplusSpace * alignmentOnAxis
+		elseif axis == _ScrollingType.Vertical then
+			alignmentOnAxis = math.tointeger(self.ChildAlignmentType / 3) * 0.5;
+			return self.Padding.y + surplusSpace * alignmentOnAxis
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method Vector2 GetAnchorsMin()
+		-- Only stretch-type alignment options are fully anchor-aware. All other types default to top-left anchor for simplicity.
+		if self.Item.UITransformComponent.AlignmentOption == AlignmentType.StretchAll then
+			return Vector2(0,0)
+		elseif self.Item.UITransformComponent.AlignmentOption == AlignmentType.HorizontalBottom then
+			return Vector2(0,0)
+		elseif self.Item.UITransformComponent.AlignmentOption == AlignmentType.HorizontalTop then
+			return Vector2(0,1) 
+		elseif self.Item.UITransformComponent.AlignmentOption == AlignmentType.HorizontalCenter then
+			return Vector2(0,0.5)
+		elseif self.Item.UITransformComponent.AlignmentOption == AlignmentType.VerticalLeft then
+			return Vector2(0,0)
+		elseif self.Item.UITransformComponent.AlignmentOption == AlignmentType.VerticalRight then
+			return Vector2(1,0)
+		elseif self.Item.UITransformComponent.AlignmentOption == AlignmentType.VerticalCenter then
+			return Vector2(0.5,0)
+		end
+		
+		return Vector2(0, 1)
+	end
+
+	@ExecSpace("ClientOnly")
+	method Vector2 GetAnchorsMax()
+		-- Only stretch-type alignment options are fully anchor-aware. All other types default to top-left anchor for simplicity.
+		if self.Item.UITransformComponent.AlignmentOption == AlignmentType.StretchAll then
+			return Vector2(1,1)
+		elseif self.Item.UITransformComponent.AlignmentOption == AlignmentType.HorizontalBottom then
+			return Vector2(1,0)
+		elseif self.Item.UITransformComponent.AlignmentOption == AlignmentType.HorizontalTop then
+			return Vector2(1,1) 
+		elseif self.Item.UITransformComponent.AlignmentOption == AlignmentType.HorizontalCenter then
+			return Vector2(1,0.5)
+		elseif self.Item.UITransformComponent.AlignmentOption == AlignmentType.VerticalLeft then
+			return Vector2(0,1)
+		elseif self.Item.UITransformComponent.AlignmentOption == AlignmentType.VerticalRight then
+			return Vector2(1,1)
+		elseif self.Item.UITransformComponent.AlignmentOption == AlignmentType.VerticalCenter then
+			return Vector2(0.5,1)
+		end
+		
+		return Vector2(0, 1)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnScroll(Vector2 dir)
+		if not self.IsScrollable then
+			return
+		end
+		
+		if self.TotalCount <= 0 then
+			return
+		end
+				
+		if self.ScrollingType == _ScrollingType.Horizontal then
+			dir.y = 0
+			dir.x += self:CalculateOffset(dir)
+		elseif self.ScrollingType == _ScrollingType.Vertical then
+			dir.x = 0
+			dir.y += self:CalculateOffset(dir)
+		end
+		
+		if not self:MoveContent(self.ScrollingType, dir) then
+			return
+		end
+		
+		self.ScrolledContentBoundsMin += dir
+		self.ScrolledContentBoundsMax += dir
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnDrag(Vector2 dir)
+		if not self.IsScrollable then
+			return
+		end
+		
+		if self.TotalCount <= 0 then
+			return
+		end
+				
+		if self.ScrollingType == _ScrollingType.Horizontal then
+			dir.y = 0	
+			dir.x += self:CalculateOffset(dir)
+			
+			if self.HorizontalBar ~= nil then
+				self.HorizontalBar:SetScrollPosition(dir.x)
+			end	
+		elseif self.ScrollingType == _ScrollingType.Vertical then
+			dir.x = 0
+			dir.y += self:CalculateOffset(dir)
+		
+			if self.VerticalBar ~= nil then
+				self.VerticalBar:SetScrollPosition(dir.y)
+			end
+		end
+		
+		if not self:MoveContent(self.ScrollingType, dir) then
+			return
+		end
+		
+		self.ScrolledContentBoundsMin += dir
+		self.ScrolledContentBoundsMax += dir
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ChangedScroll()
+		self.IsScrollable = self:CanScroll()
+		
+		if self.VerticalBar ~= nil then
+			self.VerticalBar:SetScrollBar(self.Entity)
+		end
+		
+		if self.HorizontalBar ~= nil then
+			self.HorizontalBar:SetScrollBar(self.Entity)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method boolean CanScroll()
+		if self.ScrollingType == _ScrollingType.Horizontal then
+			if self.ScrolledContentBoundsMax.x < self.ViewportContentBoundsMax.x then
+				return false
+			else
+				return true
+			end
+		elseif self.ScrollingType == _ScrollingType.Vertical then
+			if self.ScrolledContentBoundsMax.y > self.ViewportContentBoundsMax.y then
+				return false
+			else
+				return true
+			end
+		end
+		
+		return false
+	end
+
+	@ExecSpace("ClientOnly")
+	method boolean MoveContent(integer axis, Vector2 dir)
+		if self.CrossAxisItemCount <= 0 then
+			log_error("CrossAxisItemCount is less than or equal to 0.")
+			return false
+		end
+		
+		-- Extracts directional movement value based on the scrolling axis.
+		local moveValue = (axis == _ScrollingType.Horizontal) and dir.x or dir.y
+
+		-- If there's no movement, skip further processing.
+		if moveValue == 0 then
+			return false
+		end
+		
+		local isMovingForward = (axis == _ScrollingType.Horizontal and moveValue < 0) or (axis == _ScrollingType.Vertical and moveValue > 0)
+				
+		-- Defines an index calculation function that changes behavior based on scroll direction.
+		local function getIndex(loopIndex, totalCount)
+			if isMovingForward then
+				return loopIndex
+			else
+				return totalCount - loopIndex + 1
+			end
+		end
+		
+		local lastRowIndex = self:CalculateRowIndex(self.TotalCount)
+		local activeRowCount = self:CalculateRowCount(#self.ActiveCells)
+		
+		-- Updates the content and position of each cell.
+		for i = 1, #self.ActiveCells, self.CrossAxisItemCount do
+			for j = 1, self.CrossAxisItemCount, 1 do				
+				local cellIndex = getIndex(i + j - 1, #self.ActiveCells)
+		
+				---@type ScrollItem
+				local cell = self.ActiveCells[cellIndex]
+				
+				---@type Entity
+				local cellItem = cell.Entity
+				
+				-- Updates the cell's position based on the scroll axis.
+				local nextPosition = cellItem.UITransformComponent.anchoredPosition
+				if axis == _ScrollingType.Horizontal then
+					nextPosition.x += moveValue
+				else
+					nextPosition.y += moveValue
+				end
+				
+				-- Checks if the cell is out of the viewport boundary and reuses it if needed.
+				if self:IsOutOfBoundary(axis, nextPosition, cellItem, isMovingForward) then
+					-- Calculates the next index and position based on the scroll direction.
+					local targetIndex = cell.CurrentIndex
+					local targetRowIndex = self:CalculateRowIndex(targetIndex)
+					
+					while self:ShouldUpdateTargetRow(targetRowIndex, lastRowIndex, activeRowCount, isMovingForward) and
+							self:IsOutOfBoundary(axis, nextPosition, cellItem, isMovingForward) do
+						
+						if isMovingForward then
+							targetIndex += #self.ActiveCells
+							targetRowIndex = self:CalculateRowIndex(targetIndex)
+							
+							if axis == _ScrollingType.Horizontal then
+								nextPosition.x += self.ActiveContentAreaSize
+							else
+								nextPosition.y -= self.ActiveContentAreaSize
+							end
+						else
+							targetIndex -= #self.ActiveCells
+							targetRowIndex = self:CalculateRowIndex(targetIndex)
+							
+							if axis == _ScrollingType.Horizontal then
+								nextPosition.x -= self.ActiveContentAreaSize
+							else
+								nextPosition.y += self.ActiveContentAreaSize
+							end
+						end
+					end
+					
+					-- If the target row is valid and the index has changed, update (reuse) the cell.
+					if self:IsValidRowIndex(targetRowIndex, lastRowIndex, isMovingForward) and targetIndex ~= cell.CurrentIndex then
+						if axis == _ScrollingType.Horizontal then
+							nextPosition.y = cellItem.UITransformComponent.anchoredPosition.y
+						else
+							nextPosition.x = cellItem.UITransformComponent.anchoredPosition.x
+						end
+						
+						self:UpdateCell(cell, nextPosition, targetIndex)
+					end
+				end
+				
+				cellItem.UITransformComponent.anchoredPosition = nextPosition
+			end
+		end
+		
+		return true
+	end
+
+	@ExecSpace("ClientOnly")
+	method boolean IsOutOfBoundary(integer axis, Vector2 cellPosition, Entity cellEntity, boolean isMovingForward)
+		if axis == _ScrollingType.Horizontal then
+			if isMovingForward then
+				return self.ViewportContentBoundsMin.x > cellPosition.x + ((1 - cellEntity.UITransformComponent.Pivot.x) * cellEntity.UITransformComponent.RectSize.x)
+			else
+				return self.ViewportContentBoundsMax.x < cellPosition.x - (cellEntity.UITransformComponent.Pivot.x * cellEntity.UITransformComponent.RectSize.x)
+			end
+		else -- Vertical
+			if isMovingForward then
+				return self.ViewportContentBoundsMin.y < cellPosition.y - (cellEntity.UITransformComponent.Pivot.y * cellEntity.UITransformComponent.RectSize.y)
+			else
+				return self.ViewportContentBoundsMax.y > cellPosition.y + ((1 - cellEntity.UITransformComponent.Pivot.y) * cellEntity.UITransformComponent.RectSize.y)
+			end
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method boolean ShouldUpdateTargetRow(integer targetRowIndex, integer lastRowIndex, integer visibleRowCount, boolean isMovingForward)
+		if isMovingForward then
+			return targetRowIndex + visibleRowCount <= lastRowIndex
+		else
+			return targetRowIndex - visibleRowCount >= 0
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method boolean IsValidRowIndex(integer targetRowIndex, integer lastRowIndex, boolean isMovingForward)
+		if isMovingForward then
+			return targetRowIndex <= lastRowIndex
+		else
+			return targetRowIndex >= 0
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void UpdateCell(ScrollItem cell, Vector2 position, integer index)
+		cell.CurrentIndex = index
+		
+		if self.TotalCount < index then
+			cell.Entity:SetEnable(false)
+		else
+			if self.onUpdateCell ~= nil then
+				self.onUpdateCell(cell.CurrentIndex, cell.Entity)
+			end
+		
+			cell.Entity:SetEnable(true)
+		end
+		
+		cell.Entity.UITransformComponent.anchoredPosition = position
+	end
+
+	@ExecSpace("ClientOnly")
+	method integer CalculateRowIndex(integer count)
+		if count < 1 then
+			return 0
+		end
+		
+		return math.tointeger((count - 1) / self.CrossAxisItemCount)
+	end
+
+	@ExecSpace("ClientOnly")
+	method integer CalculateRowCount(integer count)
+		if count < 1 then
+			return 1
+		end
+		
+		return math.ceil(count / self.CrossAxisItemCount)
+	end
+
+	@ExecSpace("ClientOnly")
+	method number CalculateOffset(Vector2 dir)
+		local offset = 0
+		
+		if self.ScrollingType == _ScrollingType.Horizontal then
+			local offsetMin = self.ViewportContentBoundsMin.x - (self.ScrolledContentBoundsMin.x + dir.x)
+			if offsetMin < -self.EPSILON_POSITION then
+				offset = offsetMin
+			end
+			local offsetMax = self.ViewportContentBoundsMax.x - (self.ScrolledContentBoundsMax.x + dir.x)
+			if offsetMax > self.EPSILON_POSITION then
+				offset = offsetMax
+			end
+		elseif self.ScrollingType == _ScrollingType.Vertical then
+			local offsetMin = self.ViewportContentBoundsMin.y - (self.ScrolledContentBoundsMin.y + dir.y)
+			if offsetMin > self.EPSILON_POSITION then
+				offset = offsetMin
+			end
+			local offsetMax = self.ViewportContentBoundsMax.y - (self.ScrolledContentBoundsMax.y + dir.y)
+			if offsetMax < -self.EPSILON_POSITION then
+				offset = offsetMax
+			end
+		end
+		
+		return offset
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("Self")
+	handler HandleUITouchBeginDragEvent(UITouchBeginDragEvent event)
+		--------------- Native Event Sender Info ----------------
+		-- Sender: UITouchReceiveComponent
+		-- Space: Client
+		---------------------------------------------------------
+		
+		-- Parameters
+		local Entity = event.Entity
+		local TouchId = event.TouchId
+		local TouchPoint = event.TouchPoint
+		---------------------------------------------------------
+		if self.IsPressed then
+			return
+		end
+		
+		if not _ScrollLogic:IsValidTouch(TouchId) then
+			return
+		end
+		
+		TouchPoint = _ScrollLogic:GetTouchPoint(TouchPoint)
+		self.IsPressed = true
+		self.PreviousTouchPosition = TouchPoint
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("Self")
+	handler HandleUITouchDragEvent(UITouchDragEvent event)
+		--------------- Native Event Sender Info ----------------
+		-- Sender: UITouchReceiveComponent
+		-- Space: Client
+		---------------------------------------------------------
+		
+		-- Parameters
+		local Entity = event.Entity
+		local TouchDelta = event.TouchDelta
+		local TouchId = event.TouchId
+		local TouchPoint = event.TouchPoint
+		---------------------------------------------------------
+		if not self.IsPressed then
+			return
+		end
+		
+		if not _ScrollLogic:IsValidTouch(TouchId) then
+			return
+		end
+		
+		TouchPoint = _ScrollLogic:GetTouchPoint(TouchPoint)
+		local deltaPoint = TouchPoint - self.PreviousTouchPosition
+		self.PreviousTouchPosition = TouchPoint
+		self:OnDrag(deltaPoint)
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("Self")
+	handler HandleUITouchEndDragEvent(UITouchEndDragEvent event)
+		--------------- Native Event Sender Info ----------------
+		-- Sender: UITouchReceiveComponent
+		-- Space: Client
+		---------------------------------------------------------
+		
+		-- Parameters
+		local Entity = event.Entity
+		local TouchId = event.TouchId
+		local TouchPoint = event.TouchPoint
+		---------------------------------------------------------
+		if not self.IsPressed then
+			return
+		end
+		
+		if not _ScrollLogic:IsValidTouch(TouchId) then
+			return
+		end
+		
+		self.IsPressed = false
+		self.PreviousTouchPosition = Vector2.zero
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("Self")
+	handler HandleUITouchEnterEvent(UITouchEnterEvent event)
+		--------------- Native Event Sender Info ----------------
+		-- Sender: UITouchReceiveComponent
+		-- Space: Client
+		---------------------------------------------------------
+		
+		-- Parameters
+		local Entity = event.Entity
+		local TouchId = event.TouchId
+		local TouchPoint = event.TouchPoint
+		---------------------------------------------------------
+		if self.IsPointerOver then
+			return
+		end
+		
+		if not _ScrollLogic:IsValidTouch(TouchId) then
+			return
+		end
+		
+		self.IsPointerOver = true
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("Self")
+	handler HandleUITouchExitEvent(UITouchExitEvent event)
+		--------------- Native Event Sender Info ----------------
+		-- Sender: UITouchReceiveComponent
+		-- Space: Client
+		---------------------------------------------------------
+		
+		-- Parameters
+		local Entity = event.Entity
+		local TouchId = event.TouchId
+		local TouchPoint = event.TouchPoint
+		---------------------------------------------------------
+		if not self.IsPointerOver then
+			return
+		end
+		
+		if not _ScrollLogic:IsValidTouch(TouchId) then
+			return
+		end
+		
+		self.IsPointerOver = false
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("Service", "InputService")
+	handler HandleMouseScrollEvent(MouseScrollEvent event)
+		--------------- Native Event Sender Info ----------------
+		-- Sender: InputService
+		-- Space: Client
+		---------------------------------------------------------
+		
+		-- Parameters
+		local ScrollDelta = event.ScrollDelta
+		---------------------------------------------------------
+		if not self.IsPointerOver then
+			return
+		end
+		
+		if self.IsPressed then
+			return
+		end
+		
+		local dir = Vector2.zero
+		if self.ScrollingType == _ScrollingType.Horizontal then
+			dir.x = ScrollDelta * self.ScrollSensitivity
+		elseif self.ScrollingType == _ScrollingType.Vertical then
+			dir.y = -ScrollDelta * self.ScrollSensitivity
+		end
+		
+		self:OnDrag(dir)
+	end
+end

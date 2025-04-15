@@ -1,0 +1,35 @@
+@Logic
+script ScrollLogic extends Logic
+
+	@ExecSpace("ClientOnly")
+	method Vector2 GetTouchPoint(Vector2 touchPoint)
+		local baseRes = Vector2(1920, 1080)
+		local screenSize = Vector2(_UILogic.ScreenWidth, _UILogic.ScreenHeight)
+		
+		local baseAspectX = baseRes.x / baseRes.y
+		local screenAspectX = screenSize.x / screenSize.y
+		
+		local baseAspectY = baseRes.y / baseRes.x
+		local screenAspectY = screenSize.y / screenSize.x
+		
+		local screenPos = touchPoint - screenSize * 0.5
+		touchPoint = screenPos / screenSize * baseRes
+		
+		touchPoint.x *= screenAspectX / baseAspectX
+		touchPoint.y *= screenAspectY / baseAspectY
+		
+		return touchPoint
+	end
+
+	@ExecSpace("ClientOnly")
+	method boolean IsValidTouch(integer touchId)
+		if Environment:IsPCPlatform() then
+			if touchId ~= -1 then
+				return false
+			end
+		end
+		
+		return true
+	end
+
+end

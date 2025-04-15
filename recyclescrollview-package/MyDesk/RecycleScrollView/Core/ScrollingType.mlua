@@ -1,0 +1,8 @@
+@Logic
+script ScrollingType extends Logic
+
+	property integer Horizontal = 0
+
+	property integer Vertical = 1
+
+end

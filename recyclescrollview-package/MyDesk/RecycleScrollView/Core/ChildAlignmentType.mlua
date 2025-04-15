@@ -1,0 +1,22 @@
+@Logic
+script ChildAlignmentType extends Logic
+
+	property integer UpperLeft = 0
+
+	property integer UpperCenter = 1
+
+	property integer UpperRight = 2
+
+	property integer MiddleLeft = 3
+
+	property integer MiddleCenter = 4
+
+	property integer MiddlerRight = 5
+
+	property integer LowerLeft = 6
+
+	property integer LowerCenter = 7
+
+	property integer LowerRight = 8
+
+end

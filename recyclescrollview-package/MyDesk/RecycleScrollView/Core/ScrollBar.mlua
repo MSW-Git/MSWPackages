@@ -1,0 +1,316 @@
+@Component
+script ScrollBar extends Component
+
+	@Description("Sets the scroll direction (0: horizontal, 1: vertical)")
+	property integer ScrollingType = 0
+
+	@Description("UITransformComponent for the scroll handle (bar)")
+	property UITransformComponent Handle = nil
+
+	@Description("Minimum and maximum positions for horizontal scrolling")
+	@HideFromInspector
+	property table HorizontalLimits = {}
+
+	@Description("Minimum and maximum positions for vertical scrolling")
+	@HideFromInspector
+	property table VerticalLimits = {}
+
+	@Description("The linked RecycleScrollView component")
+	@HideFromInspector
+	property RecycleScrollView ScrollView = nil
+
+	@Description("The total size of the scrollable content area")
+	@HideFromInspector
+	property number TotalContentSize = 0
+
+	@Description("Indicates whether the scroll area has been clicked or touched.")
+	@HideFromInspector
+	property boolean IsPressed = false
+
+	@Description("Stores the last recorded touch position.")
+	@HideFromInspector
+	property Vector2 PreviousTouchPosition = Vector2(0,0)
+
+	@Description("Stores the previous scroll position (numeric).")
+	@HideFromInspector
+	property number ScrollOffset = 0
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		self.Entity:AddComponent(UITouchReceiveComponent)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetScrollBar(Entity scrollView)
+		-- Initializes the scroll bar and calculates its size based on content.
+		if self.Handle == nil then
+			local handleEntity = self.Entity:GetChildByName("Handle")
+			if handleEntity == nil then
+				log_error("ScrollBar Handle is nil")
+				return
+			end
+		
+			self.Handle = handleEntity.UITransformComponent
+		end
+		
+		self.ScrollView = scrollView.RecycleScrollView
+		
+		local startOffset = 0
+		local totalBarSize = 0
+		
+		if self.ScrollingType == _ScrollingType.Horizontal then
+			self.TotalContentSize = (self.ScrollView.ScrolledContentBoundsMax.x - self.ScrollView.ScrolledContentBoundsMin.x) - (self.ScrollView.ViewportContentBoundsMax.x - self.ScrollView.ViewportContentBoundsMin.x)
+			startOffset = -self.ScrollView.ScrolledContentBoundsMin.x
+			totalBarSize = (self.Entity.UITransformComponent.RectSize.x - ((1 - self.Handle.Pivot.x) * self.Handle.RectSize.x))
+			
+			local barSizeRatio = self:CalculateBarSizeRatio()
+			local barSize = self.Entity.UITransformComponent.RectSize.x * barSizeRatio
+		
+			self.Handle.RectSize.x = barSize			
+		elseif self.ScrollingType == _ScrollingType.Vertical then
+			self.TotalContentSize = (self.ScrollView.ScrolledContentBoundsMin.y - self.ScrollView.ScrolledContentBoundsMax.y) - (self.ScrollView.ViewportContentBoundsMin.y - self.ScrollView.ViewportContentBoundsMax.y)
+			startOffset = -self.ScrollView.ScrolledContentBoundsMin.y
+			totalBarSize = (self.Entity.UITransformComponent.RectSize.y -(self.Handle.Pivot.y * self.Handle.RectSize.y))
+			
+			local barSizeRatio =  self:CalculateBarSizeRatio()
+			local barSize = self.Entity.UITransformComponent.RectSize.y * barSizeRatio
+		
+			self.Handle.RectSize.y = barSize
+		end
+		
+		local barPos = 0
+		if self.ScrollView.ScrollingType == self.ScrollingType then
+			local contentRatio = startOffset / self.TotalContentSize
+			barPos = contentRatio * totalBarSize
+		end
+		
+		if self.ScrollingType == _ScrollingType.Horizontal then
+			self.Handle.anchoredPosition.x = barPos + (self.Handle.Pivot.x * self.Handle.RectSize.x)
+		elseif self.ScrollingType == _ScrollingType.Vertical then
+			self.Handle.anchoredPosition.y = barPos - ((1 - self.Handle.Pivot.y) * self.Handle.RectSize.y)
+		end
+		
+		self.ScrollOffset = startOffset
+		
+		self:UpdateLimits()
+	end
+
+	@ExecSpace("ClientOnly")
+	method number CalculateBarSizeRatio()
+		local recycleScrollView = self.ScrollView
+		
+		if self.ScrollingType == _ScrollingType.Horizontal then
+			local ratio = (recycleScrollView.ViewportContentBoundsMax.x - recycleScrollView.ViewportContentBoundsMin.x) / 
+						 (recycleScrollView.ScrolledContentBoundsMax.x - recycleScrollView.ScrolledContentBoundsMin.x)
+			return math.min(1, math.max(0, ratio))
+		else
+			local ratio = (recycleScrollView.ViewportContentBoundsMin.y - recycleScrollView.ViewportContentBoundsMax.y) / 
+						 (recycleScrollView.ScrolledContentBoundsMin.y - recycleScrollView.ScrolledContentBoundsMax.y)
+			return math.min(1, math.max(0, ratio))
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void UpdateLimits()
+		if self.Handle == nil then
+			return
+		end
+		
+		local entityRectSize = self.Entity.UITransformComponent.RectSize
+		
+		self.HorizontalLimits = {
+			min = self.Handle.Pivot.x * self.Handle.RectSize.x,
+			max = entityRectSize.x - (1 - self.Handle.Pivot.x) * self.Handle.RectSize.x
+		}
+		
+		self.VerticalLimits = {
+			min = -entityRectSize.y + (self.Handle.Pivot.y) * self.Handle.RectSize.y,
+			max = -(1 - self.Handle.Pivot.y) * self.Handle.RectSize.y
+		}
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetScrollPosition(number dir)
+		-- Updates the scroll handle's position based on the input scroll direction.
+		if self.Handle == nil then
+			return
+		end
+		
+		local entityRectSize = self.Entity.UITransformComponent.RectSize
+		
+		local totalBarSize = 0
+		if self.ScrollingType == _ScrollingType.Horizontal then
+			totalBarSize = (entityRectSize.x - ((1 - self.Handle.Pivot.x) * self.Handle.RectSize.x))
+		elseif self.ScrollingType == _ScrollingType.Vertical then
+			totalBarSize = (entityRectSize.y -(self.Handle.Pivot.y * self.Handle.RectSize.y))
+		end
+		
+		self.ScrollOffset = self.ScrollOffset - dir
+		local normalize = self.ScrollOffset / self.TotalContentSize
+		local barPos = normalize * totalBarSize
+		
+		local nextPosition = 0
+		
+		if self.ScrollingType == _ScrollingType.Horizontal then
+			nextPosition = barPos + (self.Handle.Pivot.x * self.Handle.RectSize.x)
+		elseif self.ScrollingType == _ScrollingType.Vertical then
+			nextPosition = barPos - ((1 - self.Handle.Pivot.y) * self.Handle.RectSize.y)
+		end
+		
+		self:ClampHandlePosition(nextPosition)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ClampHandlePosition(number position)
+		-- Clamps the handle position within the scroll bar limits.
+		if self.Handle == nil then
+			return
+		end
+		
+		local entityRectSize = self.Entity.UITransformComponent.RectSize		
+		if self.ScrollingType == _ScrollingType.Horizontal then
+			self.Handle.anchoredPosition.x = math.max(self.HorizontalLimits.min, math.min(self.HorizontalLimits.max, position))
+		elseif self.ScrollingType == _ScrollingType.Vertical then
+			self.Handle.anchoredPosition.y = math.max(self.VerticalLimits.min, math.min(self.VerticalLimits.max, position))
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetScrollNormalizedPosition(Vector2 position)
+		if self.ScrollingType ~= self.ScrollView.ScrollingType then
+			return
+		end
+		
+		if self.Handle == nil then
+			return
+		end
+		
+		local nextPosition = 0
+		if self.ScrollingType == _ScrollingType.Horizontal then
+			nextPosition = self.Handle.anchoredPosition.x + position.x
+		elseif self.ScrollingType == _ScrollingType.Vertical then
+			nextPosition = self.Handle.anchoredPosition.y + position.y
+		end
+				
+		self:ClampHandlePosition(nextPosition)
+		
+		local normalizedPosition = self:CalcNormalizedPosition()
+		local currentScrollOffset = (normalizedPosition) * self.TotalContentSize
+		
+		local move = self.ScrollOffset - currentScrollOffset
+		if self.ScrollingType == _ScrollingType.Horizontal then
+			self.ScrollView:OnScroll(Vector2(move, 0))
+		elseif self.ScrollingType == _ScrollingType.Vertical then
+			self.ScrollView:OnScroll(Vector2(0, move))
+		end
+		
+		self.ScrollOffset = currentScrollOffset
+	end
+
+	@ExecSpace("ClientOnly")
+	method number CalcNormalizedPosition()
+		if self.Handle == nil then
+			return 0
+		end
+		
+		local entityRectSize = self.Entity.UITransformComponent.RectSize
+		
+		if self.ScrollingType == _ScrollingType.Horizontal then
+			return ((self.Handle.anchoredPosition.x - self.Handle.Pivot.x * self.Handle.RectSize.x) / (entityRectSize.x - self.Handle.RectSize.x))
+		elseif self.ScrollingType == _ScrollingType.Vertical then
+			return ((self.Handle.anchoredPosition.y + (1 - self.Handle.Pivot.y) * self.Handle.RectSize.y) / (entityRectSize.y - self.Handle.RectSize.y))
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnMapLeave(Entity leftMap)
+		self:Clear()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		self.IsPressed = false
+		self.ScrollOffset = 0
+		self.VerticalLimits = {}
+		self.HorizontalLimits = {}
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("Self")
+	handler HandleUITouchBeginDragEvent(UITouchBeginDragEvent event)
+		--------------- Native Event Sender Info ----------------
+		-- Sender: UITouchReceiveComponent
+		-- Space: Client
+		---------------------------------------------------------
+		
+		-- Parameters
+		local Entity = event.Entity
+		local TouchId = event.TouchId
+		local TouchPoint = event.TouchPoint
+		---------------------------------------------------------
+		if self.IsPressed == true then
+			return
+		end
+		
+		if not _ScrollLogic:IsValidTouch(TouchId) then
+			return
+		end
+		
+		TouchPoint = _ScrollLogic:GetTouchPoint(TouchPoint)
+		self.PreviousTouchPosition = TouchPoint
+		self.IsPressed = true
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("Self")
+	handler HandleUITouchDragEvent(UITouchDragEvent event)
+		--------------- Native Event Sender Info ----------------
+		-- Sender: UITouchReceiveComponent
+		-- Space: Client
+		---------------------------------------------------------
+		
+		-- Parameters
+		local Entity = event.Entity
+		local TouchDelta = event.TouchDelta
+		local TouchId = event.TouchId
+		local TouchPoint = event.TouchPoint
+		---------------------------------------------------------
+		if self.IsPressed == false then
+			return
+		end
+		
+		if not _ScrollLogic:IsValidTouch(TouchId) then
+			return
+		end
+		
+		TouchPoint = _ScrollLogic:GetTouchPoint(TouchPoint)
+		self:SetScrollNormalizedPosition(TouchPoint - self.PreviousTouchPosition)
+		self.PreviousTouchPosition = TouchPoint
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("Self")
+	handler HandleUITouchEndDragEvent(UITouchEndDragEvent event)
+		--------------- Native Event Sender Info ----------------
+		-- Sender: UITouchReceiveComponent
+		-- Space: Client
+		---------------------------------------------------------
+		
+		-- Parameters
+		local Entity = event.Entity
+		local TouchId = event.TouchId
+		local TouchPoint = event.TouchPoint
+		---------------------------------------------------------
+		if self.IsPressed == false then
+			return
+		end
+		
+		if not _ScrollLogic:IsValidTouch(TouchId) then
+			return
+		end
+		
+		self.PreviousTouchPosition = Vector2.zero
+		self.IsPressed = false
+	end
+
+end

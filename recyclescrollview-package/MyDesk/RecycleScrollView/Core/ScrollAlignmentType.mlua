@@ -1,0 +1,10 @@
+@Logic
+script ScrollAlignmentType extends Logic
+
+	property integer Start = 0
+
+	property integer Center = 1
+
+	property integer End = 2
+
+end
