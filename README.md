@@ -13,9 +13,11 @@ See the README file in each package for detailed usage information.
 | Package | Description | Link |
 |---------|-------------|------|
 | gm-message | Provides in-game notification messages for creators. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/gm-message-package/gm-message-package.modpackage) |
-| mail | Provides the ability to send in-game mail messages to creators. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/mail-package/mail-package.modpackage)
-| quest-achievement | Provides quest and achievement features to creators. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/quest-achievement-package/quest-achievement-package.modpackage)
-| worldshop | Provides an in-game premium shop system with item sales, purchase limits, and configurable sale periods. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/worldshop-package/worldshop-package.modpackage)
+| mail | Provides the ability to send in-game mail messages to creators. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/mail-package/mail-package.modpackage)|
+| quest-achievement | Provides quest and achievement features to creators. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/quest-achievement-package/quest-achievement-package.modpackage)|
+| worldshop | Provides an in-game premium shop system with item sales, purchase limits, and configurable sale periods. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/worldshop-package/worldshop-package.modpackage)|
+| shop | Provides an in-game shop system with item sales, purchase limits, and configurable sale periods. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/shop-package/shop-package.modpackage)|
+| recyclescrollview | A scroll view system like GridViewComponent, optimized for smooth scrolling without flickering. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/recyclescrollview-package/recyclescrollview-package.modpackage)|
 
 ## License
 
