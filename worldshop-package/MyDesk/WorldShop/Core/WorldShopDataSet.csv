@@ -1,0 +1,5 @@
+﻿WorldID,SubWorldID,Category,Name,Desc,IconRUID,Price,RewardFunction,RewardArgs,PurchaseLimit,StartDate,EndDate,Order
+ProductId,SubWorldProductId,0,패키지1,패키지1에 대한 설명,218bb67da930470eb73b03e212e2f780,0,ProcessItemPurchase,"Item1:3,Item2:2",1,2025/04/02 11:00:33,2025/04/11 02:18:03,1
+ProductId_1,SubWorldProductId_1,1,패키지2,패키지2에 대한 설명,27442750329b4d6e91e3f9db0e281267,200,ProcessItemPurchase,Str:3,,,,2
+ProductId_2,SubWorldProductId_2,2,패스1,패스1에 대한 설명,7c8071045a844ef8b132024e68c86c68,300,ProcessPassPurchase,,1,2025/04/02 11:00:33,2025/04/10 02:34:33,
+ProductId_3,SubWorldProductId_3,2,패스2,패스2에 대한 설명,27442750329b4d6e91e3f9db0e281267,20,ProcessPassPurchase,,2,2025/04/10 02:37:33,,

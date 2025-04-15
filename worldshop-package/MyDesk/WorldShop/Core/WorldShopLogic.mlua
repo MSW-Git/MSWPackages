@@ -1,0 +1,176 @@
+@Logic
+script WorldShopLogic extends Logic
+
+	@ExecSpace("ServerOnly")
+	method void OnBeginPlay()
+		_WorldShopService:SetProcessPurchaseCallback(self.ProcessPurchase)
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean ProcessPurchase(any p)
+		---@type WorldShopPurchaseInfo
+		local purchaseInfo = p
+		
+		local userEntity = _UserService:GetUserEntityByUserId(purchaseInfo.UserId)
+		if not _EntityService:IsValid(userEntity) then
+		    log_error("Process purchase failed. Cannot find user entity. UserId: " .. purchaseInfo.UserId)
+		    return false
+		end
+		
+		local worldShopProduct = _WorldShopService:GetProductAndWait(purchaseInfo.ProductId)
+		if worldShopProduct.Status ~= WorldShopProductStatus.Ing then
+			log_error("Process purchase failed. Product is not currently for sale. ProductId: " .. purchaseInfo.ProductId)
+			return false
+		end
+		
+		local worldShopData = _WorldShopDataSetLogic:GetProductData(purchaseInfo.ProductId)
+		if worldShopData == nil then
+			log_error("Process purchase failed. Cannot find product purchase function. ProductId: " .. purchaseInfo.ProductId)
+		    return false
+		end
+		
+		-- Specify the function.
+		local productPurchaseFunction = self[worldShopData.RewardFunction] 
+		if productPurchaseFunction == nil then
+		    log_error("Process purchase failed. Cannot find product purchase function. ProductId: " .. purchaseInfo.ProductId)
+		    return false
+		end
+		 
+		-- Attempt to deliver the product.
+		-- success: Whether the function call succeeded without errors
+		-- result: If the function call succeeded, this is the return value (whether product delivery was successful). If there was an error in the function call, this is the error message
+		local success, result = pcall(productPurchaseFunction, self, userEntity, purchaseInfo.ProductId) 
+		if success and result then
+			-- No errors occurred and the product was delivered successfully.
+			-- Record the purchase information for future reference.
+			_LogStorageService:LogPurchaseInfo(purchaseInfo, "Success")
+			return true
+		else
+			-- Product delivery failed.
+		 	log_error("Process purchase failed. Product purchase function failed. PurchaseId: " .. purchaseInfo.PurchaseId .. ", UserId: " .. purchaseInfo.UserId .. ", ProductId: " .. purchaseInfo.ProductId .. ", OrderNumber: " .. tostring(purchaseInfo.OrderNumber) .. ", Result: " .. tostring(result))
+		    return false
+		end
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean ProcessItemPurchase(Entity userEntity, string productId)
+		if not self:IsPurchaseRequestValid(userEntity, productId) then
+			return false
+		end
+		
+		userEntity.PlayerWorldShop.onPurchaseFailed = function(productId, reason)
+			self:ClearWorldShopHandler(userEntity)
+			
+			self:SendWorldShopPurchaseResultEvent(reason, productId, userEntity.PlayerComponent.UserId)
+		end
+		
+		userEntity.PlayerWorldShop.onPurchase = function(productId)
+			--TODO: Implement product delivery logic.
+			local productData = _WorldShopDataSetLogic:GetProductData(productId)
+			if productData == nil then
+				return false
+			end
+		
+			return true
+		end
+		
+		userEntity.PlayerWorldShop.onPurchaseSuccess = function(productId)
+			self:ClearWorldShopHandler(userEntity)
+		
+			--TODO: Implement successful product delivery logic.
+			local productData = _WorldShopDataSetLogic:GetProductData(productId)
+			if productData == nil then
+				return
+			end
+		
+		
+			self:SendWorldShopPurchaseResultEvent("Success", productId, userEntity.PlayerComponent.UserId)
+		end
+		
+		return userEntity.PlayerWorldShop:TryPurchaseItem(productId)
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean ProcessPassPurchase(Entity userEntity, string productId)
+		if not self:IsPurchaseRequestValid(userEntity, productId) then
+			return false
+		end
+		
+		userEntity.PlayerWorldShop.onPurchaseFailed = function(productId, reason)
+			self:ClearWorldShopHandler(userEntity)
+			
+			self:SendWorldShopPurchaseResultEvent(reason, productId, userEntity.PlayerComponent.UserId)
+		end
+		
+		userEntity.PlayerWorldShop.onPurchase = function(productId)
+			--TODO: Implement product delivery logic.
+			local productData = _WorldShopDataSetLogic:GetProductData(productId)
+			if productData == nil then
+				return false
+			end
+		
+			return true
+		end
+		
+		userEntity.PlayerWorldShop.onPurchaseSuccess = function(productId)
+			self:ClearWorldShopHandler(userEntity)
+		
+			--TODO: Implement successful product delivery logic.
+			local productData = _WorldShopDataSetLogic:GetProductData(productId)
+			if productData == nil then
+				return
+			end
+		
+			self:SendWorldShopPurchaseResultEvent("Success", productId, userEntity.PlayerComponent.UserId)
+		end
+		
+		return userEntity.PlayerWorldShop:TryPurchaseItem(productId)
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean IsPurchaseRequestValid(Entity userEntity, string productId)
+		if not _EntityService:IsValid(userEntity) then
+			log_error("UserEntity is invalid.")
+			return false
+		end
+		
+		if userEntity.PlayerWorldShop == nil then
+			log_error("PlayerWorldShop is nil.")
+			return false
+		end
+		
+		if _Util:IsNilorEmptyString(productId) then
+			log_error("ProductId is nil or empty.")
+			return false
+		end
+		
+		return true
+	end
+
+	@ExecSpace("ServerOnly")
+	method void ClearWorldShopHandler(Entity userEntity)
+		if not _EntityService:IsValid(userEntity) then
+			log_error("UserEntity is invalid.")
+			return
+		end
+		
+		userEntity.PlayerWorldShop.onPurchase = nil
+		userEntity.PlayerWorldShop.onPurchaseFailed = nil
+		userEntity.PlayerWorldShop.onPurchaseSuccess = nil
+	end
+
+	@ExecSpace("Client")
+	method void SendWorldShopPurchaseResultEvent(string reason, string productId)
+		local player = _UserService.LocalPlayer
+		if _EntityService:IsValid(player) == false then
+			log_error("Player is invalid.")
+			return
+		end
+		
+		local evt = WorldShopPurchaseResultEvent()
+		evt.Reason = reason
+		evt.ProductId = productId
+		player:SendEvent(evt)
+	end
+
+end

@@ -1,0 +1,86 @@
+@Component
+script UIWorldShopItem extends Component
+
+	property TextComponent Text_Name = nil
+
+	property SpriteGUIRendererComponent Sprite_Icon = nil
+
+	property TextComponent Text_Desc = nil
+
+	property TextComponent Text_Price = nil
+	
+	property Entity BtnPurchase = nil
+
+	property string ProductId = ""
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		
+		self.Text_Name = entity:GetChildByName("Text_Name").TextComponent
+		self.Sprite_Icon = entity:GetChildByName("Sprite_Icon").SpriteGUIRendererComponent
+		self.Text_Desc = entity:GetChildByName("Text_Desc").TextComponent
+		self.Text_Price = entity:GetChildByName("Text_Price").TextComponent
+		
+		self.BtnPurchase = entity:GetChildByName("Btn_Purchase")
+		self.BtnPurchase:ConnectEvent(ButtonClickEvent, function()
+			if _Util:IsNilorEmptyString(self.ProductId) then
+				log_error("ProductId is nil or empty")
+				return
+			end
+
+			if not _UserService.LocalPlayer.PlayerWorldShop:CanPurchaseMore(self.ProductId) then
+				log_error("Cannot purchase this item.")	
+				return
+			end
+
+			_WorldShopService:PromptPurchase(self.ProductId)
+		end)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Apply(string productId)
+		local productData = _WorldShopDataSetLogic:GetProductData(productId)
+		if productData == nil then
+			log_error("Shop data not found for ID: " .. tostring(productId))
+			return
+		end
+		
+		self.ProductId = productId
+
+		local title = ""
+		local currentTimeElapsed = _DateTimeLogic:GetTimeElapsed()
+		if productData.StartDate <= currentTimeElapsed and productData.EndDate >= currentTimeElapsed then
+			local startDate = DateTime(productData.StartDate)
+			local endDate = DateTime(productData.EndDate)
+			
+			title = string.format("%s\n%s ~ %s", productData.Name, startDate:ToFormattedString("yyyy년 M월 d일"), endDate:ToFormattedString("yyyy년 M월 d일"))
+		else
+			title = productData.Name
+		end
+
+		self.Text_Name.Text = title		
+		self.Text_Desc.Text = productData.Desc
+		self.Sprite_Icon.ImageRUID = productData.IconRUID
+		self.Text_Price.Text = tostring(productData.Price)
+
+		if productData.PurchaseLimit > 0 then
+			local purchaseCount = _UserService.LocalPlayer.PlayerWorldShop:GetPurchaseCount(self.ProductId)
+			local remainingLimit = productData.PurchaseLimit - purchaseCount
+			self.BtnPurchase.TextComponent.Text = string.format("구매 (%d/%d)", purchaseCount, productData.PurchaseLimit)
+			
+			if remainingLimit <= 0 then
+				self.BtnPurchase.ButtonComponent.Enable = false
+			end
+		else
+			self.BtnPurchase.ButtonComponent.Enable = true
+			self.BtnPurchase.TextComponent.Text = "구매"	
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		self.ProductId = ""
+	end
+
+end

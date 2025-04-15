@@ -1,0 +1,154 @@
+@Component
+script PlayerWorldShop extends Component
+
+	@Description("Key used for database storage of WorldShop data")
+	property string DBKey = "WorldShop"
+
+	@Description("Flag indicating if WorldShop data should be saved during the next save operation")
+	property boolean IsSaveDB = false
+
+	@Description("Table tracking purchase count for each WorldShop item, indexed by ProductId")
+	property table PurchaseCount = {}
+
+	@Description("Callback to execute the actual purchase operation")
+	property any onPurchase = nil
+
+	@Description("Callback triggered when purchase is successfully completed")
+	property any onPurchaseSuccess = nil
+
+	@Description("Callback triggered when purchase fails with failure reason")
+	property any onPurchaseFailed = nil
+
+	@ExecSpace("ServerOnly")
+	method boolean SaveToDB(table saveData)
+		if not self.IsSaveDB then
+			return false
+		end
+		
+		local total = {}
+		if not _Util:IsNilorEmptyTable(self.PurchaseCount) then			
+			total["PurchaseCount"] = self.PurchaseCount
+		end
+		
+		local dbString = ""
+		if not _Util:IsNilorEmptyTable(total) then
+			dbString = _HttpService:JSONEncode(total)
+		end
+		
+		saveData[self.DBKey] = dbString		
+		self.IsSaveDB = false
+		return true
+	end
+
+	@ExecSpace("ServerOnly")
+	method void LoadFromDB(table loadKeys)
+		table.insert(loadKeys, self.DBKey)
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean OnLoadedDataFromDB(table loadedData)
+		---@type DataStorageItem
+		local sds = loadedData[self.DBKey]
+		if sds ~= nil and (_Util:IsNilorEmptyString(sds.Value) == false) then
+			local dataTable = _HttpService:JSONDecode(sds.Value)
+			
+			local purchaseCount = dataTable["PurchaseCount"]
+			local curElapsed = _DateTimeLogic:GetTimeElapsed()
+			if not _Util:IsNilorEmptyTable(purchaseCount) then
+				for productId, count in pairs(purchaseCount) do
+					local data = _WorldShopDataSetLogic:GetProductData(productId)
+					if not _WorldShopDataSetLogic:IsInSalePeriod(data, curElapsed) then
+						self.IsSaveDB = true
+						continue
+					end
+					
+					self.PurchaseCount[productId] = count
+				end
+			end
+		end
+		
+		if not _Util:IsNilorEmptyTable(self.PurchaseCount) then
+			self:SyncInit(self.PurchaseCount, self.Entity.PlayerComponent.UserId)
+		end
+		
+		return true
+	end
+
+	@ExecSpace("Client")
+	method void SyncInit(table purchaseCount)
+		self.PurchaseCount = purchaseCount
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean TryPurchaseItem(string productId)
+		local function handleFailure(reason)	
+			if self.onPurchaseFailed ~= nil then
+				self.onPurchaseFailed(productId, reason)
+			end
+		end
+		
+		local productData = _WorldShopService:GetProductAndWait(productId)
+		if productData == nil then
+			handleFailure("Product not found")
+			return false
+		end
+		
+		if productData.Status ~= WorldShopProductStatus.Ing then
+			handleFailure("Product is not available for purchase")
+			return false
+		end
+		
+		local data = _WorldShopDataSetLogic:GetProductData(productId)
+		if data == nil then
+			handleFailure("Product data not found")
+			return false
+		end
+		
+		local curPurchaseCount = self:GetPurchaseCount(productId)
+		local nextPurchaseCount = curPurchaseCount + 1
+		if data.PurchaseLimit > 0 and nextPurchaseCount > data.PurchaseLimit then
+			handleFailure("Purchase limit exceeded")
+			return false
+		end
+		
+		if self.onPurchase ~= nil and not self.onPurchase(productId) then
+			handleFailure("Purchase operation failed")
+			return false
+		end
+		
+		self.PurchaseCount[productId] = nextPurchaseCount
+		self:SyncPurchaseCount(productId, nextPurchaseCount, self.Entity.PlayerComponent.UserId)
+		self.IsSaveDB = true
+		
+		if self.onPurchaseSuccess ~= nil then
+			self.onPurchaseSuccess(productId)
+		end
+		
+		return true
+	end
+
+	@ExecSpace("Client")
+	method void SyncPurchaseCount(string productId, integer count)
+		self.PurchaseCount[productId] = count
+	end
+
+	method integer GetPurchaseCount(string productId)
+		return self.PurchaseCount[productId] or 0
+	end
+
+	method boolean CanPurchaseMore(string productId)
+		local data = _WorldShopDataSetLogic:GetProductData(productId)
+		if data == nil then
+			return false
+		end
+		
+		local curPurchaseCount = self:GetPurchaseCount(productId)
+		local nextPurchaseCount = curPurchaseCount + 1
+		if data.PurchaseLimit > 0 and nextPurchaseCount > data.PurchaseLimit then
+			return false
+		end
+		
+		return true
+	end
+
+end

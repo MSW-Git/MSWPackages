@@ -1,0 +1,127 @@
+@Component
+script UIWorldShopItemPanel extends Component
+
+	property table WorldShopData = {}
+
+	property GridViewComponent GridView = nil
+
+	property integer NextUpdateTime = 0
+
+	property integer Category = 0
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		local item = entity:GetChildByName("UIWorldShopItem")
+		
+		self.GridView = entity:GetChildByName("GridView").GridViewComponent
+		self.GridView.ItemEntity = item
+		self.GridView.OnClear = self.OnClear
+		self.GridView.OnRefresh = self.OnRefresh
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Close()
+		self.NextUpdateTime = 0
+		self.Category = 0
+		table.clear(self.WorldShopData)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Apply(integer category)
+		self.Category = category
+		self:RefreshAvailableItems(category)
+		
+		self.Entity:SetEnable(true)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void RefreshAvailableItems(integer category)
+		table.clear(self.WorldShopData)
+		self.WorldShopData = _WorldShopDataSetLogic:GetItemsInSalePeriod(category)
+		
+		self.NextUpdateTime = self:CalcNextUpdateTime(category)
+		-- Initialize the next update time to 0 if there is none
+		if self.NextUpdateTime == math.maxinteger then
+			self.NextUpdateTime = 0
+		end
+		
+		self.GridView.TotalCount = #self.WorldShopData
+		self.GridView:Refresh(true, true)
+	end
+
+	@ExecSpace("ClientOnly")
+	method integer CalcNextUpdateTime(integer category)
+		-- Find the earliest date among future start dates and end dates to determine the next update time
+		local nextUpdateTime = math.maxinteger
+		local currentTimeElapsed = _DateTimeLogic:GetTimeElapsed()
+		
+		local categoryItems = _WorldShopDataSetLogic:GetProductDatasByCategory(category)
+		if _Util:IsNilorEmptyTable(categoryItems) then
+			log_error("No items found for category: " .. category)
+			return nextUpdateTime
+		end
+		
+		for _, d in ipairs(categoryItems) do
+			---@type WorldShopData
+			local data = d
+		
+			-- Upcoming items (checking start time)
+			if data.StartDate ~= 0 and data.StartDate > currentTimeElapsed and nextUpdateTime > data.StartDate then
+				nextUpdateTime = data.StartDate
+			end
+			
+			-- Currently on sale items (checking end time)
+			if data.EndDate ~= 0 and data.EndDate > currentTimeElapsed and data.EndDate < nextUpdateTime then
+				nextUpdateTime = data.EndDate
+			end
+		end
+		
+		return nextUpdateTime
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Refresh(WorldShopPurchaseResultEvent evt)
+		if evt then
+			for i, d in pairs(self.WorldShopData) do
+				---@type WorldShopData
+				local data = d
+				if data.ProductId == evt.ProductId then
+					self.GridView:RefreshIndex(i - 1)
+					break
+				end
+			end
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnRefresh(integer index, Entity itemEntity)
+		local luaIndex = index + 1
+		
+		---@type WorldShopData
+		local worldShopData = self.WorldShopData[luaIndex]
+		if worldShopData == nil then
+			return
+		end
+		
+		itemEntity.UIWorldShopItem:Apply(worldShopData.ProductId)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClear(integer index, Entity itemEntity)
+		itemEntity.UIWorldShopItem:Clear()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnUpdate(number delta)
+		if self.NextUpdateTime == 0 then
+			return
+		end
+		
+		local currentTimeElapsed = _DateTimeLogic:GetTimeElapsed()
+		if self.NextUpdateTime <= currentTimeElapsed then
+			self:RefreshAvailableItems(self.Category)
+		end
+	end
+
+end

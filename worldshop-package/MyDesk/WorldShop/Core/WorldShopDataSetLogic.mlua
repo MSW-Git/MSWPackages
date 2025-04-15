@@ -1,0 +1,93 @@
+@Logic
+script WorldShopDataSetLogic extends Logic
+
+	@Description("Gets the entire collection of shop data from the WorldShopDataSet.")
+	property table Data = {}
+
+	@Description("Gets the shop data grouped by category from the WorldShopDataSet.")
+	property table DataByCategory = {}
+
+	method void OnBeginPlay()
+		local tbl = _DataService:GetTable("WorldShopDataSet")
+			
+		for i, row in ipairs(tbl:GetAllRow()) do	
+			local data = WorldShopData()
+			if not data:Load(row) then
+				log_error("Failed to load data for row: " .. tostring(i)..", Id : "..tostring(data.ProductId))
+				continue
+			end
+			
+			self.DataByCategory[data.Category] = self.DataByCategory[data.Category] or {}
+			table.insert(self.DataByCategory[data.Category], data)
+			self.Data[data.ProductId] = data
+		end
+	end
+
+	method WorldShopData GetProductData(string productId)
+		if _Util:IsNilorEmptyString(productId) then
+			log_error("Invalid product ID provided")
+			return nil
+		end
+		
+		return self.Data[productId]
+	end
+
+	method table GetProductDatasByCategory(integer category)
+		return self.DataByCategory[category]
+	end
+
+	method table GetItemsInSalePeriod(integer category)
+		local result = {}
+		local currentTimeElapsed = _DateTimeLogic:GetTimeElapsed()
+		local categoryItems = self:GetProductDatasByCategory(category)
+		if _Util:IsNilorEmptyTable(categoryItems) then
+			log_error("No items found for category: " .. category)
+			return result
+		end
+		
+		for id, d in pairs(categoryItems) do
+			---@type WorldShopData
+			local data = d			
+			if self:IsInSalePeriod(data, currentTimeElapsed) then
+				table.insert(result, d)
+			end
+		end
+		
+		table.sort(result, function(l, r)
+			---@type WorldShopData
+			local left = l
+			
+			---@type WorldShopData
+			local right = r
+			
+			return left.Order < right.Order
+		end)
+		
+		return result
+	end
+
+	method boolean IsInSalePeriod(WorldShopData data, integer currentTime)
+		if data == nil then
+			return false
+		end
+		
+		-- Always valid if start/end dates are not set
+		if data.StartDate <= 0 and data.EndDate <= 0 then
+			return true
+		end
+		
+		-- If only start date is set (no end date), valid after start date
+		if data.StartDate > 0 and data.EndDate <= 0 then
+			return currentTime >= data.StartDate
+		end
+		
+		-- If only end date is set (no start date), valid until end date
+		if data.StartDate <= 0 and data.EndDate > 0 then
+			return currentTime <= data.EndDate
+		end
+		
+		-- Check if current time is within the sales period
+		return data.StartDate <= currentTime and data.EndDate >= currentTime
+	end
+
+end

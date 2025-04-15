@@ -1,0 +1,104 @@
+@Component
+script UIWorldShop extends Component
+
+	property Entity ItemPanel = nil
+
+	property Entity PassPanel = nil
+
+	property GridViewComponent GridView = nil
+
+	property integer Category = 0
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		
+		local panel = entity:GetChildByName("Panel")
+		
+		local title = panel:GetChildByName("Title")
+		local btnExit = title:GetChildByName("Btn_Exit")
+		btnExit:ConnectEvent(ButtonClickEvent, function()
+			self:Close()
+		end)
+		
+		local tab = panel:GetChildByName("Tabs")
+		local btnItem = tab:GetChildByName("Btn_Item")
+		btnItem:ConnectEvent(ButtonClickEvent, function()
+			self:ApplyPanel(_WorldShopCategoryType.Item)
+		end)
+		
+		local btnDia = tab:GetChildByName("Btn_Dia")
+		btnDia:ConnectEvent(ButtonClickEvent, function()
+			self:ApplyPanel(_WorldShopCategoryType.Dia)
+		end)
+		
+		local btnPass = tab:GetChildByName("Btn_Pass")
+		btnPass:ConnectEvent(ButtonClickEvent, function()
+			self:ApplyPanel(_WorldShopCategoryType.Pass)
+		end)
+		
+		local main = panel:GetChildByName("Main")
+		self.ItemPanel = main:GetChildByName("ItemPanel")
+		self.PassPanel = main:GetChildByName("PassPanel")
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Close()
+		self.ItemPanel.UIWorldShopItemPanel:Close()
+		self.PassPanel.UIWorldShopPassPanel:Close()
+		self.Entity:SetEnable(false)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Open()
+		self.Category = _WorldShopCategoryType.Item
+		self:ApplyPanel(self.Category)
+		
+		self.Entity:SetEnable(true)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Refresh(WorldShopPurchaseResultEvent evt)
+		local isItemPanel = self:IsItemPanelCategory(self.Category)
+		if isItemPanel then
+			self.ItemPanel.UIWorldShopItemPanel:Refresh(evt)
+		elseif self.Category == _WorldShopCategoryType.Pass then
+			self.PassPanel.UIWorldShopPassPanel:Refresh(evt)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ApplyPanel(integer category)
+		self.Category = category
+		
+		local isItemPanel = self:IsItemPanelCategory(category)
+		if isItemPanel then
+			self.ItemPanel.UIWorldShopItemPanel:Apply(category)
+		elseif self.Category == _WorldShopCategoryType.Pass then
+			self.PassPanel.UIWorldShopPassPanel:Apply(category)
+		end
+		
+		self.ItemPanel:SetEnable(isItemPanel)
+		self.PassPanel:SetEnable(not isItemPanel)
+	end
+
+	@ExecSpace("ClientOnly")
+	method boolean IsItemPanelCategory(integer category)
+		return category == _WorldShopCategoryType.Item or category == _WorldShopCategoryType.Dia
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("LocalPlayer")
+	handler HandleWorldShopPurchaseResultEvent(WorldShopPurchaseResultEvent event)
+		-- Parameters
+		-- local Reason = event.Reason
+		-- local ProductId = event.ProductId
+		---------------------------------------------------------
+		if not self.Entity.EnabledInHierarchy then
+			return
+		end
+		
+		self:Refresh(event)
+	end
+
+end

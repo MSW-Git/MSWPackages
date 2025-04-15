@@ -1,0 +1,105 @@
+@Component
+script PlayerDBManager extends Component
+
+	property integer TimerId = 0
+
+	@ExecSpace("ServerOnly")
+	method void OnBeginPlay()
+		self:LoadFromDB()
+		
+		-- Database save interval
+		local period = 60
+		
+		local dbfunction = function()
+			self:SaveToDB(false)
+		end
+		
+		self.TimerId = _TimerService:SetTimerRepeat(dbfunction, period, period)
+	end
+
+	@ExecSpace("ServerOnly")
+	method void SaveToDB(boolean isLeaving)
+		local saveData = {}
+		-------------------------------------------------------------------
+		local playerEntity = self.Entity
+		playerEntity.PlayerWorldShop:SaveToDB(saveData)
+		-------------------------------------------------------------------
+		
+		local userID = self.Entity.PlayerComponent.UserId
+		local ds = _DataStorageService:GetUserDataStorage(userID)
+		if isLeaving == true then
+			ds:BatchSetAndWait(saveData)
+		else
+			local callback = function(errorCode, values)
+				if errorCode == 0 then
+					return
+				end
+				
+				-- Error handling
+			end
+			ds:BatchSetAsync(saveData, callback)
+		end
+	end
+
+	@ExecSpace("ServerOnly")
+	method void LoadFromDB()
+		local userID = self.Entity.PlayerComponent.UserId
+		local ds = _DataStorageService:GetUserDataStorage(userID)
+		local loadKey = {}
+		local loadedData = {}
+		
+		-------------------------------------------------------------------
+		local playerEntity = self.Entity
+		playerEntity.PlayerWorldShop:LoadFromDB(loadKey)
+		-------------------------------------------------------------------
+		
+		
+		local returnCode, itemPages = ds:BatchGetAndWait(loadKey)
+		if returnCode ~= 0 then
+			-- Error handling
+		else
+			while true do
+				local datas = itemPages:GetCurrentPageDatas()
+				if datas == nil then
+					break
+				end
+				
+				for i=1, #datas do
+					loadedData[datas[i].KeyInfo.Key] = datas[i]
+				end
+				
+				if itemPages.IsLastPage == true then
+					break
+				end
+				itemPages:MoveToNextPageAndWait()
+			end
+		end
+		self:OnLoadedDataFromDB(loadedData)
+	end
+
+	@ExecSpace("ServerOnly")
+	method void OnLoadedDataFromDB(table datas)
+		-------------------------------------------------------------------
+		local playerEntity = self.Entity
+		playerEntity.PlayerWorldShop:OnLoadedDataFromDB(datas)
+		-------------------------------------------------------------------
+	end
+
+	@ExecSpace("ServerOnly")
+	@EventSender("Service", "UserService")
+	handler HandleUserLeaveEvent(UserLeaveEvent event)
+		--------------- Native Event Sender Info ----------------
+		-- Sender: UserService
+		-- Space: Server
+		---------------------------------------------------------
+		
+		-- Parameters
+		local UserId = event.UserId
+		---------------------------------------------------------
+		if UserId == self.Entity.PlayerComponent.UserId then
+			_TimerService:ClearTimer(self.TimerId)	
+			self:SaveToDB(true)
+		end
+	end
+
+end

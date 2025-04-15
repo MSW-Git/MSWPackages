@@ -1,0 +1,170 @@
+@Component
+script UIWorldShopPassPanel extends Component
+
+	property TextComponent Text_Title = nil
+
+	property SpriteGUIRendererComponent Sprite_Icon = nil
+
+	property TextComponent Text_Desc = nil
+
+	property Entity BtnPurchase = nil
+
+	property string ProductId = ""
+
+	property integer Category = 0
+
+	property integer NextUpdateTime = 0
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		
+		self.Text_Title = entity:GetChildByName("UIText_Title").TextComponent
+		self.Sprite_Icon = entity:GetChildByName("UISprite_Icon").SpriteGUIRendererComponent
+		self.Text_Desc = entity:GetChildByName("UIText_Desc").TextComponent
+		
+		self.BtnPurchase = entity:GetChildByName("Btn_Purchase")
+		self.BtnPurchase:ConnectEvent(ButtonClickEvent, function()
+			if _Util:IsNilorEmptyString(self.ProductId) then
+				log_error("ProductId is nil or empty")
+				return
+			end
+		
+			_WorldShopService:PromptPurchase(self.ProductId)
+		end)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Apply(integer category)
+		
+		local function handleFailure(message)
+			log_error(message)
+		end
+		
+		self.NextUpdateTime = self:CalcNextUpdateTime(category)
+		-- Initialize the next update time to 0 if there is none
+		if self.NextUpdateTime == math.maxinteger then
+			self.NextUpdateTime = 0
+		end
+		
+		local productData = _WorldShopDataSetLogic:GetItemsInSalePeriod(category)
+		if productData == nil or #productData == 0 then
+			handleFailure("No product data found for category: " .. category)
+			return
+		end
+		
+		if #productData > 1 then
+			handleFailure("Multiple product data found for category: " .. category)
+			return
+		end
+		
+		---@type WorldShopData
+		local data = productData[1]		
+		self.Category = category
+		self.ProductId = data.ProductId
+		
+		local title = ""
+		local currentTimeElapsed = _DateTimeLogic:GetTimeElapsed()
+		if data.StartDate <= currentTimeElapsed and data.EndDate >= currentTimeElapsed then
+			local startDate = DateTime(data.StartDate)
+			local endDate = DateTime(data.EndDate)
+			
+			title = string.format("%s\n%s ~ %s", data.Name, startDate:ToFormattedString("yyyy년 M월 d일"), endDate:ToFormattedString("yyyy년 M월 d일"))
+		else
+			title = data.Name
+		end
+		
+		self.Text_Title.Text = title
+		self.Sprite_Icon.ImageRUID = data.IconRUID
+		self.Text_Desc.Text = data.Desc
+		
+		self:SetPurchaseButton(data)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Close()
+		self:Clear()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnUpdate(number delta)
+		if self.NextUpdateTime == 0 then
+			return
+		end
+		
+		local currentTimeElapsed = _DateTimeLogic:GetTimeElapsed()
+		if self.NextUpdateTime <= currentTimeElapsed then
+			self:Apply(self.Category)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method integer CalcNextUpdateTime(integer category)
+		-- Find the earliest date among future start dates and end dates to determine the next update time
+		local nextUpdateTime = math.maxinteger
+		local currentTimeElapsed = _DateTimeLogic:GetTimeElapsed()
+		
+		local categoryItems = _WorldShopDataSetLogic:GetProductDatasByCategory(category)
+		if _Util:IsNilorEmptyTable(categoryItems) then
+			log_error("No items found for category: " .. category)
+			return nextUpdateTime
+		end
+		
+		for _, d in ipairs(categoryItems) do
+			---@type WorldShopData
+			local data = d
+		
+			-- Upcoming items (checking start time)
+			if data.StartDate ~= 0 and data.StartDate > currentTimeElapsed and nextUpdateTime > data.StartDate then
+				nextUpdateTime = data.StartDate
+			end
+			
+			-- Currently on sale items (checking end time)
+			if data.EndDate ~= 0 and data.EndDate > currentTimeElapsed and data.EndDate < nextUpdateTime then
+				nextUpdateTime = data.EndDate
+			end
+		end
+		
+		return nextUpdateTime
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Refresh(WorldShopPurchaseResultEvent evt)
+		if evt.ProductId ~= self.ProductId then
+			return
+		end
+		
+		local data = _WorldShopDataSetLogic:GetProductData(self.ProductId)
+		self:SetPurchaseButton(data)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetPurchaseButton(WorldShopData data)
+		if data == nil then
+			return
+		end
+		
+		local enableButton = true
+		if data.PurchaseLimit > 0 then
+			local purchaseCount = _UserService.LocalPlayer.PlayerWorldShop:GetPurchaseCount(self.ProductId)
+			local remainingLimit = data.PurchaseLimit - purchaseCount
+			self.BtnPurchase.TextComponent.Text = string.format("구매 (%d/%d)", purchaseCount, data.PurchaseLimit)
+			
+			if remainingLimit <= 0 then
+				enableButton = false
+			end
+		else
+			self.BtnPurchase.TextComponent.Text = "구매"	
+		end
+		
+		self.BtnPurchase.ButtonComponent.Enable = enableButton
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		self.NextUpdateTime = 0
+		self.ProductId = ""
+		self.Category = 0
+	end
+
+end

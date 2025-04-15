@@ -1,0 +1,10 @@
+@Logic
+script WorldShopCategoryType extends Logic
+
+	property integer Item = 0
+
+	property integer Dia = 1
+
+	property integer Pass = 2
+
+end

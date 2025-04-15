@@ -1,0 +1,39 @@
+@Logic
+script WorldShopSampleLogic extends Logic
+
+	property Entity Root = nil
+
+	property Entity Popup = nil
+
+	property Entity PurchasePopup = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		self.Root = _EntityService:GetEntityByPath("/ui/DefaultGroup")
+		if self.Root == nil then
+			log_error("Root entity not found.")
+			return
+		end
+		
+		local modelId = _EntryService:GetModelIdByName("Model_UIWorldShop")
+		self.Popup = _SpawnService:SpawnByModelId(modelId, "UIWorldShop", Vector3.zero, self.Root)
+		self.Popup:SetEnable(false)
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("Service", "InputService")
+	handler HandleKeyDownEvent(KeyDownEvent event)
+		--------------- Native Event Sender Info ----------------
+		-- Sender: InputService
+		-- Space: Client
+		---------------------------------------------------------
+		
+		-- Parameters
+		local key = event.key
+		---------------------------------------------------------
+		if key == KeyboardKey.K then
+			self.Popup.UIWorldShop:Open()
+		end
+	end
+
+end

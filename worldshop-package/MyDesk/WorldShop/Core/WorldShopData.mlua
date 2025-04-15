@@ -1,0 +1,102 @@
+@Struct
+script WorldShopData
+
+	@Description("The unique product identifier based on the world ID.")
+	property string ProductId = ""
+
+	@Description("The product name.")
+	property string Name = ""
+
+	@Description("The product description.")
+	property string Desc = ""
+
+	@Description("The unique resource ID of the product icon.")
+	property string IconRUID = ""
+
+	@Description("The product price.")
+	property integer Price = 0
+
+	@Description("The name of the function that is called when the reward is given.")
+	property string RewardFunction = ""
+
+	@Description("The arguments passed to the reward function.")
+	property table RewardArgs = {}
+
+	@Description("The maximum number of purchases allowed.")
+	property integer PurchaseLimit = 0
+
+	@Description("The start time of product availability, in elapsed seconds.")
+	property integer StartDate = 0
+
+	@Description("The end time of product availability, in elapsed seconds.")
+	property integer EndDate = 0
+
+	@Description("The display order of the product.")
+	property integer Order = 0
+
+	@Description("The product category.")
+	property integer Category = 0
+
+	method boolean Load(any r)
+		---@type UserDataRow
+		local row = r
+		if row == nil then
+			return false
+		end
+		
+		-- Gets the productId based on the current world ID.
+		self.ProductId = row:GetItem(Environment.WorldId)
+		if _Util:IsNilorEmptyString(self.ProductId) then
+			return false
+		end
+		
+		self.Name = row:GetItem("Name")
+		if _Util:IsNilorEmptyString(self.Name) then
+			return false
+		end
+		
+		self.Desc = row:GetItem("Desc")
+		if _Util:IsNilorEmptyString(self.Desc) then
+			return false
+		end
+		
+		self.IconRUID = row:GetItem("IconRUID")
+		if _Util:IsNilorEmptyString(self.IconRUID) then
+			return false
+		end
+		
+		self.Price = tonumber(row:GetItem("Price")) or 0
+		
+		self.Category = tonumber(row:GetItem("Category"))
+		if not self.Category then
+			return false
+		end
+		
+		self.RewardFunction = row:GetItem("RewardFunction")
+		if _Util:IsNilorEmptyString(self.RewardFunction) then
+			return false
+		end
+		
+		local rewardArgs = row:GetItem("RewardArgs")
+		if not _Util:IsNilorEmptyString(rewardArgs) then	
+			for item in string.gmatch(rewardArgs, "([^,]+)") do
+				-- Returns values for each capture group in the pattern.
+				local id, value = string.match(item, "^([^:]+):([^:]+)$")
+				if id and value then
+					self.RewardArgs[id] = tonumber(value) or value
+				else
+					print("Invalid item format:", item)
+					return false
+				end
+			end
+		end
+		
+		self.PurchaseLimit = tonumber(row:GetItem("PurchaseLimit")) or 0
+		self.StartDate = _DateTimeLogic:GetElapsedFromDateString(row:GetItem("StartDate"))
+		self.EndDate = _DateTimeLogic:GetElapsedFromDateString(row:GetItem("EndDate"))
+		self.Order = tonumber(row:GetItem("Order")) or 0
+		
+		return true
+	end
+
+end

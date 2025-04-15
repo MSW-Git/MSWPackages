@@ -1,0 +1,41 @@
+@Logic
+script UUIDLogic extends Logic
+
+	@ExecSpace("ServerOnly")
+	method string GenerateUUIDv4()
+		local _fmt = string.format
+		local num2hex = function(num, length) return _fmt("%0" .. length .. "X", num) end
+		
+		-- 32-bit random number
+		local time_low = (_UtilLogic:RandomIntegerRange(0, 0xFFFF) << 16) | _UtilLogic:RandomIntegerRange(0, 0xFFFF)
+		
+		-- 16-bit random number
+		local time_mid = _UtilLogic:RandomIntegerRange(0, 0xFFFF)
+		
+		-- 12-bit random number + version(0100)
+		local time_hi_and_version = (_UtilLogic:RandomIntegerRange(0, 0x0FFF) | 0x4000)
+		
+		 -- 14-bit random number + Variant(10)
+		local clock_seq_and_variant = (_UtilLogic:RandomIntegerRange(0, 0x3FFF) | 0x8000)
+		
+		local node = {}
+		for i = 1, 6 do
+			node[i] = _UtilLogic:RandomIntegerRange(0, 0xFF)
+		end
+		
+		-- Generate GUID (output in uppercase).
+		local guid_parts = {
+		    num2hex(time_low, 8),
+		    num2hex(time_mid, 4),
+		    num2hex(time_hi_and_version, 4),
+		    num2hex(clock_seq_and_variant, 4),
+		    table.concat({ 
+		        num2hex(node[1], 2), num2hex(node[2], 2), num2hex(node[3], 2), 
+		        num2hex(node[4], 2), num2hex(node[5], 2), num2hex(node[6], 2) 
+		    })
+		}
+		
+		return table.concat(guid_parts)
+	end
+
+end
