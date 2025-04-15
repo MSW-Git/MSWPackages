@@ -1,0 +1,265 @@
+@Component
+script UIAchievementItem extends Component
+
+	property integer Id = 0
+
+	property Entity Img_Icon = nil
+
+	property Entity Text_Title = nil
+
+	property Entity Text_Desc = nil
+
+	property Entity Img_Progress = nil
+
+	property Entity Text_Progress = nil
+
+	property GridViewComponent GridView = nil
+
+	property Entity Btn_OK = nil
+
+	property Entity Img_Dim = nil
+
+	property number Img_Progress_Width = 0
+
+	property Entity Btn_ChildInfo = nil
+
+	property table ItemDataTable = {}
+
+	property Entity Debug_Text_Step = nil
+
+	property Entity Panel_Debug = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		
+		self.Img_Icon = entity:GetChildByName("Img_Icon")
+		
+		local text_title = entity:GetChildByName("Text_TItle")
+		self.Text_Title = text_title
+		
+		local btn_childInfo = text_title:GetChildByName("Btn_ChildInfo")
+		btn_childInfo:ConnectEvent(ButtonClickEvent, self.OnClickBtn_ChildInfo)
+		self.Btn_ChildInfo = btn_childInfo
+		
+		self.Text_Desc = entity:GetChildByName("Text_Desc")
+		
+		local panel_progress = entity:GetChildByName("Panel_Progress")
+		self.Img_Progress = panel_progress:GetChildByName("Img_Progress")
+		self.Img_Progress_Width = self.Img_Progress.UITransformComponent.RectSize.x
+		self.Text_Progress = panel_progress:GetChildByName("Text_Progress")
+		
+		local btn_ok = entity:GetChildByName("Btn_OK")
+		btn_ok:ConnectEvent(ButtonClickEvent, self.OnClickBtn_OK)
+		self.Btn_OK = btn_ok
+		 
+		local item = entity:GetChildByName("Item_Reward")
+		item.Enable = false
+		
+		local gridView = entity:GetChildByName("GridView_Reward").GridViewComponent
+		gridView.ItemEntity = item
+		gridView.OnRefresh = self.OnRefresh
+		gridView.OnClear = self.OnClear
+		
+		self.GridView = gridView
+		
+		self.Img_Dim = entity:GetChildByName("Img_Dim")
+		
+		if _AdminLogic:IsAdminLocalPlayer() then
+			self:Debug_Init()
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Debug_Init()
+		local entity = self.Entity
+		local panel_debug = entity:GetChildByName("Panel_Debug")
+		self.Panel_Debug = panel_debug
+		
+		self.Debug_Text_Step = panel_debug:GetChildByName("Text_Step")
+		
+		local comp = _UserService.LocalPlayer.PlayerAchievement
+		
+		local btn_step_subtract = panel_debug:GetChildByName("Btn_Step_Subtract")
+		btn_step_subtract:ConnectEvent(ButtonClickEvent, function()
+			comp:Debug_RequestAdjustStep(self.Id, false)
+		end)
+		
+		local btn_step_add = panel_debug:GetChildByName("Btn_Step_Add")
+		btn_step_add:ConnectEvent(ButtonClickEvent, function()
+			comp:Debug_RequestAdjustStep(self.Id, true)
+		end)
+		
+		local btn_min = panel_debug:GetChildByName("Btn_Min")
+		btn_min:ConnectEvent(ButtonClickEvent, function()
+			comp:Debug_RequestAdjustValue(self.Id, false, true)
+		end)
+		
+		local btn_subtract = panel_debug:GetChildByName("Btn_Subtract")
+		btn_subtract:ConnectEvent(ButtonClickEvent, function()
+			comp:Debug_RequestAdjustValue(self.Id, false, false)
+		end)
+		
+		local btn_add = panel_debug:GetChildByName("Btn_Add")
+		btn_add:ConnectEvent(ButtonClickEvent, function()
+			comp:Debug_RequestAdjustValue(self.Id, true, false)
+		end)
+		
+		local btn_max = panel_debug:GetChildByName("Btn_Max")
+		btn_max:ConnectEvent(ButtonClickEvent, function()
+			comp:Debug_RequestAdjustValue(self.Id, true, true)
+		end)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Set(UserAchievementData userData, boolean isDebug)
+		self.Id = userData.Id
+		
+		local data = _AchievementDataSetLogic:GetData(userData.Id)
+		if data == nil then
+			self:Clear()
+			return
+		end
+		
+		local isCompleted = userData.State == _AchievementStateEnum.Completed	
+		local stepData = data:GetStepData(userData.Step)
+		if stepData == nil then
+			-- If no StepData is found, the last StepData will be shown as completed.
+			stepData = data:GetLastStepData()
+			isCompleted = true
+		end
+		
+		if stepData == nil then
+			self:Clear()
+			return
+		end
+		
+		self.Text_Title.TextComponent.Text = data.Name
+		self.Text_Desc.TextComponent.Text = stepData.Description
+		
+		local isParent = data:IsParent()
+		self.Btn_ChildInfo.Enable = isParent
+		
+		local itemDataTable = self.ItemDataTable
+		table.clear(itemDataTable)
+		
+		local rewardItems = stepData.RewardItems
+		if rewardItems == nil then
+			rewardItems = {}
+		end
+		table.initialize(itemDataTable, rewardItems)
+		
+		local gridView = self.GridView
+		gridView.TotalCount = #itemDataTable
+		gridView:Refresh(true, true)
+		
+		local maxValue = data:GetMaxConditionValue()
+		local btn_ok = self.Btn_OK
+		
+		if isCompleted then
+			self.Img_Progress.UITransformComponent.RectSize.x = self.Img_Progress_Width
+			self.Text_Progress.TextComponent.Text = string.format("%d/%d", maxValue, maxValue)
+			
+			self:SetOKButtonEnable(false)
+			btn_ok.TextComponent.Text = string.format("완료")
+		else
+			local uiUserValue = math.min(userData.Value, maxValue)
+			
+			local conditionValue = stepData.Value
+			local ratio = math.min(uiUserValue / conditionValue, 1)
+			self.Img_Progress.UITransformComponent.RectSize.x = self.Img_Progress_Width * ratio
+			self.Text_Progress.TextComponent.Text = string.format("%d/%d", uiUserValue, conditionValue)
+			
+			self:SetOKButtonEnable(userData:IsCompletable(data))
+			if #rewardItems == 0 then
+				btn_ok.TextComponent.Text = "확인하기"
+			else
+				btn_ok.TextComponent.Text = "보상 받기"
+			end
+		end
+		
+		self.Img_Dim.Enable = isCompleted
+		
+		local debug_text_step = self.Debug_Text_Step
+		if debug_text_step ~= nil then
+			debug_text_step.TextComponent.Text = string.format("STEP : %d", userData.Step)
+		end
+		
+		self.Panel_Debug.Enable = isDebug
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		self.Text_Title.TextComponent.Text = ""
+		self.Text_Desc.TextComponent.Text = ""
+		self.Img_Progress.UITransformComponent.RectSize.x = 0
+		self.Text_Progress.TextComponent.Text = ""
+		
+		table.clear(self.ItemDataTable)
+		
+		local gridView = self.GridView
+		gridView.TotalCount = 0
+		gridView:Refresh(true, true)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_OK()
+		_UserService.LocalPlayer.PlayerAchievement:RequestCompleteAchievements({ self.Id })
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_ChildInfo()
+		local data = _AchievementDataSetLogic:GetData(self.Id)
+		if data == nil then
+			return
+		end
+		
+		local isParent = data:IsParent()
+		if not isParent then
+			return
+		end
+		
+		-- The ButtonClickEvent is sent to the parent entity for handling.
+		local evt = ButtonClickEvent()
+		evt.Entity = self.Entity
+		self.Entity.Parent:SendEvent(evt)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnRefresh(integer index, Entity entity)
+		index += 1
+		
+		local itemData = self.ItemDataTable[index]
+		local itemId = itemData[1]
+		local itemCount = itemData[2]
+		
+		local spriteComp = entity:GetChildByName("Img_Icon").SpriteGUIRendererComponent
+		local textComp = entity:GetChildByName("Text_Num").TextComponent
+		
+		spriteComp.ImageRUID = "354f7770bded480b98c003aa3e068dc4"
+		textComp.Text = tostring(itemCount)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClear(integer index, Entity entity)
+		local spriteComp = entity:GetChildByName("Img_Icon").SpriteGUIRendererComponent
+		local textComp = entity:GetChildByName("Text_Num").TextComponent
+		
+		spriteComp.ImageRUID = ""
+		textComp.Text = tostring(0)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetOKButtonEnable(boolean enable)
+		local btn_ok = self.Btn_OK
+		
+		if enable then
+			btn_ok.SpriteGUIRendererComponent.ImageRUID = "e4e06f6334ae490b9bf4732b82003c17"
+			btn_ok.ButtonComponent.Enable = true
+		else
+			btn_ok.SpriteGUIRendererComponent.ImageRUID = "976f304c3d3340d49728226e64212ed8"
+			btn_ok.ButtonComponent.Enable = false
+		end
+	end
+
+end

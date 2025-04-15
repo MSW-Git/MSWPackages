@@ -1,0 +1,12 @@
+@Logic
+script ActionEnum extends Logic
+
+	property integer Attend = 1
+
+	property integer StateChange = 2
+
+	property integer MesoChange = 3
+
+	property integer StaminaChange = 4
+
+end

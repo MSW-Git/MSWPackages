@@ -1,0 +1,353 @@
+@Struct
+script UserQuestData
+
+	property integer Id = 0
+
+	property integer State = 0
+
+	property table Values = {}
+
+	property integer CompleteCount = 0
+
+	property integer AcceptTime = 0
+
+	property integer CompleteTime = 0
+
+	property integer ExpiredTime = 0
+
+	method void Init(integer id)
+		self.Id = id
+		self.State = _QuestStateEnum.Init
+		
+		self:InitValues()
+	end
+
+	method void InitValues()
+		local data = _QuestDataSetLogic:GetData(self.Id)
+		if data == nil then
+			return
+		end
+		
+		local values = self.Values
+		local valueCount = #values
+		local conditionCount = data.ConditionCount
+		
+		if valueCount < conditionCount then
+			for i = valueCount + 1, conditionCount do
+				values[i] = 0
+			end
+		end
+	end
+
+	method void ResetValues()
+		local values = self.Values
+		for i = 1, #values do
+			values[i] = 0
+		end
+	end
+
+	method void CopyFrom(UserQuestData data)
+		self.Id = data.Id
+		self.State = data.State
+		table.initialize(self.Values, data.Values)
+		self.CompleteCount = data.CompleteCount
+		self.AcceptTime = data.AcceptTime
+		self.CompleteTime = data.CompleteTime
+		self.ExpiredTime = data.ExpiredTime
+	end
+
+	method table Serialize()
+		local result = {}
+		result["ID"] = self.Id
+		result["ST"] = self.State
+		
+		local values = self.Values
+		if values ~= nil and #values ~= 0 then
+			result["VL"] = values
+		end
+		
+		result["CC"] = self.CompleteCount
+		result["AT"] = self.AcceptTime
+		result["CT"] = self.CompleteTime
+		result["ET"] = self.ExpiredTime
+		
+		return result
+	end
+
+	method boolean Deserialize(table deserTable)
+		self.Id = deserTable["ID"]
+		self.State = deserTable["ST"]
+		
+		local values = deserTable["VL"]
+		if values ~= nil then
+			self.Values = values
+		end
+		self:InitValues()
+		
+		self.CompleteCount = deserTable["CC"]
+		self.AcceptTime = deserTable["AT"]
+		self.CompleteTime = deserTable["CT"]
+		self.ExpiredTime = deserTable["ET"]
+		
+		return true
+	end
+
+	method boolean IsAcceptable(Entity userEntity, QuestData data, integer elapsed)
+		local state = self.State
+		if state ~= _QuestStateEnum.Init and state ~= _QuestStateEnum.Stored then
+			return false
+		end
+		
+		local comp = userEntity.PlayerQuest
+		
+		local linkedPrevId = data.LinkedPrevId
+		if linkedPrevId ~= 0 then
+			local userData = comp:GetOrCreateUserData(linkedPrevId)
+			if userData.State ~= _QuestStateEnum.Completed then
+				return false
+			end
+		end
+		
+		local requiredId = data.RequiredId
+		if requiredId ~= 0 then
+			local userData = comp:GetOrCreateUserData(requiredId)
+			if userData.State ~= _QuestStateEnum.Completed then
+				return false
+			end
+		end
+		
+		return true
+	end
+
+	method void Accept(Entity userEntity, QuestData data, integer elapsed)
+		-- This function should check the conditions using the `IsAcceptable` function before execution.
+		self.State = _QuestStateEnum.InProgress
+		self.AcceptTime = elapsed
+		self:ResetValues()
+		self:UpdateValues(userEntity, data)
+	end
+
+	method boolean UpdateValues(Entity userEntity, QuestData data)
+		local state = self.State
+		if state ~= _QuestStateEnum.InProgress then
+			return false
+		end
+		
+		---@type table<QuestConditionData>
+		local conditionDatas = data.ConditionDatas
+		if conditionDatas == nil or #conditionDatas == 0 then
+			return false
+		end
+		
+		local isDirty = false
+		local values = self.Values
+		
+		for i = 1, #conditionDatas do
+			local condData = conditionDatas[i]
+			if condData == nil then
+				continue
+			end
+			
+			---@type ActionConditionData
+			local actionCondData = condData.ConditionData
+			if actionCondData == nil then
+				continue
+			end
+			
+			if not actionCondData:IsUpdateNeeded() then
+				continue
+			end
+			
+			local condValue = condData.Value
+			
+			local userValue = values[i]
+			if userValue == nil then
+				userValue = 0
+			end
+			
+			local nextUserValue = actionCondData:GetUpdatedValue(userEntity, userValue, condValue)
+			if nextUserValue == nil then
+				continue
+			end
+			
+			nextUserValue = math.min(nextUserValue, condValue)
+			if nextUserValue == userValue then
+				continue
+			end
+			
+			values[i] = nextUserValue
+			isDirty = true
+		end
+		
+		if not isDirty then
+			return false
+		end
+		
+		return true
+	end
+
+	method boolean CheckAndSetValue(Entity userEntity, ActionEvent event, QuestData data, integer elapsed)
+		local state = self.State
+		if state ~= _QuestStateEnum.InProgress then
+			return false
+		end
+		
+		---@type table<QuestConditionData>
+		local conditionDatas = data.ConditionDatas
+		if conditionDatas == nil or #conditionDatas == 0 then
+			return false
+		end
+		
+		local isDirty = false
+		local values = self.Values
+		
+		for i = 1, #conditionDatas do
+			local condData = conditionDatas[i]
+			if condData == nil then
+				continue
+			end
+			
+			if not condData:IsValidActionEnum(event.ActionEnum) then
+				continue
+			end
+			
+			---@type ActionConditionData
+			local actionCondData = condData.ConditionData
+			if actionCondData == nil then
+				continue
+			end
+			
+			local condValue = condData.Value
+			local userValue = values[i]
+			if userValue == nil then
+				userValue = 0
+			end
+			
+			if not actionCondData:Check(userEntity, event, userValue, condValue) then
+				continue
+			end
+				
+			local nextUserValue = actionCondData:GetNextUserValue(userEntity, event, userValue, condValue)
+			if nextUserValue == nil then
+				continue
+			end
+			
+			nextUserValue = math.min(nextUserValue, condValue)
+			if nextUserValue == userValue then
+				continue
+			end
+			
+			values[i] = nextUserValue
+			isDirty = true
+		end
+		
+		if not isDirty then
+			return false
+		end
+		
+		return true
+	end
+
+	method boolean IsAbandonable(QuestData data)
+		local state = self.State
+		if state ~= _QuestStateEnum.InProgress then
+			return false
+		end
+		
+		if data.CannotAbandon then
+			return false
+		end
+		
+		return true
+	end
+
+	method void Abandon(integer elapsed)
+		-- This function should check the conditions using the `IsAbandonable` function before execution.
+		self.State = _QuestStateEnum.Stored
+		self.ExpiredTime = elapsed
+	end
+
+	method boolean IsCompletable(QuestData data)
+		local state = self.State
+		if state ~= _QuestStateEnum.InProgress then
+			return false
+		end
+		
+		---@type table<QuestConditionData>
+		local conditionDatas = data.ConditionDatas
+		if conditionDatas == nil or #conditionDatas == 0 then
+			return true
+		end
+		
+		local isDirty = false
+		local values = self.Values
+		
+		for i = 1, #conditionDatas do
+			local condData = conditionDatas[i]
+			local userValue = values[i]
+			
+			if userValue == nil then
+				return false
+			end
+			
+			if userValue < condData.Value then
+				return false
+			end
+		end
+		
+		return true
+	end
+
+	method boolean Complete(Entity userEntity, QuestData data, integer elapsed)
+		-- This function should check the conditions using the `IsCompletable` function before execution.
+		local rewardItems = data.RewardItems
+		if rewardItems ~= nil then
+			local userId = userEntity.PlayerComponent.UserId
+			for i = 1, #rewardItems do
+				local rewardItem = rewardItems[i]
+				local itemId = rewardItem[1]
+				local itemCount = rewardItem[2]
+				log(string.format("Reward Item. ItemID : %d, ItemCount : %d, UserID : %s", itemId, itemCount, userId))
+			end
+		end
+		
+		if data.IsRepeatable then
+			self.State = _QuestStateEnum.Stored
+		else
+			self.State = _QuestStateEnum.Completed
+		end
+		
+		self.CompleteCount += 1
+		self.CompleteTime = elapsed
+		
+		return true
+	end
+
+	method string GetProgressText(QuestData data, boolean isCompleted)
+		---@type table<QuestConditionData>
+		local conditionDatas = data.ConditionDatas
+		if conditionDatas == nil or #conditionDatas == 0 then
+			return ""
+		end
+		
+		local strs = {}
+		local values = self.Values
+		
+		for i = 1, #conditionDatas do
+			local condition = conditionDatas[i]
+			local desc = condition.Description
+			local condValue = condition.Value
+			
+			local userValue = values[i]
+			if isCompleted then
+				userValue = condValue
+			end
+			
+			local str = string.format("%s %d/%d", desc, userValue, condValue)
+			strs[#strs + 1] = str
+		end
+		
+		return table.concat(strs, "\n")
+	end
+
+end

@@ -1,0 +1,149 @@
+@Logic
+script QuestDataSetLogic extends Logic
+
+	property table DataTable = {}
+
+	property table IdsByCategoryTable = {}
+
+	property table AutoAcceptIds = {}
+
+	method boolean Load()
+		---@type table<integer, QuestData>
+		local dataTable = self.DataTable
+		
+		local autoAcceptIds = self.AutoAcceptIds
+		
+		local conditionDatasById = {}
+		if not self:LoadConditionData(conditionDatasById) then
+			return false
+		end
+		
+		local childrenIdsTable = {}
+		local rows = _DataService:GetTable("QuestDataSet"):GetAllRow()
+		for i = 1, #rows do
+			local row = rows[i]
+			local disable = row:GetItem("Disable")
+			if not _Util:IsNilorEmptyString(disable) then
+				continue
+			end
+			
+			local data = QuestData()
+			if not data:Load(row) then
+				return false
+			end
+			
+			local id = data.Id
+			dataTable[id] = data
+			
+			local conditionDatas = conditionDatasById[id]
+			if conditionDatas ~= nil then
+				data.ConditionDatas = conditionDatas
+				data.ConditionCount = #conditionDatas
+			end
+			
+			if data.AutoAccept then
+				autoAcceptIds[#autoAcceptIds + 1] = id
+			end
+		end
+		
+		for id, data in pairs(dataTable) do
+			local linkedPrevId = data.LinkedPrevId
+			if linkedPrevId ~= 0 and self:GetData(linkedPrevId) == nil then
+				log_error(string.format("Cannot find LinkedPrevId Data. Id : %d, LinkedPrevId : ", id, data.LinkedPrevId))
+				return false
+			end
+			
+			local requiredId = data.RequiredId
+			if requiredId ~= 0 and self:GetData(requiredId) == nil then
+				log_error(string.format("Cannot find RequiredId Data. Id : %d, LinkedPrevId : ", id, data.RequiredId))
+				return false
+			end
+		end
+		
+		
+		local idsByCategoryTable = self.IdsByCategoryTable
+		for id, data in pairs(dataTable) do
+			local category = data.CategoryEnum
+			
+			local ids = idsByCategoryTable[category]
+			if ids == nil then
+				ids = {}
+				idsByCategoryTable[category] = ids
+			end
+			
+			ids[#ids + 1] = id
+		end
+		
+		return true
+	end
+
+	method boolean LoadConditionData(table outConditionDatasById)
+		local rows = _DataService:GetTable("QuestConditionDataSet"):GetAllRow()
+		
+		for i = 1, #rows do
+			local row = rows[i]
+			local disable = row:GetItem("Disable")
+			if not _Util:IsNilorEmptyString(disable) then
+				continue
+			end
+			
+			local data = QuestConditionData()
+			if not data:Load(row) then
+				return false
+			end
+			
+			local id = data.Id
+			
+			---@type table<QuestConditionData>
+			local conditionDatas = outConditionDatasById[id]
+			if conditionDatas == nil then
+				conditionDatas = {}
+				outConditionDatasById[id] = conditionDatas
+			end
+			
+			conditionDatas[#conditionDatas + 1] = data
+		end
+		
+		return true
+	end
+
+	method QuestData GetData(integer id)
+		return self.DataTable[id]
+	end
+
+	method table GetIdsByCategoryEnum(integer categoryEnum)
+		return self.IdsByCategoryTable[categoryEnum]
+	end
+
+	method boolean IsShow(integer id, table userDataTable)
+		local data = self:GetData(id)
+		if data == nil then
+			return false
+		end
+		
+		---@type UserQuestData
+		local userData = userDataTable[id]
+		if userData == nil then
+			return false
+		end
+		
+		local state = userData.State
+		if state == _QuestStateEnum.InProgress or state == _QuestStateEnum.Completed then
+			return true
+		end
+		
+		local linkedPrevId = data.LinkedPrevId
+		if linkedPrevId == 0 then
+			return true
+		end
+		
+		---@type UserQuestData
+		local linkedPrevUserData = userDataTable[linkedPrevId]
+		if linkedPrevUserData == nil or linkedPrevUserData.State ~= _QuestStateEnum.Completed then
+			return false
+		end
+				
+		return true
+	end
+
+end

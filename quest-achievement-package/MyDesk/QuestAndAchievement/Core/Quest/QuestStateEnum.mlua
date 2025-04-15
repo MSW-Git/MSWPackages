@@ -1,0 +1,16 @@
+@Logic
+script QuestStateEnum extends Logic
+
+	property integer None = 0
+
+	property integer Init = 1
+
+	property integer InProgress = 2
+
+	property integer Completed = 3
+
+	property integer Stored = 4
+
+	property integer Max = 5
+
+end

@@ -1,0 +1,87 @@
+@Struct
+script ActionConditionData_MesoChange extends ActionConditionData
+
+	property string CheckType = ""
+
+	property boolean IsMaxBalance = false
+
+	method any Clone()
+		return ActionConditionData_MesoChange()
+	end
+
+	method table GetActionEnumList()
+		return { _ActionEnum.MesoChange }
+	end
+
+	method boolean LoadArg(string str)
+		self.CheckType = str
+		return true
+	end
+
+	method boolean LoadExtra(string str)
+		if self.CheckType == "Balance" and str == "Max" then
+			self.IsMaxBalance = true
+		end
+		
+		return true
+	end
+
+	method boolean Check(Entity userEntity, ActionEvent evt, integer userValue, integer condValue)
+		local evtArgs = evt.Args
+		local prevMeso = evtArgs[1]
+		local curMeso = evtArgs[2]
+		
+		local checkType = self.CheckType
+		if checkType == "Gain" then
+			return prevMeso < curMeso
+		elseif checkType == "Spend" then
+			return prevMeso > curMeso
+		elseif checkType == "Balance" then
+			return prevMeso ~= curMeso
+		end
+	end
+
+	method integer GetNextUserValue(Entity userEntity, ActionEvent evt, integer userValue, integer condValue)
+		local evtArgs = evt.Args
+		local prevMeso = evtArgs[1]
+		local curMeso = evtArgs[2]
+		
+		local checkType = self.CheckType
+		if checkType == "Gain" then
+			return userValue + (curMeso - prevMeso)
+		elseif checkType == "Spend" then
+			return userValue + (prevMeso - curMeso)
+		elseif checkType == "Balance" then
+			if self.IsMaxBalance then
+				return math.max(userValue, curMeso)
+			else
+				return curMeso	
+			end
+		end
+		
+		return userValue
+	end
+
+	method boolean IsUpdateNeeded()
+		if self.CheckType ~= "Balance" then
+			return false
+		end
+		
+		return true
+	end
+
+	method integer GetUpdatedValue(Entity userEntity, integer userValue, integer condValue)
+		if self.CheckType ~= "Balance" then
+			return nil
+		end
+		
+		local curMeso = userEntity.PlayerAccount.Meso
+		
+		if self.IsMaxBalance then
+			return math.max(userValue, curMeso)
+		else
+			return curMeso
+		end
+	end
+
+end

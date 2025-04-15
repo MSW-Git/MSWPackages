@@ -1,0 +1,12 @@
+@Struct
+script ActionConditionData_Attend extends ActionConditionData
+
+	method any Clone()
+		return ActionConditionData_Attend()
+	end
+
+	method table GetActionEnumList()
+		return { _ActionEnum.Attend }
+	end
+
+end

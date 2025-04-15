@@ -1,0 +1,16 @@
+@Struct
+script ActionConditionData_Jump extends ActionConditionData
+
+	method any Clone()
+		return ActionConditionData_Jump()
+	end
+
+	method table GetActionEnumList()
+		return { _ActionEnum.StateChange }
+	end
+
+	method boolean Check(Entity userEntity, ActionEvent evt, integer userValue, integer condValue)
+		return evt.Args[2] == "JUMP"
+	end
+
+end

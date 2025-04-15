@@ -1,0 +1,94 @@
+@Struct
+script AchievementData
+
+	property integer Id = 0
+
+	property integer ParentId = 0
+
+	property string Name = ""
+
+	property integer CategoryEnum = 0
+
+	property integer CycleEnum = 0
+
+	property any ConditionData = nil
+
+	property integer Priority = 0
+
+	property table StepDatas = nil
+
+	property table ChildIds = nil
+
+	method AchievementStepData GetStepData(integer step)
+		return self.StepDatas[step]
+	end
+
+	method AchievementStepData GetLastStepData()
+		return self.StepDatas[#self.StepDatas]
+	end
+
+	method boolean Load(any dataRow)
+		---@type UserDataRow
+		local row = dataRow
+		
+		local id = math.tointeger(tonumber(row:GetItem("Id")))
+		if id == nil or id == 0 then
+			log_error("Id is nil.")
+			return false
+		end
+		self.Id = id
+		
+		local parentId = math.tointeger(tonumber(row:GetItem("ParentId")))
+		if parentId ~= nil and parentId ~= 0 then
+			self.ParentId = parentId
+		end
+		
+		self.Name = row:GetItem("Name")
+		self.CategoryEnum = _AchievementCategoryEnum:ToEnum(row:GetItem("CategoryEnum"))
+		self.CycleEnum = _CycleEnum:ToEnum(row:GetItem("CycleEnum"))
+		
+		-- The parent achievement has no condition data.
+		self.ConditionData = _ActionConditionEnum:LoadData(row, "CondEnum", "CondArg", "CondExtra")
+		
+		local priority = math.tointeger(tonumber(row:GetItem("Priority")))
+		self.Priority = priority or math.maxinteger
+		
+		return true
+	end
+
+	method boolean IsParent()
+		return self.ChildIds ~= nil
+	end
+
+	method integer GetMaxConditionValue()
+		local data = self:GetLastStepData(self.Id)
+		return data.Value
+	end
+
+	method integer GetStepMinValue(integer step)
+		local stepDatas = self.StepDatas
+		if step < 1 or step > #stepDatas then
+			return nil
+		end
+		
+		if step == 1 then
+			return 0
+		end
+		
+		---@type AchievementStepData
+		local prevStepData = stepDatas[step - 1]
+		return prevStepData.Value
+	end
+
+	method integer GetStepMaxValue(integer step)
+		local stepDatas = self.StepDatas
+		if step < 1 or step > #stepDatas then
+			return nil
+		end
+		
+		---@type AchievementStepData
+		local stepData = self.StepDatas[step]
+		return stepData.Value
+	end
+
+end

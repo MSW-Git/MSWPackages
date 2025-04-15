@@ -1,0 +1,70 @@
+@Logic
+script AchievementCategoryEnum extends Logic
+
+	property table EnumToStrTable = {}
+
+	property table EnumToUIStrTable = {}
+
+	property table StrToEnumTable = {}
+
+	property integer None = 0
+
+	property integer Day = 1
+
+	property integer Week = 2
+
+	property integer Feature = 3
+
+	property integer Normal = 4
+
+	method boolean Init()
+		local enumStrList = {
+			{ "Day", "일일" },
+			{ "Week", "주간" },
+			{ "Feature", "기능" },
+			{ "Normal", "일반" }
+		}
+		
+		local enumToStrTable = self.EnumToStrTable
+		local enumToUIStrTable = self.EnumToUIStrTable
+		local strToEnumTable = self.StrToEnumTable
+		
+		for i = 1, #enumStrList do
+			local str = enumStrList[i][1]
+			local uiStr = enumStrList[i][2]
+			local enum = self[str]
+			
+			if enum == nil then
+				log_error("Cannot find enum. " .. str)
+				return false
+			end
+			
+			if enumToStrTable[enum] ~= nil then
+				log_error("Already existing enum. " .. str)	
+				return false
+			end
+			
+			enumToStrTable[enum] = str
+			enumToUIStrTable[enum] = uiStr
+			strToEnumTable[str] = enum
+		end
+	end
+
+	method integer ToEnum(string str)
+		local enum = self.StrToEnumTable[str]
+		if enum == nil then
+			return self.None
+		end
+		
+		return enum
+	end
+
+	method string ToStr(integer enum)
+		return self.EnumToStrTable[enum]
+	end
+
+	method string ToUIStr(integer enum)
+		return self.EnumToUIStrTable[enum]
+	end
+
+end

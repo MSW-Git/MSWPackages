@@ -1,0 +1,104 @@
+@Logic
+script ActionConditionEnum extends Logic
+
+	property table StructTable = {}
+
+	property table EnumToStrTable = {}
+
+	property table StrToEnumTable = {}
+
+	property integer None = 0
+
+	property integer Attend = 1
+
+	property integer Jump = 2
+
+	property integer MesoChange = 3
+
+	property integer StaminaChange = 4
+
+	method boolean Init()
+		local configTable = {
+			{ "Attend", ActionConditionData_Attend() },
+			{ "Jump", ActionConditionData_Jump() },
+			{ "MesoChange", ActionConditionData_MesoChange() },
+			{ "StaminaChange", ActionConditionData_StaminaChange() },
+		}
+		
+		local structTable = self.StructTable
+		local enumToStrTable = self.EnumToStrTable
+		local strToEnumTable = self.StrToEnumTable
+		
+		for i = 1, #configTable do
+			local config = configTable[i]
+			local enumStr = config[1]
+			local struct = config[2]
+			
+			local enum = self[enumStr]
+			if enum == nil then
+				log_error("Cannot find enum. " .. enumStr)
+				return false
+			end
+			
+			if enumToStrTable[enum] ~= nil then
+				log_error("Already existing enum. " .. enumStr)	
+				return false
+			end
+			
+			enumToStrTable[enum] = enumStr
+			strToEnumTable[enumStr] = enum
+			structTable[enum] = struct
+		end
+	end
+
+	method string EnumToString(integer enum)
+		return self.EnumToStrTable[enum]
+	end
+
+	method integer ToEnum(string str)
+		local enum = self.StrToEnumTable[str]
+		if enum == nil then
+			return self.None
+		end
+		
+		return enum
+	end
+
+	method any CreateData(integer enum)
+		---@type ActionConditionData
+		local conditionData = self.StructTable[enum]
+		if conditionData == nil then
+			return nil
+		end
+		
+		return conditionData:Clone()
+	end
+
+	method any LoadData(any row, string colNameEnum, string colNameArg, string colNameExtra)
+		---@type UserDataRow
+		local dataRow = row
+		
+		local condEnum = self:ToEnum(dataRow:GetItem(colNameEnum))
+		if condEnum == nil then
+			log_error("Cannot find ActionConditionEnum : " .. dataRow:GetItem(colNameEnum))
+			return nil
+		end
+		
+		---@type ActionConditionData
+		local conditionData = self:CreateData(condEnum)
+		if conditionData == nil then
+			return nil
+		end
+		
+		if not conditionData:LoadArg(dataRow:GetItem(colNameArg)) then
+			return nil
+		end
+		
+		if not conditionData:LoadExtra(dataRow:GetItem(colNameExtra)) then
+			return nil
+		end
+		
+		return conditionData
+	end
+
+end

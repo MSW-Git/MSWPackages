@@ -1,0 +1,12 @@
+@Struct
+script QuestSortStruct
+
+	property integer Id = 0
+
+	property integer StatePriority = 0
+
+	property boolean CanAccept = false
+
+	property integer Priority = 0
+
+end

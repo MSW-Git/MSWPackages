@@ -1,0 +1,243 @@
+@Struct
+script UserAchievementData
+
+	property integer Id = 0
+
+	property integer State = 0
+
+	property integer Step = 0
+
+	property integer Value = 0
+
+	property integer BeginTime = 0
+
+	property integer CompleteTime = 0
+
+	method void Init(integer id)
+		self.Id = id
+		self:Reset()
+	end
+
+	method void Reset()
+		-- Resets all properties except for the ID.
+		self.State = _AchievementStateEnum.Init
+		self.Step = 1
+		self.Value = 0
+		self.BeginTime = 0
+		self.CompleteTime = 0
+	end
+
+	method void CopyFrom(UserAchievementData data)
+		self.Id = data.Id
+		self.State = data.State
+		self.Step = data.Step
+		self.Value = data.Value
+		self.BeginTime = data.BeginTime
+		self.CompleteTime = data.CompleteTime
+	end
+
+	method table Serialize()
+		local result = {}
+		
+		result["ID"] = self.Id
+		result["ST"] = self.State
+		result["SP"] = self.Step
+		result["VL"] = self.Value
+		result["BG"] = self.BeginTime
+		result["CT"] = self.CompleteTime
+		
+		return result
+	end
+
+	method boolean Deserialize(table deserTable)
+		local id = deserTable["ID"]
+		if id == nil then
+			return false
+		end
+		self.Id = id
+		
+		local state = deserTable["ST"]
+		if state == nil then
+			return false
+		end
+		self.State = state
+		
+		local step = deserTable["SP"]
+		if step == nil then
+			return false
+		end
+		self.Step = step
+		
+		local value = deserTable["VL"]
+		if value == nil then
+			return false
+		end
+		self.Value = value
+		
+		local beginTime = deserTable["BG"]
+		if beginTime == nil then
+			return false
+		end
+		self.BeginTime = beginTime
+		
+		local completeTime = deserTable["CT"]
+		if completeTime == nil then
+			return false
+		end
+		self.CompleteTime = completeTime
+		
+		return true
+	end
+
+	method boolean CheckAndSetValue(Entity userEntity, ActionEvent event, AchievementData data, integer elapsed)
+		local state = self.State
+		if state ~= _AchievementStateEnum.Init and state ~= _AchievementStateEnum.InProgress then
+			return false
+		end
+		
+		---@type AchievementStepData
+		local stepData = data.StepDatas[self.Step]
+		if stepData == nil then
+			return false
+		end
+		
+		---@type ActionConditionData
+		local conditionData = data.ConditionData
+		if conditionData == nil then
+			return false
+		end
+		
+		local condValue = stepData.Value
+		local userValue = self.Value
+		
+		if not conditionData:Check(userEntity, event, userValue, condValue) then
+			return false
+		end
+		
+		local nextUserValue = conditionData:GetNextUserValue(userEntity, event, userValue, condValue)
+		if nextUserValue == nil then
+			return false
+		end
+		
+		local maxValue = data:GetMaxConditionValue()
+		nextUserValue = math.min(nextUserValue, maxValue)
+		if nextUserValue == userValue then
+			return false
+		end
+		
+		self:SetValue(nextUserValue, elapsed)
+		
+		return true
+	end
+
+	method void SetValue(integer nextUserValue, integer elapsed)
+		-- After changing the value, you must set IsSaveDB of PlayerAchievement to true for it to be saved.
+		self.Value = nextUserValue
+		
+		if self.State == _AchievementStateEnum.Init then
+			self.State = _AchievementStateEnum.InProgress
+			self.BeginTime = elapsed
+		end
+	end
+
+	method boolean UpdateValue(Entity userEntity, AchievementData data, integer elapsed)
+		local state = self.State
+		if state ~= _AchievementStateEnum.Init and state ~= _AchievementStateEnum.InProgress then
+			return false
+		end
+		
+		---@type AchievementStepData
+		local stepData = data.StepDatas[self.Step]
+		if stepData == nil then
+			return false
+		end
+		
+		---@type ActionConditionData
+		local conditionData = data.ConditionData
+		if conditionData == nil then
+			return false
+		end
+		
+		if not conditionData:IsUpdateNeeded() then
+			return false
+		end
+		
+		local condValue = stepData.Value
+		local userValue = self.Value
+		
+		local nextUserValue = conditionData:GetUpdatedValue(userEntity, userValue, condValue)
+		if nextUserValue == nil then
+			return false
+		end
+		
+		local maxValue = data:GetMaxConditionValue()
+		nextUserValue = math.min(nextUserValue, maxValue)
+		if nextUserValue == userValue then
+			return false
+		end
+		
+		self:SetValue(nextUserValue, elapsed)
+		
+		return true
+	end
+
+	method boolean IsCompletable(AchievementData data)
+		local state = self.State
+		if state ~= _AchievementStateEnum.Init and state ~= _AchievementStateEnum.InProgress then
+			return false
+		end
+		
+		---@type AchievementStepData
+		local stepData = data.StepDatas[self.Step]
+		if stepData == nil then
+			return false
+		end
+		
+		local userValue = self.Value
+		local condValue = stepData.Value
+		
+		if userValue < condValue then
+			return false
+		end
+		
+		return true
+	end
+
+	method boolean Complete(Entity userEntity, AchievementData data, integer elapsed)
+		-- This function should check the conditions using the `IsCompletable` function before execution.
+		local step = self.Step
+		
+		---@type AchievementStepData
+		local stepData = data:GetStepData(step)
+		if stepData == nil then
+			return false
+		end
+		
+		local rewardItems = stepData.RewardItems
+		if rewardItems ~= nil then
+			local userId = userEntity.PlayerComponent.UserId
+			for i = 1, #rewardItems do
+				local rewardItem = rewardItems[i]
+				local itemId = rewardItem[1]
+				local itemCount = rewardItem[2]
+				log(string.format("Reward Item. ItemID : %d, ItemCount : %d, UserID : %s", itemId, itemCount, userId))
+			end
+		end
+		
+		local nextStepData = data:GetStepData(step + 1)
+		if nextStepData == nil then
+			self.State = _AchievementStateEnum.Completed
+		else
+			self.Step += 1
+			
+			if self.State == _AchievementStateEnum.Init then
+				self.State = _AchievementStateEnum.InProgress
+				self.BeginTime = elapsed
+			end
+		end
+		
+		self.CompleteTime = elapsed
+		return true
+	end
+
+end

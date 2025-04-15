@@ -1,0 +1,230 @@
+@Logic
+script AchievementDataSetLogic extends Logic
+
+	property table DataTable = {}
+
+	property table IdsByActionEnumTable = {}
+
+	property table IdsByCategoryTable = {}
+
+	property table NeedUpdateIdTable = {}
+
+	method boolean Load()
+		---@type table<integer, AchievementData>
+		local dataTable = self.DataTable
+		
+		local stepDatasById = {}
+		if not self:LoadStepData(stepDatasById) then
+			return false
+		end
+		
+		local childrenIdsTable = {}
+		local rows = _DataService:GetTable("AchievementDataSet"):GetAllRow()
+		for i = 1, #rows do
+			local row = rows[i]
+			local disable = row:GetItem("Disable")
+			if not _Util:IsNilorEmptyString(disable) then
+				continue
+			end
+			
+			local data = AchievementData()
+			if not data:Load(row) then
+				return false
+			end
+			
+			local id = data.Id
+			dataTable[id] = data
+			
+			-- Init step datas
+			local stepDatas = stepDatasById[id]
+			if stepDatas == nil then
+				log_error(string.format("Cannot find step data. ID : %d", id))
+				return false
+			end
+			data.StepDatas = stepDatas
+			
+			-- Find the child IDs of the parent.
+			local parentId = data.ParentId
+			if parentId ~= 0 then
+				local childrenIds = childrenIdsTable[parentId]
+				if childrenIds == nil then
+					childrenIds = {}
+					childrenIdsTable[parentId] = childrenIds
+				end
+				
+				childrenIds[#childrenIds + 1] = id
+			end
+		end
+		
+		for parentId, childrenIds in pairs(childrenIdsTable) do
+			local parentData = dataTable[parentId]
+			if parentData == nil then
+				log_error(string.format("Cannot find parent data. ParentId : %d", parentId))
+				return false
+			end
+			
+			if parentData.ParentId ~= 0 then
+				log_error(string.format("A parent cannot have a parent. ParentId: %d", parentId))
+				return false
+			end
+			
+			parentData.ChildIds = childrenIds
+			
+			-- The step value property of the parent data should be the number of children.
+			local stepData = parentData:GetStepData(1)
+			stepData.Value = #childrenIds
+		end
+		
+		local needUpdateIdTable = self.NeedUpdateIdTable
+		local idsByActionEnumTable = self.IdsByActionEnumTable
+		for id, data in pairs(dataTable) do	
+			---@type ActionConditionData
+			local conditionData = data.ConditionData
+			
+			local isParent = data.ChildIds ~= nil
+			if isParent then
+				if conditionData ~= nil then
+					log_error(string.format("A parent has condition. Id: %d", id))
+					return false
+				end
+				
+				continue
+			end
+			
+			if conditionData == nil then
+				log_error(string.format("The data has no condition. Id: %d", id))
+				return false
+			end
+			
+			local actionEnums = conditionData:GetActionEnumList()
+			if actionEnums == nil or #actionEnums == 0 then
+				log_error("ActionEnumList is nil or empty. Id : " .. tostring(id))
+				return false
+			end
+			
+			for i = 1, #actionEnums do
+				local actionEnum = actionEnums[i]
+				
+				local idsByActionEnum = idsByActionEnumTable[actionEnum]
+				if idsByActionEnum == nil then
+					idsByActionEnum = {}
+					idsByActionEnumTable[actionEnum] = idsByActionEnum
+				end
+				
+				idsByActionEnum[#idsByActionEnum + 1] = id
+			end
+			
+			if conditionData:IsUpdateNeeded() then
+				needUpdateIdTable[id] = true
+			end
+		end
+		
+		-- Achievements are sorted by priority within each category.
+		---@type table<integer, table<AchievementData>>
+		local datasByCategoryTable = {}
+		for id, data in pairs(dataTable) do
+			local category = data.CategoryEnum
+			
+			local datas = datasByCategoryTable[category]
+			if datas == nil then
+				datas = {}
+				datasByCategoryTable[category] = datas
+			end
+			
+			datas[#datas + 1] = data
+		end
+		
+		---@param a AchievementData
+		---@param b AchievementData
+		local function sortFunc(a, b)
+			if a.Priority ~= b.Priority then
+		        return a.Priority < b.Priority
+		    end
+			
+		    return a.Id < b.Id
+		end
+		
+		for category, datas in pairs(datasByCategoryTable) do
+			table.sort(datas, sortFunc)
+		end
+		
+		local idsByCategoryTable = self.IdsByCategoryTable
+		for category, datas in pairs(datasByCategoryTable) do
+			local ids = {}
+			for i = 1, #datas do
+				ids[#ids + 1] = datas[i].Id
+			end
+			
+			idsByCategoryTable[category] = ids
+		end
+		
+		return true
+	end
+
+	method boolean LoadStepData(table outStepDatasById)
+		local rows = _DataService:GetTable("AchievementStepDataSet"):GetAllRow()
+		
+		for i = 1, #rows do
+			local row = rows[i]
+			local disable = row:GetItem("Disable")
+			if not _Util:IsNilorEmptyString(disable) then
+				continue
+			end
+			
+			local data = AchievementStepData()
+			if not data:Load(row) then
+				return false
+			end
+			
+			local id = data.Id
+			local step = data.Step
+			
+			---@type table<AchievementStepData>
+			local stepDatas = outStepDatasById[id]
+			if stepDatas == nil then
+				stepDatas = {}
+				outStepDatasById[id] = stepDatas
+			end
+			
+			local prevStep = #stepDatas
+			if prevStep ~= 0 then
+				if prevStep + 1 ~= step then
+					log_error("Step must be entered into the DataSet in sequential order, starting from 1.")
+					return false
+				end
+				
+				local prevStepValue = stepDatas[prevStep].Value
+				if prevStepValue >= data.Value then
+					log_error("The Value of a previous Step cannot be higher.")
+					return false
+				end	
+			end
+			
+			stepDatas[step] = data
+		end
+		
+		return true
+	end
+
+	method AchievementData GetData(integer id)
+		return self.DataTable[id]
+	end
+
+	method AchievementStepData GetStepData(integer id, integer step)
+		local data = self:GetData(id)
+		if data == nil then
+			return nil
+		end
+		
+		return data:GetStepData(step)
+	end
+
+	method table GetIdsByActionEnum(integer actionEnum)
+		return self.IdsByActionEnumTable[actionEnum]
+	end
+
+	method table GetIdsByCategoryEnum(integer categoryEnum)
+		return self.IdsByCategoryTable[categoryEnum]
+	end
+
+end

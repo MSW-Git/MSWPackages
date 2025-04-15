@@ -1,0 +1,215 @@
+@Component
+script UIGMAchievementTool_EditItemPopup extends Component
+
+	property UIGMAchievementTool Parent = nil
+
+	property TextComponent Id = nil
+
+	property TextComponent State = nil
+
+	property TextComponent Step = nil
+
+	property TextComponent Value = nil
+
+	property TextComponent BeginTime = nil
+
+	property TextComponent CompleteTime = nil
+
+	property any OriginalData = nil
+
+	property any EditData = nil
+
+	property integer TimeOffset = 0
+
+	property any GetElapsedFunc = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		local panel = entity:GetChildByName("Panel")
+		local btn_exit = panel:GetChildByName("Title"):GetChildByName("Btn_Exit")
+		btn_exit:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Close)
+		
+		local item = panel:GetChildByName("item")
+		self.Id = item:GetChildByName("Text_Id").TextComponent
+		self.State = item:GetChildByName("Text_State").TextComponent
+		self.Step = item:GetChildByName("Text_Step").TextComponent
+		self.Value = item:GetChildByName("Text_Value").TextComponent
+		self.BeginTime = item:GetChildByName("Text_BeginTime").TextComponent
+		self.CompleteTime = item:GetChildByName("Text_CompleteTime").TextComponent
+		
+		local scroll_action = panel:GetChildByName("Scroll_Action")
+		local btn_revertEdits = scroll_action:GetChildByName("Btn_RevertEdits")
+		btn_revertEdits:ConnectEvent(ButtonClickEvent, self.OnClickBtn_RevertEdits)
+		
+		local btn_resetToOriginal = scroll_action:GetChildByName("Btn_ResetToOriginal")
+		btn_resetToOriginal:ConnectEvent(ButtonClickEvent, self.OnClickBtn_ResetToOriginal)
+		
+		local btn_resetAll = scroll_action:GetChildByName("Btn_ResetAll")
+		btn_resetAll:ConnectEvent(ButtonClickEvent, self.OnClickBtn_ResetAll)
+		
+		local btn_ok = panel:GetChildByName("Btn_OK")
+		btn_ok:ConnectEvent(ButtonClickEvent, self.OnClickBtn_OK)
+		
+		local btn_cancel = panel:GetChildByName("Btn_Cancel")
+		btn_cancel:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Close)
+		
+		local function getElapsedFunc(dateTimeStr)
+			return DateTime(dateTimeStr).Elapsed
+		end
+		self.GetElapsedFunc = getElapsedFunc
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Open(UserAchievementData originalUserData, UserAchievementData editUserData, integer timeOffset)
+		self.OriginalData = originalUserData
+		self.EditData = editUserData
+		self.TimeOffset = timeOffset
+		
+		self:Set(editUserData)
+		self.Entity.Enable = true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Set(UserAchievementData s)
+		self.Id.Text = tostring(s.Id)
+		self.State.Text = tostring(s.State)
+		self.Step.Text = tostring(s.Step)
+		self.Value.Text = tostring(s.Value)
+		
+		local hourElapsed = 60 * 60 * 1000
+		local offsetElapsed = self.TimeOffset * hourElapsed
+		
+		if s.BeginTime == 0 then
+			self.BeginTime.Text = "0"
+		else
+			self.BeginTime.Text = DateTime(s.BeginTime + offsetElapsed):ToFormattedString("yyyy-MM-dd HH:mm:ss")	
+		end
+		
+		if s.CompleteTime == 0 then
+			self.CompleteTime.Text = "0"
+		else
+			self.CompleteTime.Text = DateTime(s.CompleteTime + offsetElapsed):ToFormattedString("yyyy-MM-dd HH:mm:ss")
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		self.Id.Text = ""
+		self.State.Text = ""
+		self.Step.Text = ""
+		self.Value.Text = ""
+		self.BeginTime.Text = ""
+		self.CompleteTime.Text = ""
+	end
+
+	@ExecSpace("ClientOnly")
+	method UserAchievementData GetDataFromTextInput()
+		---@type UserAchievementData
+		local editData = self.EditData
+		
+		local data = UserAchievementData()
+		data.Id = editData.Id
+		
+		local state = math.tointeger(tonumber(self.State.Text))
+		if state == nil or state <= _AchievementStateEnum.None or _AchievementStateEnum.Max <= state then
+			log_error("State is not valid.")
+			return nil
+		end
+		data.State = state
+		
+		local step = math.tointeger(tonumber(self.Step.Text))
+		if step == nil or step <= 0 then
+			log_error("Step is not valid.")
+			return nil
+		end
+		data.Step = step
+		
+		local value = math.tointeger(tonumber(self.Value.Text))
+		if value == nil or value < 0 then
+			log_error("Value is not valid.")
+			return nil
+		end
+		data.Value = value
+		
+		local hourElapsed = 60 * 60 * 1000
+		local offsetElapsed = self.TimeOffset * hourElapsed
+		
+		local beginTimeText = self.BeginTime.Text
+		if beginTimeText == "0" then
+			data.BeginTime = 0
+		else
+			local success, result = pcall(self.GetElapsedFunc, beginTimeText)
+			if not success then
+				log_error("BeginTime is not valid.")	
+				return nil
+			end
+			data.BeginTime = result - offsetElapsed
+		end
+		
+		local completeTimeText = self.CompleteTime.Text
+		if completeTimeText == "0" then
+			data.CompleteTime = 0
+		else
+			local success, result = pcall(self.GetElapsedFunc, completeTimeText)
+			if not success then
+				log_error("CompleteTime is not valid.")	
+				return nil
+			end
+			data.CompleteTime = result - offsetElapsed
+		end
+		
+		return data
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_RevertEdits()
+		---@type UserAchievementData
+		local editData = self.EditData
+		
+		self:Set(editData)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_ResetToOriginal()
+		---@type UserAchievementData
+		local originalData = self.OriginalData
+		
+		self:Set(originalData)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_ResetAll()
+		---@type UserAchievementData
+		local editData = self.EditData
+		
+		local editingData = UserAchievementData()
+		editingData:Init(editData.Id)
+		
+		self:Set(editingData)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_OK()
+		local s = self:GetDataFromTextInput()
+		if s == nil then
+			return
+		end
+		
+		---@type UserAchievementData
+		local editData = self.EditData
+		editData:CopyFrom(s)
+		
+		self.Parent.Page_Edit.UIGMAchievementTool_Edit:Invalidate(false)
+		
+		self:Clear()
+		self.Entity.Enable = false
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Close()
+		self:Clear()
+		self.Entity.Enable = false
+	end
+
+end

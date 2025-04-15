@@ -1,0 +1,125 @@
+@Struct
+script QuestData
+
+	property integer Id = 0
+
+	property string Name = ""
+
+	property string Desc = ""
+
+	property string ProgressingDesc = ""
+
+	property integer CategoryEnum = 0
+
+	property integer CycleEnum = 0
+
+	property boolean IsRepeatable = false
+
+	property integer LinkedPrevId = 0
+
+	property integer RequiredId = 0
+
+	property boolean AutoAccept = false
+
+	property boolean CannotAbandon = false
+
+	property table RewardItems = nil
+
+	property integer Priority = 0
+
+	property table ConditionDatas = nil
+
+	property integer ConditionCount = 0
+
+	method boolean Load(any dataRow)
+		---@type UserDataRow
+		local row = dataRow
+		
+		local id = math.tointeger(tonumber(row:GetItem("Id")))
+		if id == nil or id == 0 then
+			log_error("Id is nil.")
+			return false
+		end
+		self.Id = id
+		
+		self.Name = row:GetItem("Name")
+		self.Desc = row:GetItem("Desc")
+		self.ProgressingDesc = row:GetItem("ProgressingDesc")
+		
+		self.CategoryEnum = _QuestCategoryEnum:ToEnum(row:GetItem("CategoryEnum"))
+		
+		self.CycleEnum = _CycleEnum:ToEnum(row:GetItem("CycleEnum"))
+		
+		if not _Util:IsNilorEmptyString(row:GetItem("IsRepeatable")) then
+			if self.CycleEnum ~= _CycleEnum.None then
+				log_warning("Quests with a set CycleEnum cannot be repeated.")
+			else
+				self.IsRepeatable = true
+			end
+		end
+		
+		local linkedPrevId = math.tointeger(tonumber(row:GetItem("LinkedPrevId")))
+		self.LinkedPrevId = linkedPrevId or 0
+		
+		local requiredId = math.tointeger(tonumber(row:GetItem("RequiredId")))
+		self.RequiredId = requiredId or 0
+		
+		if not _Util:IsNilorEmptyString(row:GetItem("AutoAccept")) then
+			self.AutoAccept = true
+		end
+		
+		if not _Util:IsNilorEmptyString(row:GetItem("CannotAbandon")) then
+			self.CannotAbandon = true
+		end
+		
+		local rewardItems = {}
+		if not self:ParseItems(row:GetItem("RewardItems"), rewardItems) then
+			log_error(string.format("RewardItem id or count is nil. Id : %d", id))
+			return false
+		end
+		
+		if not _Util:IsNilorEmptyTable(rewardItems) then
+			self.RewardItems = rewardItems
+		end
+		
+		local priority = math.tointeger(tonumber(row:GetItem("Priority")))
+		self.Priority = priority or math.maxinteger
+		
+		return true
+	end
+
+	method boolean ParseItems(string itemsStr, table outItems)
+		if _Util:IsNilorEmptyString(itemsStr) then
+			return true
+		end
+		
+		local itemStrs = _UtilLogic:Split(itemsStr, "|")
+		if itemStrs == nil then
+			return self:ParseItem(itemsStr, outItems)
+		end
+		
+		for i = 1, #itemStrs do
+			local itemStr = itemStrs[i]
+			if not self:ParseItem(itemStr, outItems) then
+				return false
+			end
+		end
+		
+		return true
+	end
+
+	method boolean ParseItem(string itemStr, table outItems)
+		local argStrs = _UtilLogic:Split(itemStr, ",")
+		
+		local itemId = math.tointeger(tonumber(argStrs[1]))
+		local itemCount = math.tointeger(tonumber(argStrs[2]))
+		if itemId == nil or itemCount == nil then
+			return false
+		end
+		
+		outItems[#outItems + 1] = { itemId, itemCount }
+		
+		return true
+	end
+
+end

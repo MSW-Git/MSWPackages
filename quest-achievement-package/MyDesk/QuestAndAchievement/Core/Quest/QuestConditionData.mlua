@@ -1,0 +1,50 @@
+@Struct
+script QuestConditionData
+
+	property integer Id = 0
+
+	property string Description = ""
+
+	property any ConditionData = nil
+
+	property integer Value = 0
+
+	method boolean Load(any dataRow)
+		---@type UserDataRow
+		local row = dataRow
+		
+		local id = math.tointeger(tonumber(row:GetItem("Id")))
+		if id == nil or id == 0 then
+			log_error("Id is nil.")
+			return false
+		end
+		self.Id = id
+		
+		self.Description = row:GetItem("Description")
+		
+		self.ConditionData = _ActionConditionEnum:LoadData(row, "CondEnum", "CondArg", "CondExtra")
+		
+		local value = math.tointeger(tonumber(row:GetItem("Value")))
+		self.Value = value or 0
+		
+		return true
+	end
+
+	method boolean IsValidActionEnum(integer actionEnum)
+		---@type ActionConditionData
+		local actionCondData = self.ConditionData
+		if actionCondData == nil then
+			return false
+		end
+		
+		local enumList = actionCondData:GetActionEnumList()
+		for i = 1, #enumList do
+			if enumList[i] == actionEnum then
+				return true
+			end
+		end
+		
+		return false
+	end
+
+end

@@ -1,0 +1,87 @@
+@Struct
+script AchievementStepData
+
+	property integer Id = 0
+
+	property integer Step = 0
+
+	property integer Value = 0
+
+	property string Description = ""
+
+	property table RewardItems = nil
+
+	method boolean Load(any dataRow)
+		---@type UserDataRow
+		local row = dataRow
+		
+		local id = math.tointeger(tonumber(row:GetItem("Id")))
+		if id == nil or id == 0 then
+			log_error("Id is nil.")
+			return false
+		end
+		self.Id = id
+		
+		local step = math.tointeger(tonumber(row:GetItem("Step")))
+		if step == nil or step <= 0 then
+			log_error(string.format("Step is not valid. ID : %d", id))
+			return false
+		end
+		self.Step = step
+		
+		local value = math.tointeger(tonumber(row:GetItem("Value")))
+		if value == nil or value == 0 then
+			value = math.maxinteger
+		end
+		self.Value = value
+		
+		self.Description = row:GetItem("Description")
+		
+		local rewardItems = {}
+		if not self:ParseItems(row:GetItem("RewardItems"), rewardItems) then
+			log_error(string.format("RewardItem id or count is nil. Id : %d, Step : %d", id, step))
+			return false
+		end
+		
+		if not _Util:IsNilorEmptyTable(rewardItems) then
+			self.RewardItems = rewardItems
+		end
+		
+		return true
+	end
+
+	method boolean ParseItems(string itemsStr, table outItems)
+		if _Util:IsNilorEmptyString(itemsStr) then
+			return true
+		end
+		
+		local itemStrs = _UtilLogic:Split(itemsStr, "|")
+		if itemStrs == nil then
+			return self:ParseItem(itemsStr, outItems)
+		end
+		
+		for i = 1, #itemStrs do
+			local itemStr = itemStrs[i]
+			if not self:ParseItem(itemStr, outItems) then
+				return false
+			end
+		end
+		
+		return true
+	end
+
+	method boolean ParseItem(string itemStr, table outItems)
+		local argStrs = _UtilLogic:Split(itemStr, ",")
+		
+		local itemId = math.tointeger(tonumber(argStrs[1]))
+		local itemCount = math.tointeger(tonumber(argStrs[2]))
+		if itemId == nil or itemCount == nil then
+			return false
+		end
+		
+		outItems[#outItems + 1] = { itemId, itemCount }
+		
+		return true
+	end
+
+end

@@ -1,0 +1,8 @@
+@Event
+script ActionEvent extends EventType
+
+	property integer ActionEnum = 0
+
+	property table Args = {}
+
+end

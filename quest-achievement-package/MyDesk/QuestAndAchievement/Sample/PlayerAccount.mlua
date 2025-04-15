@@ -1,0 +1,167 @@
+@Component
+script PlayerAccount extends Component
+
+	property string StorageName = "Account"
+
+	@TargetUserSync
+	property integer Meso = 0
+
+	@TargetUserSync
+	property integer Stamina = 0
+
+	property integer CycleResetTime = 0
+
+	property boolean IsSaveDB = false
+
+	@ExecSpace("ServerOnly")
+	method boolean SaveToDB(table saveData)
+		if not self.IsSaveDB then
+			return true
+		end
+		
+		local deserTable = {}
+		deserTable["Meso"] = self.Meso
+		deserTable["Stamina"] = self.Stamina
+		deserTable["Cycle"] = self.CycleResetTime
+		
+		local sds = ""
+		if not _Util:IsNilorEmptyTable(deserTable) then
+			sds = _HttpService:JSONEncode(deserTable)
+		end
+		
+		saveData[self.StorageName] = sds
+		return true
+	end
+
+	@ExecSpace("ServerOnly")
+	method void LoadFromDB(table loadKeys)
+		table.insert(loadKeys, self.StorageName)
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean OnLoadedDataFromDB(table loadedData)
+		local userId = self.Entity.PlayerComponent.UserId
+		
+		---@type DataStorageItem
+		local sds = loadedData[self.StorageName]
+		local sdsValue = sds.Value
+		
+		if not _Util:IsNilorEmptyString(sdsValue) then
+			local deserTable = _HttpService:JSONDecode(sdsValue)
+			
+			self.Meso = deserTable["Meso"] or 0
+			self.Stamina = deserTable["Stamina"] or 0
+			self.CycleResetTime = deserTable["Cycle"] or 0
+		end
+		
+		-- Handle resetTime is in the future due to server time cheats.
+		local curElapsed = _DateTimeLogic:GetTimeElapsed()
+		if curElapsed < self.CycleResetTime then
+			self.CycleResetTime = curElapsed
+			self.IsSaveDB = true
+		end
+		
+		return true
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean PostOnLoadedDataFromDB()
+		self:TryCycleReset()
+		return true
+	end
+
+	@ExecSpace("ServerOnly")
+	method void TryCycleReset()
+		local isDirty = false
+		
+		local curElapsed = _DateTimeLogic:GetTimeElapsed()
+		local cycleEnums = _CycleEnum:GetEnums()
+		for i = 1, #cycleEnums do
+			local cycleEnum = cycleEnums[i]
+			local nextBaseTime = _DateTimeLogic:GetNextCycleBaseTime(cycleEnum, self.CycleResetTime)
+			if curElapsed < nextBaseTime then
+				continue
+			end
+			
+			local evt = PlayerCycleResetEvent()
+			evt.CycleEnum = cycleEnum
+			self.Entity:SendEvent(evt)
+			
+			if cycleEnum == _CycleEnum.Day then
+				self:SendAttendEvent()
+			end
+			
+			isDirty = true
+		end
+		
+		if isDirty then
+			self.CycleResetTime = curElapsed
+			self.IsSaveDB = true
+		end
+	end
+
+	@ExecSpace("ServerOnly")
+	method void SendAttendEvent()
+		local actionEvent = ActionEvent()
+		actionEvent.ActionEnum = _ActionEnum.Attend
+		
+		self.Entity:SendEvent(actionEvent)
+	end
+
+	@ExecSpace("Server")
+	method void RequestAttend()
+		self:SendAttendEvent()
+	end
+
+	@ExecSpace("Server")
+	method void AddMeso(integer addValue)
+		local prevValue = self.Meso
+		local value = prevValue + addValue
+		
+		self.Meso = value
+		
+		local evt = ActionEvent()
+		evt.ActionEnum = _ActionEnum.MesoChange
+		evt.Args[1] = prevValue
+		evt.Args[2] = value
+		
+		self.Entity:SendEvent(evt)
+	end
+
+	@ExecSpace("Server")
+	method void AddStamina(integer addValue)
+		local prevValue = self.Stamina
+		local value = prevValue + addValue
+		
+		self.Stamina = value
+		
+		local evt = ActionEvent()
+		evt.ActionEnum = _ActionEnum.StaminaChange
+		evt.Args[1] = prevValue
+		evt.Args[2] = value
+		
+		self.Entity:SendEvent(evt)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnSyncProperty(string name, any value)
+		if name == "Meso" then
+			self.Entity:SendEvent(PlayerMesoChangeEvent())
+		elseif name == "Stamina" then
+			self.Entity:SendEvent(PlayerStaminaChangeEvent())
+		end
+	end
+
+	@ExecSpace("ServerOnly")
+	@EventSender("Self")
+	handler HandleStateChangeEvent(StateChangeEvent event)
+		local actionEvent = ActionEvent()
+		
+		actionEvent.ActionEnum = _ActionEnum.StateChange
+		actionEvent.Args[1] = event.CurrentStateName
+		actionEvent.Args[2] = event.PrevStateName
+		
+		self.Entity:SendEvent(actionEvent)
+	end
+
+end

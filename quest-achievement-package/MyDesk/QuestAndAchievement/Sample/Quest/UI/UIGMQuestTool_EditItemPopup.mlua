@@ -1,0 +1,250 @@
+@Component
+script UIGMQuestTool_EditItemPopup extends Component
+
+	property UIGMQuestTool Parent = nil
+
+	property TextComponent Id = nil
+
+	property TextComponent State = nil
+
+	property TextComponent Values = nil
+
+	property TextComponent CompleteCount = nil
+
+	property TextComponent AcceptTime = nil
+
+	property TextComponent CompleteTime = nil
+
+	property TextComponent ExpiredTime = nil
+
+	property any OriginalData = nil
+
+	property any EditData = nil
+
+	property integer TimeOffset = 0
+
+	property any GetElapsedFunc = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		local panel = entity:GetChildByName("Panel")
+		local btn_exit = panel:GetChildByName("Title"):GetChildByName("Btn_Exit")
+		btn_exit:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Close)
+		
+		local item = panel:GetChildByName("item")
+		self.Id = item:GetChildByName("Text_Id").TextComponent
+		self.State = item:GetChildByName("Text_State").TextComponent
+		self.Values = item:GetChildByName("Text_Values").TextComponent
+		self.CompleteCount = item:GetChildByName("Text_CompleteCount").TextComponent
+		self.AcceptTime = item:GetChildByName("Text_AcceptTime").TextComponent
+		self.CompleteTime = item:GetChildByName("Text_CompleteTime").TextComponent
+		self.ExpiredTime = item:GetChildByName("Text_ExpiredTime").TextComponent
+		
+		local scroll_action = panel:GetChildByName("Scroll_Action")
+		local btn_revertEdits = scroll_action:GetChildByName("Btn_RevertEdits")
+		btn_revertEdits:ConnectEvent(ButtonClickEvent, self.OnClickBtn_RevertEdits)
+		
+		local btn_resetToOriginal = scroll_action:GetChildByName("Btn_ResetToOriginal")
+		btn_resetToOriginal:ConnectEvent(ButtonClickEvent, self.OnClickBtn_ResetToOriginal)
+		
+		local btn_resetAll = scroll_action:GetChildByName("Btn_ResetAll")
+		btn_resetAll:ConnectEvent(ButtonClickEvent, self.OnClickBtn_ResetAll)
+		
+		local btn_ok = panel:GetChildByName("Btn_OK")
+		btn_ok:ConnectEvent(ButtonClickEvent, self.OnClickBtn_OK)
+		
+		local btn_cancel = panel:GetChildByName("Btn_Cancel")
+		btn_cancel:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Close)
+		
+		local function getElapsedFunc(dateTimeStr)
+			return DateTime(dateTimeStr).Elapsed
+		end
+		self.GetElapsedFunc = getElapsedFunc
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Open(UserQuestData originalUserData, UserQuestData editUserData, integer timeOffset)
+		self.OriginalData = originalUserData
+		self.EditData = editUserData
+		self.TimeOffset = timeOffset
+		
+		self:Set(editUserData)
+		self.Entity.Enable = true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Set(UserQuestData s)
+		self.Id.Text = tostring(s.Id)
+		self.State.Text = tostring(s.State)
+		self.CompleteCount.Text = tostring(s.CompleteCount)
+		
+		if s.Values == nil then
+			self.Values.Text = ""
+		else
+			self.Values.Text = table.concat(s.Values, ",")
+		end
+		
+		local hourElapsed = 60 * 60 * 1000
+		local offsetElapsed = self.TimeOffset * hourElapsed
+		
+		if s.AcceptTime == 0 then
+			self.AcceptTime.Text = "0"
+		else
+			self.AcceptTime.Text = DateTime(s.AcceptTime + offsetElapsed):ToFormattedString("yyyy-MM-dd HH:mm:ss")	
+		end
+		
+		if s.CompleteTime == 0 then
+			self.CompleteTime.Text = "0"
+		else
+			self.CompleteTime.Text = DateTime(s.CompleteTime + offsetElapsed):ToFormattedString("yyyy-MM-dd HH:mm:ss")
+		end
+		
+		if s.ExpiredTime == 0 then
+			self.ExpiredTime.Text = "0"
+		else
+			self.ExpiredTime.Text = DateTime(s.ExpiredTime + offsetElapsed):ToFormattedString("yyyy-MM-dd HH:mm:ss")
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		self.Id.Text = ""
+		self.State.Text = ""
+		self.Values.Text = ""
+		self.CompleteCount.Text = ""
+		self.AcceptTime.Text = ""
+		self.CompleteTime.Text = ""
+		self.ExpiredTime.Text = ""
+	end
+
+	@ExecSpace("ClientOnly")
+	method UserQuestData GetDataFromTextInput()
+		---@type UserQuestData
+		local editData = self.EditData
+		
+		local data = UserQuestData()
+		data.Id = editData.Id
+		
+		local state = math.tointeger(tonumber(self.State.Text))
+		if state == nil or state <= _QuestStateEnum.None or _QuestStateEnum.Max <= state then
+			log_error("State is not valid.")
+			return nil
+		end
+		data.State = state
+		
+		local valuesStr = self.Values.Text
+		if not _Util:IsNilorEmptyString(valuesStr) then
+			local valueStrs = _UtilLogic:Split(valuesStr, ",")
+			for i = 1, #valueStrs do
+				local value = math.tointeger(tonumber(valueStrs[i]))
+				if value == nil then
+					log_error("Values is not valid.")
+					return nil
+				end
+				
+				data.Values[i] = value
+			end
+		end
+		data:InitValues()
+		
+		local completeCount = math.tointeger(tonumber(self.CompleteCount.Text))
+		if completeCount == nil or completeCount < 0 then
+			log_error("CompleteCount is not valid.")
+			return nil
+		end
+		data.CompleteCount = completeCount
+		
+		local hourElapsed = 60 * 60 * 1000
+		local offsetElapsed = self.TimeOffset * hourElapsed
+		
+		local acceptTimeText = self.AcceptTime.Text
+		if acceptTimeText == "0" then
+			data.AcceptTime = 0
+		else
+			local success, result = pcall(self.GetElapsedFunc, acceptTimeText)
+			if not success then
+				log_error("AcceptTime is not valid.")	
+				return nil
+			end
+			data.AcceptTime = result - offsetElapsed
+		end
+		
+		local completeTimeText = self.CompleteTime.Text
+		if completeTimeText == "0" then
+			data.CompleteTime = 0
+		else
+			local success, result = pcall(self.GetElapsedFunc, completeTimeText)
+			if not success then
+				log_error("CompleteTime is not valid.")	
+				return nil
+			end
+			data.CompleteTime = result - offsetElapsed
+		end
+		
+		local expiredTimeText = self.ExpiredTime.Text
+		if expiredTimeText == "0" then
+			data.ExpiredTime = 0
+		else
+			local success, result = pcall(self.GetElapsedFunc, expiredTimeText)
+			if not success then
+				log_error("ExpiredTime is not valid.")	
+				return nil
+			end
+			data.ExpiredTime = result - offsetElapsed
+		end
+		
+		return data
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_RevertEdits()
+		---@type UserQuestData
+		local editData = self.EditData
+		
+		self:Set(editData)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_ResetToOriginal()
+		---@type UserQuestData
+		local originalData = self.OriginalData
+		
+		self:Set(originalData)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_ResetAll()
+		---@type UserQuestData
+		local editData = self.EditData
+		
+		local editingData = UserQuestData()
+		editingData:Init(editData.Id)
+		
+		self:Set(editingData)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_OK()
+		local s = self:GetDataFromTextInput()
+		if s == nil then
+			return
+		end
+		
+		---@type UserQuestData
+		local editData = self.EditData
+		editData:CopyFrom(s)
+		
+		self.Parent.Page_Edit.UIGMQuestTool_Edit:Invalidate(false)
+		
+		self:Clear()
+		self.Entity.Enable = false
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Close()
+		self:Clear()
+		self.Entity.Enable = false
+	end
+
+end

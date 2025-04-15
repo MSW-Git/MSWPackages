@@ -1,0 +1,138 @@
+@Component
+script UIGMQuestTool_Edit extends Component
+
+	property UIGMQuestTool Parent = nil
+
+	property GridViewComponent GridViewComp = nil
+
+	property Entity Item = nil
+
+	property table GridViewDataTable = {}
+
+	property any SortFunc = nil
+
+	property integer TimeOffset = 0
+
+	property table OriginalUserDataTable = {}
+
+	property table EditUserDataTable = {}
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		
+		local item = entity:GetChildByName("Item")
+		self.Item = item
+		
+		local gridViewComp = entity:GetChildByName("GridView").GridViewComponent
+		gridViewComp.ItemEntity = item
+		gridViewComp.OnRefresh = self.OnRefresh
+		gridViewComp.OnClear = self.OnClear
+		gridViewComp.Entity:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Edit)
+		self.GridViewComp = gridViewComp
+		
+		local function sortFunc(a, b)
+			return a < b
+		end
+		self.SortFunc = sortFunc
+		
+		local btn_undo = entity:GetChildByName("Btn_Undo")
+		btn_undo:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Undo)
+		
+		local btn_save = entity:GetChildByName("Btn_Save")
+		btn_save:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Save)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Apply(table userDataTable)
+		table.initialize(self.OriginalUserDataTable, userDataTable)
+		self:InitDataTable()
+		self:Invalidate(true)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void InitDataTable()
+		local editUserDataTable = self.EditUserDataTable
+		table.clear(editUserDataTable)
+		
+		for id, userData in pairs(self.OriginalUserDataTable) do
+			local editUserData = UserQuestData()
+			editUserData:CopyFrom(userData)
+			editUserDataTable[id] = editUserData
+		end
+		
+		local ids = table.keys(_QuestDataSetLogic.DataTable)
+		table.sort(ids, self.SortFunc)
+		
+		local gridViewDataTable = self.GridViewDataTable
+		table.clear(gridViewDataTable)
+		
+		for i = 1, #ids do
+			local id = ids[i]
+			local userData = editUserDataTable[id]
+			if userData == nil then
+				continue
+			end
+			
+			gridViewDataTable[#gridViewDataTable + 1] = userData
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Invalidate(boolean resetPos)
+		self.TimeOffset = self.Parent.TimeOffset
+		self.GridViewComp.TotalCount = #self.GridViewDataTable
+		self.GridViewComp:Refresh(resetPos, true)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnRefresh(integer index, Entity entity)
+		index += 1
+		local s = self.GridViewDataTable[index]
+		entity.UIGMQuestTool_EditItem:Set(s, self.TimeOffset)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClear(integer index, Entity entity)
+		entity.UIGMQuestTool_EditItem:Clear()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Undo()
+		self:InitDataTable()
+		self:Invalidate(false)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Save()
+		---@type table<integer, UserQuestData>
+		local editUserDataTable = self.EditUserDataTable
+		
+		local resultTable = {}
+		for id, userData in pairs(editUserDataTable) do
+			if userData.State == _QuestStateEnum.Init then
+				continue
+			end
+			
+			resultTable[id] = userData
+		end
+		
+		local userId = self.Parent.TargetUserID
+		_GMQuestToolLogic:RequestEditUserData(userId, resultTable)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Edit(ButtonClickEvent evt)
+		---@type UserQuestData
+		local editUserData = evt.Entity.UIGMQuestTool_EditItem.EditUserData
+		if editUserData == nil then
+			return
+		end
+		
+		local id = editUserData.Id
+		local originalUserData = self.OriginalUserDataTable[id]
+		
+		self.Parent:OpenPopup_EditItem(originalUserData, editUserData)
+	end
+
+end

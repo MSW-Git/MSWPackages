@@ -1,0 +1,6 @@
+@Event
+script PlayerCycleResetEvent extends EventType
+
+	property integer CycleEnum = 0
+
+end

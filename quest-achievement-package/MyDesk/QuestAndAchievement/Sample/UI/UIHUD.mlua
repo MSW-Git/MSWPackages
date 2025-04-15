@@ -1,0 +1,70 @@
+@Component
+script UIHUD extends Component
+
+	property TextComponent Text_Meso = nil
+
+	property TextComponent Text_Stamina = nil
+
+	property TextComponent Input_Meso = nil
+
+	property TextComponent Input_Stamina = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		
+		self.Text_Meso = entity:GetChildByName("Meso"):GetChildByName("Text_Num").TextComponent
+		self.Text_Stamina = entity:GetChildByName("Stamina"):GetChildByName("Text_Num").TextComponent
+		
+		local panel = entity:GetChildByName("Panel")
+		self.Input_Meso = panel:GetChildByName("Text_Meso").TextComponent
+		self.Input_Stamina = panel:GetChildByName("Text_Stamina").TextComponent
+		
+		local btn_attend = panel:GetChildByName("Btn_Attend")
+		btn_attend:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Attend)
+		
+		local btn_meso = panel:GetChildByName("Btn_Meso")
+		btn_meso:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Meso)
+		
+		local btn_stamina = panel:GetChildByName("Btn_Stamina")
+		btn_stamina:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Stamina)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Attend()
+		_UserService.LocalPlayer.PlayerAccount:RequestAttend()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Meso()
+		local value = math.tointeger(tonumber(self.Input_Meso.Text))
+		if value == nil then
+			return
+		end
+		
+		_UserService.LocalPlayer.PlayerAccount:AddMeso(value)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Stamina()
+		local value = math.tointeger(tonumber(self.Input_Stamina.Text))
+		if value == nil then
+			return
+		end
+		
+		_UserService.LocalPlayer.PlayerAccount:AddStamina(value)
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("LocalPlayer")
+	handler HandlePlayerMesoChangeEvent(PlayerMesoChangeEvent event)
+		self.Text_Meso.Text = tostring(_UserService.LocalPlayer.PlayerAccount.Meso)
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("LocalPlayer")
+	handler HandlePlayerStaminaChangeEvent(PlayerStaminaChangeEvent event)
+		self.Text_Stamina.Text = tostring(_UserService.LocalPlayer.PlayerAccount.Stamina)
+	end
+
+end

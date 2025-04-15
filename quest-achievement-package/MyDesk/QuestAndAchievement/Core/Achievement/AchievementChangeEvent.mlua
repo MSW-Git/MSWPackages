@@ -1,0 +1,6 @@
+@Event
+script AchievementChangeEvent extends EventType
+
+	property table IdTable = {}
+
+end

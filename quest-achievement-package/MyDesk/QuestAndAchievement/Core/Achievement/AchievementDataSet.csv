@@ -1,0 +1,17 @@
+﻿Id,ParentId,Name,CategoryEnum,CycleEnum,CondEnum,CondArg,CondExtra,Priority,Disable
+10,,일일 미션 완료,Day,Day,,,,1,
+11,10,일일 월드 입장,Day,Day,Attend,,,2,
+12,10,일일 점프하기,Day,Day,Jump,,,3,
+13,10,일일 스태미나 사용,Day,Day,StaminaChange,Spend,,4,
+20,,주간 미션 완료,Week,Week,,,,1,
+21,20,주간 월드 입장,Week,Week,Attend,,,2,
+22,20,주간 점프하기,Week,Week,Jump,,,3,
+23,20,주간 스태미나 사용,Week,Week,StaminaChange,Spend,,4,
+100,,접속하기,Normal,,Attend,,,,
+200,,점프하기,Normal,,Jump,,,,
+300,,메소 획득 미션,Normal,,,,,,
+301,300,메소 1,Normal,,MesoChange,Gain,,,
+302,300,메소 2,Normal,,MesoChange,Gain,,,
+400,,메소 보유하기(현재 소유),Day,Day,MesoChange,Balance,,,
+500,,메소 보유하기(최대 소유),Day,Day,MesoChange,Balance,Max,,
+600,,점프하기 (비활성),Feature,,Jump,,,,1

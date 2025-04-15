@@ -1,0 +1,597 @@
+@Component
+script PlayerAchievement extends Component
+
+	property table UserDataTable = {}
+
+	property table CycleResetTimeTable = {}
+
+	property boolean IsSaveDB = false
+
+	@ExecSpace("ServerOnly")
+	method boolean SaveToDB(table saveData)
+		if not self.IsSaveDB then
+			return true
+		end
+		
+		---@type table<integer, UserAchievementData>
+		local userDataTable = self.UserDataTable
+		local cycleResetTimeTable = self.CycleResetTimeTable
+		
+		local deserTable = {}
+		local userDeserTable = {}
+		local cycleResetTimeDeserTable = {}
+		local initState = _AchievementStateEnum.Init
+		
+		for id, userData in pairs(userDataTable) do
+			if userData.State == initState then
+				continue
+			end
+			
+			local item = userData:Serialize()
+			if item == nil then
+				continue
+			end
+			
+			userDeserTable[#userDeserTable + 1] = item
+		end
+		
+		for cycleEnum, elapsed in pairs(cycleResetTimeTable) do
+			cycleResetTimeDeserTable[cycleEnum] = elapsed
+		end
+		
+		if #userDeserTable ~= 0 then
+			deserTable["User"] = userDeserTable
+		end
+		
+		if #cycleResetTimeDeserTable ~= 0 then
+			deserTable["Cycle"] = cycleResetTimeDeserTable
+		end
+		
+		local sds = ""
+		if not _Util:IsNilorEmptyTable(deserTable) then
+			sds = _HttpService:JSONEncode(deserTable)
+		end
+		
+		saveData[_GMAchievementToolLogic.StorageName] = sds
+		return true
+	end
+
+	@ExecSpace("ServerOnly")
+	method void LoadFromDB(table loadKeys)
+		table.insert(loadKeys, _GMAchievementToolLogic.StorageName)
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean OnLoadedDataFromDB(table loadedData)
+		local userId = self.Entity.PlayerComponent.UserId
+		
+		---@type DataStorageItem
+		local sds = loadedData[_GMAchievementToolLogic.StorageName]
+		local sdsValue = sds.Value
+		
+		local userDataTable = self.UserDataTable
+		local cycleResetTimeTable = self.CycleResetTimeTable
+		
+		if not _Util:IsNilorEmptyString(sdsValue) then
+			local deserTable = _HttpService:JSONDecode(sdsValue)
+			local userDeserTable = deserTable["User"]
+			local cycleResetTimeDeserTable = deserTable["Cycle"]
+			
+			if userDeserTable ~= nil then
+				for i = 1, #userDeserTable do
+					local userData = UserAchievementData()
+					if not userData:Deserialize(userDeserTable[i]) then
+						return false
+					end
+					
+					userDataTable[userData.Id] = userData
+				end
+			end
+			
+			if cycleResetTimeDeserTable ~= nil then
+				for cycleEnum, elapsed in pairs(cycleResetTimeDeserTable) do
+					cycleResetTimeTable[cycleEnum] = elapsed
+				end
+			end
+		end
+		
+		-- Handle the first login process, including cases where resetTime is in the future due to server time cheats.
+		local curElapsed = _DateTimeLogic:GetTimeElapsed()
+		local cycleEnums = _CycleEnum:GetEnums()
+		for i = 1, #cycleEnums do
+			local cycleEnum = cycleEnums[i]
+			local resetTime = cycleResetTimeTable[cycleEnum]
+			
+			if resetTime == nil then 
+				cycleResetTimeTable[cycleEnum] = 0
+				self.IsSaveDB = true
+			elseif curElapsed < resetTime then
+				cycleResetTimeTable[cycleEnum] = curElapsed
+				self.IsSaveDB = true
+			end
+		end
+		
+		self:ApplyNewAchievementStepDatas()
+		self:UpdateValue()
+		self:TryCycleResetAchievements(curElapsed, false)
+		
+		self:SyncInit(self.UserDataTable, self.Entity.PlayerComponent.UserId)
+		
+		return true
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean PostOnLoadedDataFromDB()
+		return true
+	end
+
+	@ExecSpace("ServerOnly")
+	method void TryCycleResetAchievements(integer elapsed, boolean sync)
+		local resetByCycle = {}
+		local cycleEnums = _CycleEnum:GetEnums()
+		for i = 1, #cycleEnums do
+			local cycleEnum = cycleEnums[i]
+			resetByCycle[cycleEnum] = self:IsCycleResetRequired(cycleEnum, elapsed)
+		end
+		
+		if _Util:TableLen(resetByCycle) == 0 then
+			return
+		end
+		
+		-- Record the ResetTime.
+		---@type table<integer, integer>
+		local cycleResetTimeTable = self.CycleResetTimeTable
+		for cycleEnum, isReset in pairs(resetByCycle) do
+			if isReset then
+				cycleResetTimeTable[cycleEnum] = elapsed
+			end
+		end
+		
+		---@type table<integer, UserAchievementData>
+		local userDataTable = self.UserDataTable
+		---@type table<integer, UserAchievementData>
+		local resetUserDataTable = {}
+		
+		local userEntity = self.Entity
+		for id, userData in pairs(userDataTable) do
+			local data = _AchievementDataSetLogic:GetData(id)
+			if data == nil then
+				continue
+			end
+			
+			local cycleEnum = data.CycleEnum
+			if not resetByCycle[cycleEnum] then
+				continue
+			end
+			
+			userData:Reset()
+			userData:UpdateValue(userEntity, data, elapsed)
+			
+			resetUserDataTable[id] = userData
+		end
+		
+		self.IsSaveDB = true
+		
+		if sync then
+			self:SyncDataChanged(resetUserDataTable, self.Entity.PlayerComponent.UserId)
+		end
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean IsCycleResetRequired(integer cycleEnum, integer elapsed)
+		if cycleEnum == _CycleEnum.None then
+			return false
+		end
+		
+		if elapsed < self:GetNextCycleBaseTime(cycleEnum) then
+			return false
+		end
+		
+		return true
+	end
+
+	@ExecSpace("ServerOnly")
+	method integer GetNextCycleBaseTime(integer cycleEnum)
+		local resetElapsed = self.CycleResetTimeTable[cycleEnum]
+		if resetElapsed == nil then
+			-- Guard Code : Prevents invalid resetTime
+			return DateTime.MaxValue.Elapsed
+		end
+		
+		return _DateTimeLogic:GetNextCycleBaseTime(cycleEnum, resetElapsed)
+	end
+
+	@ExecSpace("ServerOnly")
+	method void OnActionEvent(ActionEvent event)
+		local actionEnum = event.ActionEnum
+		
+		---@type table<integer>
+		local ids = _AchievementDataSetLogic:GetIdsByActionEnum(actionEnum)
+		if ids == nil or #ids == 0 then
+			return
+		end
+		
+		local idValueTable = {}
+		
+		---@type table<integer, UserAchievementData>
+		local userDataTable = self.UserDataTable
+		local userEntity = self.Entity
+		local curElapsed = _DateTimeLogic:GetTimeElapsed()
+		
+		for i = 1, #ids do
+			local id = ids[i]
+			local data = _AchievementDataSetLogic:GetData(id)
+			if data == nil then
+				continue
+			end
+			
+			if self:IsCycleResetRequired(data.CycleEnum, curElapsed) then
+				continue
+			end
+			
+			local userData = self:GetOrCreateUserData(id)
+			if not userData:CheckAndSetValue(userEntity, event, data, curElapsed) then
+				continue
+			end
+			
+			idValueTable[id] = userData.Value
+		end
+		
+		if _Util:TableLen(idValueTable) == 0 then
+			return
+		end
+		self.IsSaveDB = true
+		
+		local userId = userEntity.PlayerComponent.UserId
+		self:SyncValueChanged(idValueTable, userId)
+	end
+
+	@ExecSpace("Server")
+	method void RequestCompleteAchievements(table ids)
+		self:CompleteAchievements(ids)
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean CompleteAchievements(table ids)
+		if ids == nil or #ids == 0 then
+			return false
+		end
+		
+		local isDirty = false
+		local userEntity = self.Entity
+		
+		---@type table<integer, UserAchievementData>
+		local userDataTable = self.UserDataTable
+		local curElapsed = _DateTimeLogic:GetTimeElapsed()
+		
+		local changedParentIdTable = {}
+		local changedUserDataTable = {}
+		
+		for i = 1, #ids do
+			local id = ids[i]
+			local data = _AchievementDataSetLogic:GetData(id)
+			if data == nil then
+				continue
+			end
+			
+			if self:IsCycleResetRequired(data.CycleEnum, curElapsed) then
+				continue
+			end
+			
+			local userData = userDataTable[id]
+			if userData == nil then
+				continue
+			end
+			
+			if not userData:IsCompletable(data) then
+				continue
+			end
+			
+			if not userData:Complete(userEntity, data, curElapsed) then
+				continue
+			end
+			
+			isDirty = true
+			changedUserDataTable[id] = userData
+			
+			local parentId = data.ParentId
+			if parentId ~= 0 then
+				changedParentIdTable[parentId] = true
+			end
+		end
+		
+		-- Update parent achivements
+		local completedState = _AchievementStateEnum.Completed
+		for parentId, _ in pairs(changedParentIdTable) do
+			local parentData = _AchievementDataSetLogic:GetData(parentId)
+			if parentData == nil then
+				continue
+			end
+			
+			local completedCount = 0
+			local parentUserData = self:GetOrCreateUserData(parentId)
+			
+			local childIds = parentData.ChildIds
+			for i = 1, #childIds do
+				local childId = childIds[i]
+				local childUserData = userDataTable[childId]
+				if childUserData == nil then
+					continue
+				end
+				
+				if childUserData.State == completedState then
+					completedCount += 1
+				end
+			end
+			
+			parentUserData:SetValue(completedCount, curElapsed)
+			isDirty = true
+			
+			if parentUserData.State == completedState then
+				continue
+			end
+			
+			changedUserDataTable[parentId] = parentUserData
+		end
+		
+		if not isDirty then
+			return true
+		end
+		self.IsSaveDB = true
+		
+		if _Util:TableLen(changedUserDataTable) == 0 then
+			return true
+		end
+		
+		local userId = userEntity.PlayerComponent.UserId
+		self:SyncDataChanged(changedUserDataTable, userId)
+		return true
+	end
+
+	@ExecSpace("ServerOnly")
+	method void ApplyNewAchievementStepDatas()
+		-- Update the UserData for achievements with newly added Step data.
+		local isDirty = false
+		
+		---@type table<integer, UserAchievementData>
+		local userDataTable = self.UserDataTable
+		for id, userData in pairs(userDataTable) do
+			if userData.State ~= _AchievementStateEnum.Completed then
+				continue
+			end
+			
+			local data = _AchievementDataSetLogic:GetData(id)
+			if data == nil then
+				continue
+			end
+			
+			if #data.StepDatas <= userData.Step then
+				continue
+			end
+			
+			userData.State = _AchievementStateEnum.InProgress
+			isDirty = true
+		end
+		
+		if isDirty then
+			self.IsSaveDB = true
+		end
+	end
+
+	@ExecSpace("ServerOnly")
+	method void UpdateValue()
+		local userEntity = self.Entity
+		local curElpased = _DateTimeLogic:GetTimeElapsed()
+		
+		local dirty = false
+		
+		local idTable = _AchievementDataSetLogic.NeedUpdateIdTable
+		for id, _ in pairs(idTable) do
+			local data = _AchievementDataSetLogic:GetData(id)
+			if data == nil then
+				continue
+			end
+			
+			local userData = self:GetOrCreateUserData(id)
+			if userData:UpdateValue(userEntity, data, curElpased) then
+				dirty = true
+			end
+		end
+		
+		if dirty then
+			self.IsSaveDB = true
+		end
+	end
+
+	method UserAchievementData GetOrCreateUserData(integer id)
+		local userData = self.UserDataTable[id]
+		if userData == nil then
+			userData = UserAchievementData()
+			userData:Init(id)
+			self.UserDataTable[id] = userData	
+		end
+		
+		return userData
+	end
+
+	@ExecSpace("Client")
+	method void SyncInit(table userDataTable)
+		table.initialize(self.UserDataTable, userDataTable)
+		
+		-- The client pre-generates and uses all UserData.
+		local dataTable = _AchievementDataSetLogic.DataTable
+		for id, _ in pairs(dataTable) do
+			self:GetOrCreateUserData(id)
+		end
+	end
+
+	@ExecSpace("Client")
+	method void SyncValueChanged(table idValueTable)
+		local evt = AchievementChangeEvent()
+		local evtTable = evt.IdTable
+		
+		---@type table<integer, UserAchievementData>
+		local userDataTable = self.UserDataTable
+		
+		for id, value in pairs(idValueTable) do
+			local userData = userDataTable[id]
+			if userData == nil then
+				continue
+			end
+			
+			userData.Value = value
+			evtTable[id] = true
+		end
+		
+		self.Entity:SendEvent(evt)
+	end
+
+	@ExecSpace("Client")
+	method void SyncDataChanged(table changedUserDataTable)
+		local evt = AchievementChangeEvent()
+		local evtTable = evt.IdTable
+		
+		---@type table<integer, UserAchievementData>
+		local userDataTable = self.UserDataTable
+		
+		for id, v in pairs(changedUserDataTable) do
+			local userData = userDataTable[id]
+			if userData == nil then
+				continue
+			end
+			
+			userData:CopyFrom(v)
+			evtTable[id] = true
+		end
+		
+		self.Entity:SendEvent(evt)
+	end
+
+	@ExecSpace("Server")
+	method void Debug_RequestAdjustValue(integer id, boolean isAdd, boolean applyLimit)
+		if not _AdminLogic:IsAdmin(senderUserId) then
+			return
+		end
+		
+		if not self:Debug_AdjustValue(id, isAdd, applyLimit) then
+			return
+		end
+		
+		local userData = self:GetOrCreateUserData(id)
+		local idValueTable = {[id] = userData.Value}
+		self:SyncValueChanged(idValueTable, senderUserId)
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean Debug_AdjustValue(integer id, boolean isAdd, boolean applyLimit)
+		-- Changes only the value without modifying Step or State.
+		local data = _AchievementDataSetLogic:GetData(id)
+		if data == nil then
+			return false
+		end
+		
+		local curElapsed = _DateTimeLogic:GetTimeElapsed()
+		local userData = self:GetOrCreateUserData(id)
+		local userValue = userData.Value
+		
+		if not applyLimit then
+			if isAdd then
+				userData:SetValue(userValue + 1, curElapsed)
+			else
+				userData:SetValue(math.max(0, userValue - 1), curElapsed)
+			end
+			
+			self.IsSaveDB = true
+			return true
+		end
+		
+		local step = userData.Step
+		local nextValue = nil
+		
+		if isAdd then
+			nextValue = data:GetStepMaxValue(step)
+		else
+			nextValue = data:GetStepMinValue(step)
+		end
+		
+		if nextValue == nil then
+			return false
+		end
+		
+		userData:SetValue(nextValue, curElapsed)
+		self.IsSaveDB = true
+		
+		return true
+	end
+
+	@ExecSpace("Server")
+	method void Debug_RequestAdjustStep(integer id, boolean isAdd)
+		if not _AdminLogic:IsAdmin(senderUserId) then
+			return
+		end
+		
+		if not self:Debug_AdjustStep(id, isAdd) then
+			return
+		end
+		
+		local userData = self:GetOrCreateUserData(id)
+		local changedUserDataTable = {[id] = userData}
+		self:SyncDataChanged(changedUserDataTable, senderUserId)
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean Debug_AdjustStep(integer id, boolean isAdd)
+		-- Changes only the Step without modifying the Value.
+		-- If it's the last Step, it transitions to the completed state.
+		local data = _AchievementDataSetLogic:GetData(id)
+		if data == nil then
+			return false
+		end
+		
+		local userData = self:GetOrCreateUserData(id)
+		
+		if isAdd then
+			local curElapsed = _DateTimeLogic:GetTimeElapsed()
+			if not userData:Complete(self.Entity, data, curElapsed) then
+				return false
+			end
+			
+			self.IsSaveDB = true
+			return true
+		end
+		
+		if userData.State == _AchievementStateEnum.Completed then
+			userData.State = _AchievementStateEnum.InProgress
+			self.IsSaveDB = true
+			return true
+		end
+		
+		local step = userData.Step
+		if step == 1 then
+			return false
+		end
+		
+		userData.Step = step - 1
+		self.IsSaveDB = true
+		
+		return true
+	end
+
+	@ExecSpace("ServerOnly")
+	@EventSender("Self")
+	handler HandleActionEvent(ActionEvent event)
+		self:OnActionEvent(event)
+	end
+
+	@ExecSpace("ServerOnly")
+	@EventSender("Self")
+	handler HandlePlayerCycleResetEvent(PlayerCycleResetEvent event)
+		if event.CycleEnum ~= _CycleEnum.Day then
+			return
+		end
+		
+		local elapsed = _DateTimeLogic:GetTimeElapsed()
+		self:TryCycleResetAchievements(elapsed, true)
+	end
+
+end

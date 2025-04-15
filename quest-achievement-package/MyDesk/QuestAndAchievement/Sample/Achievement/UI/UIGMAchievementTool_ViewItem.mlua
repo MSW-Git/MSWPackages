@@ -1,0 +1,60 @@
+@Component
+script UIGMAchievementTool_ViewItem extends Component
+
+	property TextComponent Id = nil
+
+	property TextComponent State = nil
+
+	property TextComponent Step = nil
+
+	property TextComponent Value = nil
+
+	property TextComponent BeginTime = nil
+
+	property TextComponent CompleteTime = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		self.Id = entity:GetChildByName("Label_Id").TextComponent
+		self.State = entity:GetChildByName("Label_State").TextComponent
+		self.Step = entity:GetChildByName("Label_Step").TextComponent
+		self.Value = entity:GetChildByName("Label_Value").TextComponent
+		self.BeginTime = entity:GetChildByName("Label_BeginTime").TextComponent
+		self.CompleteTime = entity:GetChildByName("Label_CompleteTime").TextComponent
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Set(UserAchievementData s, integer timeOffset)
+		self.Id.Text = tostring(s.Id)
+		self.State.Text = tostring(s.State)
+		self.Step.Text = tostring(s.Step)
+		self.Value.Text = tostring(s.Value)
+		
+		local hourElapsed = 60 * 60 * 1000
+		local offsetElapsed = timeOffset * hourElapsed
+		
+		if s.BeginTime == 0 then
+			self.BeginTime.Text = "0"
+		else
+			self.BeginTime.Text = DateTime(s.BeginTime + offsetElapsed):ToFormattedString("yyyy-MM-dd HH:mm:ss")	
+		end
+		
+		if s.CompleteTime == 0 then
+			self.CompleteTime.Text = "0"
+		else
+			self.CompleteTime.Text = DateTime(s.CompleteTime + offsetElapsed):ToFormattedString("yyyy-MM-dd HH:mm:ss")
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		self.Id.Text = ""
+		self.State.Text = ""
+		self.Step.Text = ""
+		self.Value.Text = ""
+		self.BeginTime.Text = ""
+		self.CompleteTime.Text = ""
+	end
+
+end

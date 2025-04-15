@@ -1,0 +1,14 @@
+@Logic
+script AdminLogic extends Logic
+
+	@ExecSpace("ServerOnly")
+	method boolean IsAdmin(string userId)
+		return true
+	end
+
+	@ExecSpace("ClientOnly")
+	method boolean IsAdminLocalPlayer()
+		return true
+	end
+
+end

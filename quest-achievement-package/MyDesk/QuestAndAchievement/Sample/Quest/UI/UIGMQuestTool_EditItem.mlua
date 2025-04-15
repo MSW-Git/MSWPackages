@@ -1,0 +1,91 @@
+@Component
+script UIGMQuestTool_EditItem extends Component
+
+	property TextComponent Id = nil
+
+	property TextComponent State = nil
+
+	property TextComponent Values = nil
+
+	property TextComponent CompleteCount = nil
+
+	property TextComponent AcceptTime = nil
+
+	property TextComponent CompleteTime = nil
+
+	property TextComponent ExpiredTime = nil
+
+	property any EditUserData = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		
+		self.Id = entity:GetChildByName("Label_ID").TextComponent
+		self.State = entity:GetChildByName("Label_State").TextComponent
+		self.Values = entity:GetChildByName("Label_Values").TextComponent
+		self.CompleteCount = entity:GetChildByName("Label_CompleteCount").TextComponent
+		self.AcceptTime = entity:GetChildByName("Label_AcceptTime").TextComponent
+		self.CompleteTime = entity:GetChildByName("Label_CompleteTime").TextComponent
+		self.ExpiredTime = entity:GetChildByName("Label_ExpiredTime").TextComponent
+		
+		local btn_reset = entity:GetChildByName("Btn_Reset")
+		btn_reset:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Reset)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Set(UserQuestData s, integer timeOffset)
+		self.EditUserData = s
+		
+		self.Id.Text = tostring(s.Id)
+		self.State.Text = tostring(s.State)
+		self.CompleteCount.Text = tostring(s.CompleteCount)
+		
+		if s.Values == nil then
+			self.Values.Text = ""
+		else
+			self.Values.Text = table.concat(s.Values, ",")
+		end
+		
+		local hourElapsed = 60 * 60 * 1000
+		local offsetElapsed = timeOffset * hourElapsed
+		
+		if s.AcceptTime == 0 then
+			self.AcceptTime.Text = "0"
+		else
+			self.AcceptTime.Text = DateTime(s.AcceptTime + offsetElapsed):ToFormattedString("yyyy-MM-dd HH:mm:ss")	
+		end
+		
+		if s.CompleteTime == 0 then
+			self.CompleteTime.Text = "0"
+		else
+			self.CompleteTime.Text = DateTime(s.CompleteTime + offsetElapsed):ToFormattedString("yyyy-MM-dd HH:mm:ss")
+		end
+		
+		if s.ExpiredTime == 0 then
+			self.ExpiredTime.Text = "0"
+		else
+			self.ExpiredTime.Text = DateTime(s.ExpiredTime + offsetElapsed):ToFormattedString("yyyy-MM-dd HH:mm:ss")
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		self.EditUserData = nil
+		
+		self.Id.Text = ""
+		self.State.Text = ""
+		self.Values.Text = ""
+		self.CompleteCount.Text = ""
+		self.AcceptTime.Text = ""
+		self.CompleteTime.Text = ""
+		self.ExpiredTime.Text = ""
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Reset()
+		local evt = ButtonClickEvent(self.Entity)
+		self.Entity.Parent:SendEvent(evt)
+	end
+
+end

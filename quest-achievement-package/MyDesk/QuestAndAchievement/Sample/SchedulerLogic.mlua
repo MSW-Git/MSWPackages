@@ -1,0 +1,56 @@
+@Logic
+script SchedulerLogic extends Logic
+
+	property integer NextBaseTime = 0
+
+	property number AccDelta = 0
+
+	@ExecSpace("ServerOnly")
+	method void OnBeginPlay()
+		self:InitNextBaseTime()
+	end
+
+	@ExecSpace("ServerOnly")
+	method void InitNextBaseTime()
+		local curElapsed = _DateTimeLogic:GetTimeElapsed()
+		self.NextBaseTime = _DateTimeLogic:GetNextCycleBaseTime(_CycleEnum.Day, curElapsed)
+	end
+
+	@ExecSpace("ServerOnly")
+	method void OnUpdate(number delta)
+		local accDelta = self.AccDelta
+		if accDelta < 1 then
+			self.AccDelta = accDelta + delta
+			return
+		end
+		self.AccDelta = 0
+		
+		local curElapsed = _DateTimeLogic:GetTimeElapsed()
+		if curElapsed < self.NextBaseTime then
+			return
+		end
+		self.NextBaseTime = _DateTimeLogic:GetNextCycleBaseTime(_CycleEnum.Day, curElapsed)
+		
+		for userId, userEntity in pairs(_UserService.UserEntities) do
+			if not isvalid(userEntity) then
+				continue
+			end
+			
+			if not userEntity.PlayerDBManager.IsLoadSuccess then
+				continue
+			end
+			
+			userEntity.PlayerAccount:TryCycleReset()
+		end
+	end
+
+	@ExecSpace("ServerOnly")
+	@EventSender("Logic", "DateTimeLogic")
+	handler HandleServerTimeOffsetChangedEvent(ServerTimeOffsetChangedEvent event)
+		local curElapsed = _DateTimeLogic:GetTimeElapsed()
+		if curElapsed < self.NextBaseTime then
+			self:InitNextBaseTime()
+		end
+	end
+
+end

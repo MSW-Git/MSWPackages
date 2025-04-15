@@ -1,0 +1,128 @@
+@Logic
+script GMQuestToolLogic extends Logic
+
+	property string StorageName = "Quest"
+
+	@ExecSpace("Server")
+	method void RequestUserData(string userId)
+		if not _AdminLogic:IsAdmin(senderUserId) then
+			return
+		end
+		
+		local userDataTable = self:GetUserDataTable(userId)
+		if userDataTable == nil then
+			log_error(string.format("RequestUserData Error. UserId : %s", userId))
+			return
+		end
+		
+		self:ResponseUserData(userId, userDataTable, senderUserId)
+	end
+
+	@ExecSpace("Client")
+	method void ResponseUserData(string userId, table userDataTable)
+		local ui = _QuestSampleLogic:ActiveToolUI()
+		if not isvalid(ui) then
+			return
+		end
+		
+		ui.UIGMQuestTool:Apply(userId, userDataTable)
+	end
+
+	@ExecSpace("Server")
+	method void RequestEditUserData(string userId, table userDataTable)
+		if not _AdminLogic:IsAdmin(senderUserId) then
+			return
+		end
+		
+		if not self:SaveUserDataAndWait(userId, userDataTable) then
+			log_error("RequestEditUserData Failed. UserId : " .. userId)
+			return
+		end
+		
+		log("RequestEditUserData Success. UserId : " .. userId)
+	end
+
+	@ExecSpace("ServerOnly")
+	method table GetUserDataTable(string userId)
+		local deserTable = self:GetDeserTable(userId)
+		if deserTable == nil then
+			return nil
+		end
+		
+		local userDataTable = {}
+		local userDeserTable = deserTable["User"]
+		if userDeserTable ~= nil then
+			for i = 1, #userDeserTable do
+				local userData = UserQuestData()
+				if not userData:Deserialize(userDeserTable[i]) then
+					return nil
+				end
+				
+				userDataTable[userData.Id] = userData
+			end
+		end
+		
+		return userDataTable
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean SaveUserDataAndWait(string userId, table userDataTable)
+		local deserTable = self:GetDeserTable(userId)
+		if deserTable == nil then
+			return false
+		end
+		
+		local initState = _QuestStateEnum.Init
+		local userDeserTable = {}
+		for id, v in pairs(userDataTable) do
+			---@type UserQuestData
+			local userData = v
+			if userData.State == initState then
+				continue
+			end
+			
+			local item = userData:Serialize()
+			if item == nil then
+				continue
+			end
+			
+			userDeserTable[#userDeserTable + 1] = item
+		end
+		
+		if #userDeserTable ~= 0 then
+			deserTable["User"] = userDeserTable
+		end
+		
+		local sds = ""
+		if not _Util:IsNilorEmptyTable(deserTable) then
+			sds = _HttpService:JSONEncode(deserTable)
+		end
+		
+		local ds = _DataStorageService:GetUserDataStorage(userId)
+		local errorCode = ds:SetAndWait(self.StorageName, sds)
+		if errorCode ~= 0 then
+			log_error(string.format("SaveUserDataTable Error. ErrorCode : %d, UserId : %s", errorCode, userId))
+			return false
+		end
+		
+		return true
+	end
+
+	@ExecSpace("ServerOnly")
+	method table GetDeserTable(string userId)
+		local ds = _DataStorageService:GetUserDataStorage(userId)
+		local errorCode, sdsValue = ds:GetAndWait(self.StorageName)
+		if errorCode ~= 0 then
+			log_error(string.format("GetDeserTable Error. ErrorCode : %d, UserId : %s", errorCode, userId))
+			return nil
+		end
+		
+		if _Util:IsNilorEmptyString(sdsValue) then
+			log_error("GetDeserTable Error. Data is empty. UserID : " .. userId)
+			return nil
+		end
+		
+		return _HttpService:JSONDecode(sdsValue)
+	end
+
+end

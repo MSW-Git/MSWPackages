@@ -1,0 +1,635 @@
+@Component
+script PlayerQuest extends Component
+
+	property table UserDataTable = {}
+
+	property table CycleResetTimeTable = {}
+
+	property table ProgressingIdTable = {}
+
+	property boolean IsSaveDB = false
+
+	@ExecSpace("ServerOnly")
+	method boolean SaveToDB(table saveData)
+		if not self.IsSaveDB then
+			return true
+		end
+		
+		---@type table<integer, UserQuestData>
+		local userDataTable = self.UserDataTable
+		local cycleResetTimeTable = self.CycleResetTimeTable
+		
+		local deserTable = {}
+		local userDeserTable = {}
+		local cycleResetTimeDeserTable = {}
+		local initState = _QuestStateEnum.Init
+		
+		for id, userData in pairs(userDataTable) do
+			if userData.State == initState then
+				continue
+			end
+			
+			local item = userData:Serialize()
+			if item == nil then
+				continue
+			end
+			
+			userDeserTable[#userDeserTable + 1] = item
+		end
+		
+		for cycleEnum, elapsed in pairs(cycleResetTimeTable) do
+			cycleResetTimeDeserTable[cycleEnum] = elapsed
+		end
+		
+		if #userDeserTable ~= 0 then
+			deserTable["User"] = userDeserTable
+		end
+		
+		if #cycleResetTimeDeserTable ~= 0 then
+			deserTable["Cycle"] = cycleResetTimeDeserTable
+		end
+		
+		local sds = ""
+		if not _Util:IsNilorEmptyTable(deserTable) then
+			sds = _HttpService:JSONEncode(deserTable)
+		end
+		
+		saveData[_GMQuestToolLogic.StorageName] = sds
+		return true
+	end
+
+	@ExecSpace("ServerOnly")
+	method void LoadFromDB(table loadKeys)
+		table.insert(loadKeys, _GMQuestToolLogic.StorageName)
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean OnLoadedDataFromDB(table loadedData)
+		local userId = self.Entity.PlayerComponent.UserId
+		
+		---@type DataStorageItem
+		local sds = loadedData[_GMQuestToolLogic.StorageName]
+		local sdsValue = sds.Value
+		
+		---@type table<integer, UserQuestData>
+		local userDataTable = self.UserDataTable
+		local cycleResetTimeTable = self.CycleResetTimeTable
+		
+		if not _Util:IsNilorEmptyString(sdsValue) then
+			local deserTable = _HttpService:JSONDecode(sdsValue)
+			local userDeserTable = deserTable["User"]
+			local cycleResetTimeDeserTable = deserTable["Cycle"]
+			
+			if userDeserTable ~= nil then
+				for i = 1, #userDeserTable do
+					local userData = UserQuestData()
+					if not userData:Deserialize(userDeserTable[i]) then
+						return false
+					end
+					
+					userDataTable[userData.Id] = userData
+				end
+			end
+			
+			if cycleResetTimeDeserTable ~= nil then
+				for cycleEnum, elapsed in pairs(cycleResetTimeDeserTable) do
+					cycleResetTimeTable[cycleEnum] = elapsed
+				end
+			end
+		end
+		
+		-- Handle the first login process, including cases where resetTime is in the future due to server time cheats.
+		local curElapsed = _DateTimeLogic:GetTimeElapsed()
+		local cycleEnums = _CycleEnum:GetEnums()
+		for i = 1, #cycleEnums do
+			local cycleEnum = cycleEnums[i]
+			local resetTime = cycleResetTimeTable[cycleEnum]
+			
+			if resetTime == nil then
+				cycleResetTimeTable[cycleEnum] = 0
+				self.IsSaveDB = true
+			elseif curElapsed < resetTime then
+				cycleResetTimeTable[cycleEnum] = curElapsed
+				self.IsSaveDB = true
+			end
+		end
+		
+		self:UpdateValues()
+		self:TryCycleResetQuests(curElapsed, false)
+		
+		local progressingIdTable = self.ProgressingIdTable
+		for id, userData in pairs(userDataTable) do
+			local state = userData.State
+			if state == _QuestStateEnum.InProgress then
+				progressingIdTable[id] = true
+			end
+		end
+		
+		self:SyncInit(userDataTable, self.Entity.PlayerComponent.UserId)
+		return true
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean PostOnLoadedDataFromDB()
+		return true
+	end
+
+	@ExecSpace("ServerOnly")
+	method void TryCycleResetQuests(integer elapsed, boolean sync)
+		local resetByCycle = {}
+		local cycleEnums = _CycleEnum:GetEnums()
+		for i = 1, #cycleEnums do
+			local cycleEnum = cycleEnums[i]
+			resetByCycle[cycleEnum] = self:IsCycleResetRequired(cycleEnum, elapsed)
+		end
+		
+		if _Util:TableLen(resetByCycle) == 0 then
+			return
+		end
+		
+		-- Record the ResetTime.
+		---@type table<integer, integer>
+		local cycleResetTimeTable = self.CycleResetTimeTable
+		for cycleEnum, isReset in pairs(resetByCycle) do
+			if isReset then
+				cycleResetTimeTable[cycleEnum] = elapsed
+			end
+		end
+		
+		---@type table<integer, UserQuestData>
+		local userDataTable = self.UserDataTable
+		---@type table<integer, UserQuestData>
+		local resetUserDataTable = {}
+		
+		for id, userData in pairs(userDataTable) do
+			local data = _QuestDataSetLogic:GetData(id)
+			if data == nil then
+				continue
+			end
+			
+			local cycleEnum = data.CycleEnum
+			if not resetByCycle[cycleEnum] then
+				continue
+			end
+			
+			userData:Abandon(elapsed)
+			resetUserDataTable[id] = userData
+		end
+		
+		self.IsSaveDB = true
+		
+		if sync then
+			self:SyncDataChanged(resetUserDataTable, self.Entity.PlayerComponent.UserId)
+		end
+		
+		self:AutoAcceptQuests(sync)
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean IsCycleResetRequired(integer cycleEnum, integer elapsed)
+		if cycleEnum == _CycleEnum.None then
+			return false
+		end
+		
+		if elapsed < self:GetNextCycleBaseTime(cycleEnum) then
+			return false
+		end
+		
+		return true
+	end
+
+	@ExecSpace("ServerOnly")
+	method integer GetNextCycleBaseTime(integer cycleEnum)
+		local resetElapsed = self.CycleResetTimeTable[cycleEnum]
+		if resetElapsed == nil then
+			-- Guard Code : Prevents invalid resetTime
+			return DateTime.MaxValue.Elapsed
+		end
+		
+		return _DateTimeLogic:GetNextCycleBaseTime(cycleEnum, resetElapsed)
+	end
+
+	@ExecSpace("ServerOnly")
+	method void OnActionEvent(ActionEvent event)
+		local actionEnum = event.ActionEnum
+		
+		---@type table<integer, boolean>
+		local progressingIdTable = self.ProgressingIdTable
+		if _Util:IsNilorEmptyTable(progressingIdTable) then
+			return
+		end
+		
+		local idValuesTable = {}
+		
+		---@type table<integer, UserQuestData>
+		local userDataTable = self.UserDataTable
+		local userEntity = self.Entity
+		local curElapsed = _DateTimeLogic:GetTimeElapsed()
+		
+		for id, _ in pairs(progressingIdTable) do
+			local data = _QuestDataSetLogic:GetData(id)
+			if data == nil then
+				continue
+			end
+			
+			if self:IsCycleResetRequired(data.CycleEnum, curElapsed) then
+				continue
+			end
+			
+			local userData = self:GetOrCreateUserData(id)
+			if not userData:CheckAndSetValue(userEntity, event, data, curElapsed) then
+				continue
+			end
+			
+			idValuesTable[id] = userData.Values
+		end
+		
+		if _Util:TableLen(idValuesTable) == 0 then
+			return
+		end
+		self.IsSaveDB = true
+		
+		local userId = userEntity.PlayerComponent.UserId
+		self:SyncValuesChanged(idValuesTable, userId)
+	end
+
+	@ExecSpace("Server")
+	method void RequestAcceptQuests(table ids)
+		self:AcceptQuests(ids, true)
+	end
+
+	@ExecSpace("ServerOnly")
+	method void AcceptQuests(table ids, boolean sync)
+		local userEntity = self.Entity
+		local elapsed = _DateTimeLogic:GetTimeElapsed()
+		
+		---@type table<integer, boolean>
+		local progressingIdTable = self.ProgressingIdTable
+		
+		---@type table<integer, UserQuestData>
+		local acceptUserDataTable = {}
+		
+		for i = 1, #ids do
+			local id = ids[i]
+			local data = _QuestDataSetLogic:GetData(id)
+			
+			local userData = self:GetOrCreateUserData(id)
+			if not userData:IsAcceptable(userEntity, data, elapsed) then
+				continue
+			end
+			
+			userData:Accept(userEntity, data, elapsed)
+			progressingIdTable[id] = true
+			acceptUserDataTable[id] = userData
+		end
+		
+		if _Util:IsNilorEmptyTable(acceptUserDataTable) then
+			return
+		end
+		self.IsSaveDB = true
+		
+		if sync then
+			self:SyncDataChanged(acceptUserDataTable, self.Entity.PlayerComponent.UserId)
+		end
+	end
+
+	@ExecSpace("ServerOnly")
+	method void AutoAcceptQuests(boolean sync)
+		local ids = _QuestDataSetLogic.AutoAcceptIds
+		self:AcceptQuests(ids, sync)
+	end
+
+	@ExecSpace("Server")
+	method void RequestAbandonQuests(table ids)
+		self:AbandonQuests(ids, true)
+	end
+
+	@ExecSpace("ServerOnly")
+	method void AbandonQuests(table ids, boolean sync)
+		local userEntity = self.Entity
+		local elapsed = _DateTimeLogic:GetTimeElapsed()
+		
+		---@type table<integer, boolean>
+		local progressingIdTable = self.ProgressingIdTable
+		
+		---@type table<integer, UserQuestData>
+		local changeUserDataTable = {}
+		
+		for i = 1, #ids do
+			local id = ids[i]
+			local data = _QuestDataSetLogic:GetData(id)
+			
+			local userData = self:GetOrCreateUserData(id)
+			if not userData:IsAbandonable(data, elapsed) then
+				continue
+			end
+			
+			userData:Abandon(elapsed)
+			progressingIdTable[id] = nil
+			changeUserDataTable[id] = userData
+		end
+		
+		if _Util:IsNilorEmptyTable(changeUserDataTable) then
+			return
+		end
+		self.IsSaveDB = true
+		
+		if sync then
+			self:SyncDataChanged(changeUserDataTable, self.Entity.PlayerComponent.UserId)
+		end
+		
+		self:AutoAcceptQuests(sync)
+	end
+
+	@ExecSpace("Server")
+	method void RequestCompleteQuests(table ids)
+		self:CompleteQuests(ids)
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean CompleteQuests(table ids)
+		if ids == nil or #ids == 0 then
+			return false
+		end
+		
+		local userEntity = self.Entity
+		local curElapsed = _DateTimeLogic:GetTimeElapsed()
+		
+		---@type table<integer, boolean>
+		local progressingIdTable = self.ProgressingIdTable
+		
+		---@type table<integer, UserQuestData>
+		local userDataTable = self.UserDataTable
+		
+		local changedUserDataTable = {}
+		
+		for i = 1, #ids do
+			local id = ids[i]
+			local data = _QuestDataSetLogic:GetData(id)
+			if data == nil then
+				continue
+			end
+			
+			if self:IsCycleResetRequired(data.CycleEnum, curElapsed) then
+				continue
+			end
+			
+			local userData = userDataTable[id]
+			if userData == nil then
+				continue
+			end
+			
+			if not userData:IsCompletable(data) then
+				continue
+			end
+			
+			if not userData:Complete(userEntity, data, curElapsed) then
+				continue
+			end
+			
+			progressingIdTable[id] = nil
+			changedUserDataTable[id] = userData
+		end
+		
+		if _Util:IsNilorEmptyTable(changedUserDataTable) then
+			return true
+		end
+		self.IsSaveDB = true
+		
+		local userId = userEntity.PlayerComponent.UserId
+		self:SyncDataChanged(changedUserDataTable, userId)
+		
+		self:AutoAcceptQuests(true)
+		
+		return true
+	end
+
+	@ExecSpace("ServerOnly")
+	method void UpdateValues()
+		local userEntity = self.Entity
+		local curElpased = _DateTimeLogic:GetTimeElapsed()
+		local dirty = false
+		
+		---@type table<integer, UserQuestData>
+		local userDataTable = self.UserDataTable
+		for id, userData in pairs(userDataTable) do
+			local data = _QuestDataSetLogic:GetData(id)
+			if data == nil then
+				continue
+			end
+			
+			if userData:UpdateValues(userEntity, data, curElpased) then
+				dirty = true
+			end
+		end
+		
+		if dirty then
+			self.IsSaveDB = true
+		end
+	end
+
+	method UserQuestData GetOrCreateUserData(integer id)
+		local userData = self.UserDataTable[id]
+		if userData == nil then
+			userData = UserQuestData()
+			userData:Init(id)
+			self.UserDataTable[id] = userData	
+		end
+		
+		return userData
+	end
+
+	@ExecSpace("Client")
+	method void SyncInit(table userDataTable)
+		table.initialize(self.UserDataTable, userDataTable)
+		
+		-- The client pre-generates and uses all UserData.
+		local dataTable = _QuestDataSetLogic.DataTable
+		for id, _ in pairs(dataTable) do
+			self:GetOrCreateUserData(id)
+		end
+	end
+
+	@ExecSpace("Client")
+	method void SyncValuesChanged(table idValuesTable)
+		local evt = QuestChangeEvent()
+		local evtTable = evt.IdTable
+		evt.IsValuesChanged = true
+		
+		---@type table<integer, UserQuestData>
+		local userDataTable = self.UserDataTable
+		
+		for id, values in pairs(idValuesTable) do
+			local userData = userDataTable[id]
+			if userData == nil then
+				continue
+			end
+			
+			table.initialize(userData.Values, values)
+			evtTable[id] = true
+		end
+		
+		self.Entity:SendEvent(evt)
+	end
+
+	@ExecSpace("Client")
+	method void SyncDataChanged(table changedUserDataTable)
+		local evt = QuestChangeEvent()
+		local evtTable = evt.IdTable
+		
+		---@type table<integer, UserQuestData>
+		local userDataTable = self.UserDataTable
+		
+		for id, v in pairs(changedUserDataTable) do
+			local userData = userDataTable[id]
+			if userData == nil then
+				continue
+			end
+			
+			userData:CopyFrom(v)
+			evtTable[id] = true
+		end
+		
+		self.Entity:SendEvent(evt)
+	end
+
+	@ExecSpace("Server")
+	method void Debug_RequestAdjustValue(integer id, integer index, boolean isAdd, boolean applyLimit)
+		if not _AdminLogic:IsAdmin(senderUserId) then
+			return
+		end
+		
+		if not self:Debug_AdjustValue(id, index, isAdd, applyLimit) then
+			return
+		end
+		
+		local userData = self:GetOrCreateUserData(id)
+		local idValuesTable = {[id] = userData.Values}
+		self:SyncValuesChanged(idValuesTable, senderUserId)
+	end
+
+	method boolean Debug_AdjustValue(integer id, integer index, boolean isAdd, boolean applyLimit)
+		-- Changes only the value without modifying Step or State.
+		local data = _QuestDataSetLogic:GetData(id)
+		if data == nil then
+			return false
+		end
+		
+		---@type QuestConditionData
+		local conditionData = data.ConditionDatas[index]
+		if conditionData == nil then
+			return false
+		end
+		
+		local curElapsed = _DateTimeLogic:GetTimeElapsed()
+		local userData = self:GetOrCreateUserData(id)
+		local userValue = userData.Values[index]
+		if userValue == nil then
+			return false
+		end
+		
+		local condValue = conditionData.Value
+		local nextValue = userValue
+		
+		if applyLimit then
+			if isAdd then
+				nextValue = condValue
+			else
+				nextValue = 0
+			end
+		else
+			if isAdd then
+				nextValue += 1
+			else
+				nextValue -= 1
+			end
+		end
+		
+		nextValue = math.clamp(nextValue, 0, condValue)
+		userData.Values[index] = nextValue
+		
+		self.IsSaveDB = true
+		
+		return true
+	end
+
+	@ExecSpace("Server")
+	method void Debug_RequestAdjustState(integer id, boolean isAdd)
+		if not _AdminLogic:IsAdmin(senderUserId) then
+			return
+		end
+		
+		if not self:Debug_AdjustState(id, isAdd) then
+			return
+		end
+		
+		local userData = self:GetOrCreateUserData(id)
+		local changedUserDataTable = {[id] = userData}
+		self:SyncDataChanged(changedUserDataTable, senderUserId)
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean Debug_AdjustState(integer id, boolean isAdd)
+		-- Changes only the State without modifying the Value.
+		local data = _QuestDataSetLogic:GetData(id)
+		if data == nil then
+			return false
+		end
+		
+		local userData = self:GetOrCreateUserData(id)
+		local curState = userData.State
+		local nextState = nil
+		if isAdd then
+			if curState == _QuestStateEnum.InProgress then
+				nextState = _QuestStateEnum.Completed
+			else
+				nextState = _QuestStateEnum.InProgress
+			end
+		else
+			if curState == _QuestStateEnum.Completed then
+				nextState = _QuestStateEnum.InProgress
+			elseif curState == _QuestStateEnum.InProgress then
+				nextState = _QuestStateEnum.Stored
+			end
+		end
+		
+		local progressingIdTable = self.ProgressingIdTable
+		local curElapsed = _DateTimeLogic:GetTimeElapsed()
+		
+		if nextState == _QuestStateEnum.Completed then
+			if not userData:Complete(self.Entity, data, curElapsed) then
+				return false
+			end
+			progressingIdTable[id] = nil
+			self.IsSaveDB = true
+		elseif nextState == _QuestStateEnum.InProgress then
+			userData:Accept(self.Entity, data, curElapsed)
+			progressingIdTable[id] = true
+			self.IsSaveDB = true
+		elseif nextState == _QuestStateEnum.Stored then
+			userData:Abandon(curElapsed)
+			progressingIdTable[id] = false
+			self.IsSaveDB = true
+		end
+		
+		return true
+	end
+
+	@ExecSpace("ServerOnly")
+	@EventSender("Self")
+	handler HandleActionEvent(ActionEvent event)
+		self:OnActionEvent(event)
+	end
+
+	@ExecSpace("ServerOnly")
+	@EventSender("Self")
+	handler HandlePlayerCycleResetEvent(PlayerCycleResetEvent event)
+		if event.CycleEnum ~= _CycleEnum.Day then
+			return
+		end
+		
+		local elapsed = _DateTimeLogic:GetTimeElapsed()
+		self:TryCycleResetQuests(elapsed, true)
+	end
+
+end

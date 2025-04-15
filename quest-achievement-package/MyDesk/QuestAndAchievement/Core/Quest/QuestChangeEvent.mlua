@@ -1,0 +1,8 @@
+@Event
+script QuestChangeEvent extends EventType
+
+	property table IdTable = {}
+
+	property boolean IsValuesChanged = false
+
+end

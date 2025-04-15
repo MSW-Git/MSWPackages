@@ -1,0 +1,46 @@
+@Struct
+script ActionConditionData_StaminaChange extends ActionConditionData
+
+	property boolean IsSpend = false
+
+	method any Clone()
+		return ActionConditionData_StaminaChange()
+	end
+
+	method table GetActionEnumList()
+		return { _ActionEnum.StaminaChange }
+	end
+
+	method boolean LoadArg(string str)
+		if str == "IsSpend" then
+			self.IsSpend = true
+		end
+		
+		return true
+	end
+
+	method boolean Check(Entity userEntity, ActionEvent evt, integer userValue, integer condValue)
+		local evtArgs = evt.Args
+		local prevStamina = evtArgs[1]
+		local curStamina = evtArgs[2]
+		
+		if self.IsSpend then
+			return prevStamina > curStamina
+		else
+			return prevStamina < curStamina
+		end
+	end
+
+	method number GetNextUserValue(Entity userEntity, ActionEvent evt, integer userValue, integer condValue)
+		local evtArgs = evt.Args
+		local prevStamina = evtArgs[1]
+		local curStamina = evtArgs[2]
+		
+		if self.IsSpend then
+			return userValue + (prevStamina - curStamina)
+		else
+			return userValue + (curStamina - prevStamina)
+		end
+	end
+
+end

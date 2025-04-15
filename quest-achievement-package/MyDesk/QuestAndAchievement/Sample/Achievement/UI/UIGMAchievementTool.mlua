@@ -1,0 +1,171 @@
+@Component
+script UIGMAchievementTool extends Component
+
+	property Entity Text_TargetUserID = nil
+
+	property Entity Text_TimeOffset = nil
+
+	property Entity Page_View = nil
+
+	property Entity Page_Edit = nil
+
+	property Entity Popup_EditItem = nil
+
+	property integer TimeOffset = 0
+
+	property string TargetUserID = ""
+
+	property table UserDataTable = {}
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		local panel = entity:GetChildByName("Panel")
+		
+		-- Title
+		local title = panel:GetChildByName("Title")
+		
+		local btnClose = title:GetChildByName("Btn_Exit")
+		btnClose:ConnectEvent(ButtonClickEvent, function(evt) self:OnClose() end)
+		
+		self.Text_TimeOffset = title:GetChildByName("Text_TimeOffset")
+		local userTimeOffsetStr = self:ToStringWithSign(self.TimeOffset)
+		self.Text_TimeOffset.TextComponent.Text = userTimeOffsetStr
+		self.Text_TimeOffset.TextInputComponent.Text = userTimeOffsetStr
+		self.Text_TimeOffset:ConnectEvent(TextInputEndEditEvent, function(evt) self:OnChanged_TimeOffset(evt) end)
+		
+		local btn_tooltip = self.Text_TimeOffset:GetChildByName("Btn_Tooltip")
+		local panel_tooltip = btn_tooltip:GetChildByName("Panel_TooTip")
+		btn_tooltip:ConnectEvent(ButtonClickEvent, function(evt) panel_tooltip.Enable = not panel_tooltip.Enable end)
+		
+		-- ButtonList
+		local tabButtons = panel:GetChildByName("TabButtons")
+		
+		local btn_View = tabButtons:GetChildByName("Btn_View")
+		btn_View:ConnectEvent(ButtonClickEvent, function(evt) self:OnClick_View(evt) end)
+		
+		local btn_Edit = tabButtons:GetChildByName("Btn_Edit")
+		btn_Edit:ConnectEvent(ButtonClickEvent, function(evt) self:OnClick_Edit(evt) end)
+		
+		-- TargetUser
+		local targetUser = panel:GetChildByName("TargetUser")
+		self.Text_TargetUserID = targetUser:GetChildByName("UIText_UserID")
+		self.Text_TargetUserID:ConnectEvent(TextInputEndEditEvent, function(evt) self:OnChanged_TargetUser(evt) end)
+		
+		local btn_targetTooltip = targetUser:GetChildByName("Btn_Tooltip")
+		local panel_targetTooltip = btn_targetTooltip:GetChildByName("Panel_TooTip")
+		btn_targetTooltip:ConnectEvent(ButtonClickEvent, function(evt) panel_targetTooltip.Enable = not panel_targetTooltip.Enable end)
+		
+		-- Pages
+		local pages = panel:GetChildByName("Pages")
+		self.Page_View = pages:GetChildByName("Page_View")
+		self.Page_View.UIGMAchievementTool_View.Parent = self
+		
+		self.Page_Edit = pages:GetChildByName("Page_Edit")
+		self.Page_Edit.UIGMAchievementTool_Edit.Parent = self
+		
+		self.Popup_EditItem = panel:GetChildByName("Popup_EditItem")
+		self.Popup_EditItem.UIGMAchievementTool_EditItemPopup.Parent = self
+		
+		self:SwitchPage(true)
+		self.Entity:SetEnable(true)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Apply(string userId, table userDataTable)
+		self.TargetUserID = userId
+		self.UserDataTable = userDataTable
+		
+		local ids = table.keys(_AchievementDataSetLogic.DataTable)
+		for i = 1, #ids do
+			local id = ids[i]
+			local userData = userDataTable[id]
+			if userData ~= nil then
+				continue
+			end
+			
+			userData = UserAchievementData()
+			userData:Init(id)
+			userDataTable[id] = userData
+		end
+		
+		self.Page_View.UIGMAchievementTool_View:Apply(userDataTable)
+		self.Page_Edit.UIGMAchievementTool_Edit:Apply(userDataTable)
+		
+		self:SwitchPage(true)
+		self.Entity:SetEnable(true)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClose()
+		self.Entity:SetEnable(false)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClick_View(ButtonClickEvent evt)
+		self:SwitchPage(true)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClick_Edit(ButtonClickEvent evt)
+		self:SwitchPage(false)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SwitchPage(boolean isView)
+		self.Page_View:SetEnable(isView)
+		self.Page_Edit:SetEnable(not isView)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnChanged_TargetUser(TextInputEndEditEvent evt)
+		local targetUserId = evt.text
+		local textInputComp = self.Text_TargetUserID.TextInputComponent
+		
+		textInputComp.Text = targetUserId
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnChanged_TimeOffset(TextInputEndEditEvent evt)
+		local offset = math.tointeger(tonumber(evt.text))
+		local textInputComp = self.Text_TimeOffset.TextInputComponent
+		
+		if offset == nil then
+			textInputComp.Text = self:ToStringWithSign(self.TimeOffset)
+			return
+		end
+		
+		-- The UTC time offset ranges from -23 hours to +23 hours.
+		if offset <= -24 or offset >= 24 then
+			textInputComp.Text = self:ToStringWithSign(self.TimeOffset)
+			return
+		end
+		
+		self.TimeOffset = offset
+		textInputComp.Text = self:ToStringWithSign(offset)
+		
+		self:Invalidate()
+	end
+
+	@ExecSpace("ClientOnly")
+	method string ToStringWithSign(integer num)
+		-- Return the positive number with a '+' sign attached.
+		if num >= 0 then
+			return "+" .. tostring(num)
+		else
+			return tostring(num)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Invalidate()
+		self.Page_View.UIGMAchievementTool_View:Invalidate(false)
+		self.Page_Edit.UIGMAchievementTool_Edit:Invalidate(false)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OpenPopup_EditItem(UserAchievementData originalUserData, UserAchievementData editUserData)
+		self.Popup_EditItem.UIGMAchievementTool_EditItemPopup:Open(originalUserData, editUserData, self.TimeOffset)
+	end
+
+end

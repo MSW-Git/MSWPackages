@@ -1,0 +1,133 @@
+@Component
+script UIAchievementChildInfo extends Component
+
+	property integer Id = 0
+
+	property Entity Text_Title = nil
+
+	property GridViewComponent GridView = nil
+
+	property Entity Item = nil
+
+	property table ChildUserDataTable = {}
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		
+		self.Text_Title = entity:GetChildByName("Text_Title")
+		
+		local item = entity:GetChildByName("Item")
+		item.Enable = false
+		self.Item = item
+		
+		local gridView = entity:GetChildByName("GridView").GridViewComponent
+		gridView.ItemEntity = item
+		gridView.OnRefresh = self.OnRefresh
+		gridView.OnClear = self.OnClear
+		self.GridView = gridView
+		
+		local btn_back = entity:GetChildByName("Btn_Back")
+		btn_back:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Back)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Open(integer id)
+		local data = _AchievementDataSetLogic:GetData(id)
+		if data == nil then
+			return
+		end
+		
+		---@type table<integer, UserAchievementData>
+		local userDataTable = _UserService.LocalPlayer.PlayerAchievement.UserDataTable
+		local userData = userDataTable[id]
+		if userData == nil then
+			return
+		end
+		
+		local stepData = data:GetStepData(userData.Step)
+		if stepData == nil then
+			return
+		end
+		
+		self.Id = id
+		
+		local entity = self.Entity
+		_TimerService:SetTimerOnce(function()
+			entity.Enable = true
+		end, 0.2)
+		
+		local condValue = stepData.Value
+		local userValue = math.min(userData.Value, condValue)
+		
+		self.Text_Title.TextComponent.Text = string.format("%s (%d/%d)", data.Name, userValue, condValue)
+		
+		local childUserDataTable = self.ChildUserDataTable
+		table.clear(childUserDataTable)
+		
+		local childIds = data.ChildIds
+		for i = 1, #childIds do
+			local childId = childIds[i]
+			
+			local childUserData = userDataTable[childId]
+			if childUserData == nil then
+				continue
+			end
+			
+			childUserDataTable[#childUserDataTable + 1] = childUserData
+		end
+		
+		local gridView = self.GridView
+		gridView.TotalCount = #data.ChildIds
+		gridView:Refresh(true, true)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnRefresh(integer index, Entity entity)
+		index += 1
+		
+		---@type UserAchievementData
+		local childUserData = self.ChildUserDataTable[index]
+		local childData = _AchievementDataSetLogic:GetData(childUserData.Id)
+		if childData == nil then
+			self:OnClear(index, entity)
+			return
+		end
+		
+		local uiState = childUserData.State
+		local stepData = childData:GetStepData(childUserData.Step)
+		if stepData == nil then
+			-- 진행하던 Step의 Data를 찾을 수 없는 경우, 마지막 step data의 완료 상태를 보여준다.
+			stepData = childData:GetLastStepData()
+			uiState = _AchievementStateEnum.Completed	
+		end
+		
+		if stepData == nil then
+			self:OnClear(index, entity)
+			return
+		end
+		
+		local text = childData.Name
+		local textComp = entity:GetChildByName("Text_Title").TextComponent
+		
+		if uiState == _AchievementStateEnum.Completed then
+			textComp.Text = "(완료)" .. text
+			textComp.FontColor.a = 1.0
+		else
+			textComp.Text = text
+			textComp.FontColor.a = 0.5
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClear(integer index, Entity entity)
+		local textComp = entity:GetChildByName("Text_Title").TextComponent
+		textComp.Text = ""
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Back()
+		self.Entity.Enable = false
+	end
+
+end

@@ -1,0 +1,42 @@
+@Logic
+script DataLoadLogic extends Logic
+
+	property boolean IsLoadEnd = false
+
+	property boolean IsLoadSuccess = false
+
+	method void OnBeginPlay()
+		local success, result = pcall(function()
+			_CycleEnum:Init()
+			_DayOfWeekEnum:Init()
+			_ActionConditionEnum:Init()
+			
+			_AchievementCategoryEnum:Init()
+			_AchievementDataSetLogic:Load()
+			
+			_QuestCategoryEnum:Init()
+			_QuestDataSetLogic:Load()
+		end)
+		self.IsLoadEnd = true
+		
+		if not success then
+			log_error("DataLoad Failed. " .. result)
+			return
+		end
+		self.IsLoadSuccess = true
+		
+		if self:IsClient() then
+			_UserService.LocalPlayer.PlayerDBManager:NotifyWorldDataLoadCompleted()
+		end
+		
+	end
+
+	method boolean IsLoadSuccessAndWait()
+		while not self.IsLoadEnd do
+			wait(1)
+		end
+		
+		return self.IsLoadSuccess
+	end
+
+end

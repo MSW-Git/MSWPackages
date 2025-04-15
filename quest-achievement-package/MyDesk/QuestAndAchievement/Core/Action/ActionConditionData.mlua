@@ -1,0 +1,38 @@
+@Struct
+script ActionConditionData
+
+	property integer Enum = 0
+
+	method any Clone()
+		return nil
+	end
+
+	method boolean LoadArg(string str)
+		return true
+	end
+
+	method boolean LoadExtra(string str)
+		return true
+	end
+
+	method table GetActionEnumList()
+		return nil
+	end
+
+	method boolean Check(Entity userEntity, ActionEvent evt, integer userValue, integer condValue)
+		return true
+	end
+
+	method integer GetNextUserValue(Entity userEntity, ActionEvent evt, integer userValue, integer condValue)
+		return userValue + 1
+	end
+
+	method boolean IsUpdateNeeded()
+		return false
+	end
+
+	method integer GetUpdatedValue(Entity userEntity, integer userValue, integer condValue)
+		return nil
+	end
+
+end

@@ -1,0 +1,300 @@
+@Component
+script UIAchievement extends Component
+
+	property table CategoryButtonTable = {}
+
+	property GridViewComponent GridView = nil
+
+	property Entity LeftTime = nil
+
+	property integer SelectedCategory = 0
+
+	property table GridViewDataTable = {}
+
+	property Entity Panel_ChildInfo = nil
+
+	property boolean IsDebug = false
+
+	property Entity Btn_CompleteAll = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		local panel = entity:GetChildByName("Panel")
+		
+		local panel_title = panel:GetChildByName("Panel_Title")
+		local btn_exit = panel_title:GetChildByName("Btn_Exit")
+		btn_exit:ConnectEvent(ButtonClickEvent, self.OnClickButton_Exit)
+		
+		self:InitCategory()
+		self:InitContent()
+		
+		local panel_bottom = panel:GetChildByName("Panel_Bottom")
+		local leftTime = panel_bottom:GetChildByName("Text_LeftTime")
+		self.LeftTime = leftTime
+		
+		local btn_CompleteAll = panel_bottom:GetChildByName("Btn_CompleteAll")
+		btn_CompleteAll:ConnectEvent(ButtonClickEvent, self.OnClickBtn_CompleteAll)
+		self.Btn_CompleteAll = btn_CompleteAll
+		
+		if _AdminLogic:IsAdminLocalPlayer() then
+			local btn_Debug = panel_title:GetChildByName("Btn_Debug")
+			btn_Debug.Enable = true
+			btn_Debug:ConnectEvent(ButtonClickEvent, function()
+				self.IsDebug = not self.IsDebug
+				self:Invalidate()
+			end)
+		end
+		
+		self:OnClickButton_Category(_AchievementCategoryEnum.Day)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void InitCategory()
+		local panel = self.Entity:GetChildByName("Panel"):GetChildByName("Panel_Category")
+		local scrollLayout = panel:GetChildByName("ScrollLayout")
+		local baseItem = panel:GetChildByName("Item")
+		baseItem.Enable = false
+		
+		local categorys = {
+			_AchievementCategoryEnum.Day,
+			_AchievementCategoryEnum.Week,
+			_AchievementCategoryEnum.Feature,
+			_AchievementCategoryEnum.Normal,
+		}
+		
+		---@type table<integer, Entity>
+		local categoryButtonTable = self.CategoryButtonTable
+		for i = 1, #categorys do
+			local category = categorys[i]
+			local item = _SpawnService:SpawnByEntity(baseItem, "Item", Vector3.zero, scrollLayout)
+			item.TextComponent.Text = _AchievementCategoryEnum:ToUIStr(category)
+			item.Enable = true
+			item:ConnectEvent(ButtonClickEvent, function()
+				self:OnClickButton_Category(category)
+			end)
+			
+			categoryButtonTable[category] = item
+		end
+		
+		self:SetButtonsSelected(false)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void InitContent()
+		local panel = self.Entity:GetChildByName("Panel"):GetChildByName("Panel_Content")
+		
+		local item = panel:GetChildByName("Item")
+		item.Enable = false
+		
+		local gridViewEntity = panel:GetChildByName("GridView")
+		gridViewEntity:ConnectEvent(ButtonClickEvent, self.OnClickBtn_ChildInfo)
+		
+		local gridView = gridViewEntity.GridViewComponent
+		gridView.ItemEntity = item
+		gridView.OnRefresh = self.OnRefresh
+		gridView.OnClear = self.OnClear
+		
+		self.GridView = gridView
+		
+		self.Panel_ChildInfo = panel:GetChildByName("Panel_ChildInfo")
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Invalidate()
+		self.GridView:Refresh(true, true)
+		self:InvalidateLeftTime()
+		self:InvalidateButtonCompleteAll()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void InvalidateLeftTime()
+		local category = self.SelectedCategory
+		
+		local text = ""
+		if category == _AchievementCategoryEnum.Day then
+			local curElapsed = _DateTimeLogic:GetTimeElapsed()
+			local nextBaseTime = _DateTimeLogic:GetNextCycleBaseTime(_CycleEnum.Day, curElapsed)
+			local leftTimeSpan = TimeSpan(nextBaseTime - curElapsed)
+			text = string.format("남은 시간 :  %02d시간 %02d분", leftTimeSpan.Hours, leftTimeSpan.Minutes)
+		elseif category == _AchievementCategoryEnum.Week then
+			local curElapsed = _DateTimeLogic:GetTimeElapsed()
+			local nextBaseTime = _DateTimeLogic:GetNextCycleBaseTime(_CycleEnum.Week, curElapsed)
+			local leftTimeSpan = TimeSpan(nextBaseTime - curElapsed)
+			text = string.format("남은 시간 :  %d일 %02d시간 %02d분", leftTimeSpan.Days, leftTimeSpan.Hours, leftTimeSpan.Minutes)
+		end
+		
+		self.LeftTime.TextComponent.Text = text
+	end
+
+	@ExecSpace("ClientOnly")
+	method void InvalidateButtonCompleteAll()
+		local btn_completeAll = self.Btn_CompleteAll
+		local ids = self:GetCompletableIds()
+		
+		local enable = #ids ~= 0
+		if enable then
+			btn_completeAll.SpriteGUIRendererComponent.ImageRUID = "e4e06f6334ae490b9bf4732b82003c17"
+			btn_completeAll.ButtonComponent.Enable = true
+		else
+			btn_completeAll.SpriteGUIRendererComponent.ImageRUID = "976f304c3d3340d49728226e64212ed8"
+			btn_completeAll.ButtonComponent.Enable = false
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnRefresh(integer index, Entity entity)
+		index += 1
+		local userData = self.GridViewDataTable[index]
+		entity.UIAchievementItem:Set(userData, self.IsDebug)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClear(integer index, Entity entity)
+		entity.UIAchievementItem:Clear()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SelectCategoryEnum(integer categoryEnum)
+		self.SelectedCategory = categoryEnum
+		
+		self:SetButtonsSelected(false)
+		self:SetButtonSelected(categoryEnum, true)
+		
+		local gridView = self.GridView
+		local gridViewDataTable = self.GridViewDataTable
+		table.clear(gridViewDataTable)
+		
+		local ids = _AchievementDataSetLogic:GetIdsByCategoryEnum(categoryEnum)
+		if ids ~= nil then
+			local userDataTable = _UserService.LocalPlayer.PlayerAchievement.UserDataTable
+			for i = 1, #ids do
+				local id = ids[i]
+				local userData = userDataTable[id]
+				if userData == nil then
+					continue
+				end
+				
+				gridViewDataTable[#gridViewDataTable + 1] = userData
+			end
+		end
+		
+		gridView.TotalCount = #gridViewDataTable
+		self:Invalidate()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetButtonSelected(integer categoryEnum, boolean selected)
+		local entity = self.CategoryButtonTable[categoryEnum]
+		if entity == nil then
+			return
+		end
+		
+		local spriteGUIComp = entity.SpriteGUIRendererComponent
+		local textComp = entity.TextComponent
+		
+		if selected then
+			spriteGUIComp.ImageRUID = "e22dca176e7c48b39d5b40554b546e22"
+			textComp.FontColor = Color.FromHexCode("#653122")
+		else
+			spriteGUIComp.ImageRUID = "9bb8e4d004fb46bb9c1b528b3c1ebf9f"
+			textComp.FontColor = Color.FromHexCode("#ffe398")
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetButtonsSelected(boolean selected)
+		for categoryEnum, entity in pairs(self.CategoryButtonTable) do
+			self:SetButtonSelected(categoryEnum, selected)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method table GetCompletableIds()
+		---@type table<UserAchievementData>
+		local userDataTable = self.GridViewDataTable
+		
+		local ids = {}
+		for i = 1, #userDataTable do
+			local userData = userDataTable[i]
+			local id = userData.Id
+			local data = _AchievementDataSetLogic:GetData(id)
+			if data == nil then
+				continue
+			end
+			
+			if not userData:IsCompletable(data) then
+				continue
+			end
+			
+			ids[#ids + 1] = id
+		end
+		
+		return ids
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickButton_Exit()
+		self.Entity.Enable = false
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickButton_Category(integer categoryEnum)
+		self:SelectCategoryEnum(categoryEnum)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_CompleteAll()
+		local ids = self:GetCompletableIds()
+		_UserService.LocalPlayer.PlayerAchievement:RequestCompleteAchievements(ids)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_ChildInfo(ButtonClickEvent evt)
+		local entity = evt.Entity
+		local item = entity.UIAchievementItem
+		if item == nil then
+			return
+		end
+		
+		self.Panel_ChildInfo.UIAchievementChildInfo:Open(item.Id)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Close()
+		self.Panel_ChildInfo.Enable = false
+		self.Entity.Enable = false
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("LocalPlayer")
+	handler HandleAchievementChangeEvent(AchievementChangeEvent event)
+		if not self.Entity.Enable then
+			return
+		end
+		
+		local idTable = event.IdTable
+		if _Util:IsNilorEmptyTable(idTable) then
+			return
+		end
+		
+		local isDirty = false
+		local gridView = self.GridView
+		
+		---@type table<UserAchievementData>
+		local userDataTable = self.GridViewDataTable
+		for i = 1, #userDataTable do
+			local id = userDataTable[i].Id
+			
+			if idTable[id] then
+				gridView:RefreshIndex(i - 1)
+				isDirty = true
+			end
+		end
+		
+		if isDirty then
+			self:InvalidateButtonCompleteAll()
+		end
+	end
+
+end

@@ -1,0 +1,296 @@
+@Component
+script UIQuest extends Component
+
+	property table CategoryButtonTable = {}
+
+	property GridViewComponent GridView = nil
+
+	property integer SelectedCategory = 0
+
+	property table GridViewDataTable = {}
+
+	property boolean IsDebug = false
+
+	property any SortFunc = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		local panel = entity:GetChildByName("Panel")
+		
+		local panel_title = panel:GetChildByName("Panel_Title")
+		local btn_exit = panel_title:GetChildByName("Btn_Exit")
+		btn_exit:ConnectEvent(ButtonClickEvent, self.OnClickButton_Exit)
+		
+		self:InitCategory()
+		self:InitContent()
+		
+		if _AdminLogic:IsAdminLocalPlayer() then
+			local btn_Debug = panel_title:GetChildByName("Btn_Debug")
+			btn_Debug.Enable = true
+			btn_Debug:ConnectEvent(ButtonClickEvent, function()
+				self.IsDebug = not self.IsDebug
+				self:Invalidate(false, false)
+			end)
+		end
+		
+		---@param a QuestSortStruct
+		---@param b QuestSortStruct
+		local function sortFunc(a, b)
+			if a.StatePriority ~= b.StatePriority then
+				return a.StatePriority < b.StatePriority
+			end
+			
+			if a.CanAccept ~= b.CanAccept then
+				return a.CanAccept < b.CanAccept
+			end
+			
+			if a.Priority ~= b.Priority then
+		        return a.Priority < b.Priority
+		    end
+			
+		    return a.Id < b.Id
+		end
+		self.SortFunc = sortFunc
+		
+		self:OnClickButton_Category(_QuestCategoryEnum.Epic)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void InitCategory()
+		local panel = self.Entity:GetChildByName("Panel"):GetChildByName("Panel_Category")
+		local scrollLayout = panel:GetChildByName("ScrollLayout")
+		local baseItem = panel:GetChildByName("Item")
+		baseItem.Enable = false
+		
+		local categorys = {
+			_QuestCategoryEnum.Epic,
+			_QuestCategoryEnum.Cycle,
+			_QuestCategoryEnum.Sub,
+		}
+		
+		---@type table<integer, Entity>
+		local categoryButtonTable = self.CategoryButtonTable
+		for i = 1, #categorys do
+			local category = categorys[i]
+			local item = _SpawnService:SpawnByEntity(baseItem, "Item", Vector3.zero, scrollLayout)
+			item.TextComponent.Text = _QuestCategoryEnum:ToUIStr(category)
+			item.Enable = true
+			item:ConnectEvent(ButtonClickEvent, function()
+				self:OnClickButton_Category(category)
+			end)
+			
+			categoryButtonTable[category] = item
+		end
+		
+		self:SetButtonsSelected(false)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void InitContent()
+		local panel = self.Entity:GetChildByName("Panel"):GetChildByName("Panel_Content")
+		
+		local item = panel:GetChildByName("Item")
+		item.Enable = false
+		
+		local gridView = panel:GetChildByName("GridView").GridViewComponent
+		gridView.ItemEntity = item
+		gridView.OnRefresh = self.OnRefresh
+		gridView.OnClear = self.OnClear
+		
+		self.GridView = gridView
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Invalidate(boolean resetPos, boolean build)
+		if build then
+			self:BuildDataTable()
+		end
+		
+		self.GridView:Refresh(resetPos, true)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnRefresh(integer index, Entity entity)
+		index += 1
+		local userData = self.GridViewDataTable[index]
+		entity.UIQuestItem:Set(userData, self.IsDebug)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClear(integer index, Entity entity)
+		entity.UIQuestItem:Clear()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SelectCategoryEnum(integer categoryEnum)
+		self.SelectedCategory = categoryEnum
+		
+		self:SetButtonsSelected(false)
+		self:SetButtonSelected(categoryEnum, true)
+		
+		self:Invalidate(true, true)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void BuildDataTable()
+		local categoryEnum = self.SelectedCategory
+		
+		local gridView = self.GridView
+		local gridViewDataTable = self.GridViewDataTable
+		table.clear(gridViewDataTable)
+		
+		local ids = _QuestDataSetLogic:GetIdsByCategoryEnum(categoryEnum)
+		if ids ~= nil then
+			local userEntity = _UserService.LocalPlayer
+			local curElapsed = _DateTimeLogic:GetTimeElapsed()
+			
+			---@type table<integer, UserQuestData>
+			local userDataTable = userEntity.PlayerQuest.UserDataTable
+			
+			---@type table<QuestSortStruct>
+			local sortList = {}
+			for i = 1, #ids do
+				local id = ids[i]
+				local userData = userDataTable[id]
+				if userData == nil then
+					continue
+				end
+				
+				local data = _QuestDataSetLogic:GetData(id)
+				if data == nil then
+					continue
+				end
+				
+				if not _QuestDataSetLogic:IsShow(id, userDataTable) then
+					continue
+				end
+				
+				local s = QuestSortStruct()
+				s.Id = id
+				s.Priority = data.Priority
+				
+				if userData.State == _QuestStateEnum.InProgress then
+					s.StatePriority = 1
+				elseif userData.State == _QuestStateEnum.Completed then
+					s.StatePriority = 4
+				else
+					if userData:IsAcceptable(userEntity, data, curElapsed) then
+						s.StatePriority = 2
+						s.CanAccept = true
+					else
+						s.StatePriority = 3
+					end
+				end
+				
+				sortList[#sortList + 1] = s
+			end
+			
+			table.sort(sortList, self.SortFunc)
+			
+			for i = 1, #sortList do
+				local s = sortList[i]
+				gridViewDataTable[#gridViewDataTable + 1] = userDataTable[s.Id]
+			end
+		end
+		
+		gridView.TotalCount = #gridViewDataTable
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetButtonSelected(integer categoryEnum, boolean selected)
+		local entity = self.CategoryButtonTable[categoryEnum]
+		if entity == nil then
+			return
+		end
+		
+		local spriteGUIComp = entity.SpriteGUIRendererComponent
+		local textComp = entity.TextComponent
+		
+		if selected then
+			spriteGUIComp.ImageRUID = "e22dca176e7c48b39d5b40554b546e22"
+			textComp.FontColor = Color.FromHexCode("#653122")
+		else
+			spriteGUIComp.ImageRUID = "9bb8e4d004fb46bb9c1b528b3c1ebf9f"
+			textComp.FontColor = Color.FromHexCode("#ffe398")
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetButtonsSelected(boolean selected)
+		for categoryEnum, entity in pairs(self.CategoryButtonTable) do
+			self:SetButtonSelected(categoryEnum, selected)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method table GetCompletableIds()
+		---@type table<UserQuestData>
+		local userDataTable = self.GridViewDataTable
+		
+		local ids = {}
+		for i = 1, #userDataTable do
+			local userData = userDataTable[i]
+			local id = userData.Id
+			local data = _QuestDataSetLogic:GetData(id)
+			if data == nil then
+				continue
+			end
+			
+			if not userData:IsCompletable(data) then
+				continue
+			end
+			
+			ids[#ids + 1] = id
+		end
+		
+		return ids
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickButton_Exit()
+		self.Entity.Enable = false
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickButton_Category(integer categoryEnum)
+		self:SelectCategoryEnum(categoryEnum)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Close()
+		self.Entity.Enable = false
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("LocalPlayer")
+	handler HandleQuestChangeEvent(QuestChangeEvent event)
+		if not self.Entity.Enable then
+			return
+		end
+		
+		local idTable = event.IdTable
+		if _Util:IsNilorEmptyTable(idTable) then
+			return
+		end
+		
+		if event.IsValuesChanged then
+			local gridView = self.GridView
+			
+			---@type table<UserQuestData>
+			local userDataTable = self.GridViewDataTable
+			for i = 1, #userDataTable do
+				local id = userDataTable[i].Id
+				
+				if idTable[id] then
+					gridView:RefreshIndex(i - 1)
+				end
+			end
+			
+			return
+		end
+		
+		self:Invalidate(false, true)
+	end
+
+end
