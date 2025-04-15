@@ -1,0 +1,155 @@
+@Component
+script PlayerAccount extends Component
+
+	property string DBKey = "Account"
+
+	property boolean IsSaveDB = false
+
+	property integer Meso = 1000000
+
+	property any onPurchaseItemGrant = nil
+
+	@ExecSpace("ServerOnly")
+	method void OnBeginPlay()
+		local playerShop = self.Entity.PlayerShop
+		if playerShop == nil then
+			log_error("PlayerShop component not found.")
+			return
+		end
+		
+		playerShop.onCurrencyValidate = function(totalPrice)
+			return self:HasEnoughCurrency(totalPrice)
+		end
+		
+		playerShop.onPurchase = function(shopId, count)
+			return self:PurchaseItem(shopId, count)
+		end
+		
+		playerShop.onPurchaseSuccess = function(shopId, count)
+			self:OnPurchaseSuccess(shopId, count)
+		end
+		
+		playerShop.onPurchaseFailed = function(shopId, count, reason)
+			self:OnPurchaseFailed(shopId, count, reason)
+		end
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean SaveToDB(table saveData)
+		if not self.IsSaveDB then
+			return false
+		end
+		
+		local total = {}
+		total["Meso"] = self.Meso
+		
+		local dbString = ""
+		if not _Util:IsNilorEmptyTable(total) then
+			dbString = _HttpService:JSONEncode(total)
+		end
+		
+		saveData[self.DBKey] = dbString
+				
+		self.IsSaveDB = false
+		return true
+	end
+
+	@ExecSpace("ServerOnly")
+	method void LoadFromDB(table loadKeys)
+		table.insert(loadKeys, self.DBKey)
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean OnLoadedDataFromDB(table loadedData)
+		---@type DataStorageItem
+		local sds = loadedData[self.DBKey]
+		if sds ~= nil and (_Util:IsNilorEmptyString(sds.Value) == false) then
+			local dataTable = _HttpService:JSONDecode(sds.Value)			
+			self.Meso = dataTable["Meso"]
+		end
+		
+		self:SyncMeso(self.Meso, self.Entity.PlayerComponent.UserId)
+		return true
+	end
+
+	method integer GetMeso()
+		return self.Meso
+	end
+
+	method boolean HasEnoughCurrency(integer amount)
+		if amount <= 0 then
+			return false
+		end
+		
+		if self.Meso < amount then
+			return false
+		end
+		
+		return true
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean PurchaseItem(integer shopId, integer count)
+		if count <= 0 then
+			log_error("Invalid item count.")
+			return false
+		end
+		
+		local shopData = _ShopDataSetLogic:GetData(shopId)
+		if shopData == nil then
+			log_error("Item not found: ShopId = " .. shopId)
+			return false
+		end
+		
+		local totalPrice = shopData.Price * count
+		if not self:HasEnoughCurrency(totalPrice) then
+			log_error("Not enough currency.")
+			return false
+		end
+		
+		-- Implement the purchase logic here.
+		if self.onPurchaseItemGrant ~= nil then
+			self.onPurchaseItemGrant(shopData.RewardItemId, shopData.RewardItemCount * count)
+		end
+		
+		-- Deduct the required currency
+		self.Meso = self.Meso - totalPrice
+		self.IsSaveDB = true
+		
+		self:SyncMeso(self.Meso, self.Entity.PlayerComponent.UserId)
+		return true
+	end
+
+	@ExecSpace("ServerOnly")
+	method void OnPurchaseSuccess(integer shopId, integer count)
+		log("Purchase successful: ID = " .. shopId .. ", Count = " .. count)
+		
+		-- Additional logic for successful purchase can be added here
+		
+		self:SendPurchaseCompletedEvent("", shopId, count, self.Entity.PlayerComponent.UserId)
+	end
+
+	@ExecSpace("ServerOnly")
+	method void OnPurchaseFailed(integer shopId, integer count, string reason)
+		log_error("Purchase failed: ID = " .. shopId .. ", Count = " .. count .. ", Reason = " .. reason)
+		
+		-- Additional logic for failed purchase can be added here
+		
+		self:SendPurchaseCompletedEvent(reason, shopId, count, self.Entity.PlayerComponent.UserId)
+	end
+
+	@ExecSpace("Client")
+	method void SendPurchaseCompletedEvent(string reason, integer shopId, integer count)
+		local evt = PurchaseCompletedEvent()
+		evt.Reason = reason
+		evt.ShopItemId = shopId
+		evt.Count = count
+		self.Entity:SendEvent(evt)
+	end
+
+	@ExecSpace("Client")
+	method void SyncMeso(integer meso)
+		self.Meso = meso
+	end
+
+end

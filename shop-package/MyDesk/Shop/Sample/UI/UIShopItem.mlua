@@ -1,0 +1,88 @@
+@Component
+script UIShopItem extends Component
+
+	property TextComponent Text_Name = nil
+
+	property SpriteGUIRendererComponent Sprite_Icon = nil
+
+	property TextComponent Text_Desc = nil
+
+	property TextComponent Text_Price = nil
+
+	property Entity BtnPurchase = nil
+
+	property integer ShopItemId = 0
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		
+		self.Text_Name = entity:GetChildByName("Text_Name").TextComponent
+		self.Sprite_Icon = entity:GetChildByName("Sprite_Icon").SpriteGUIRendererComponent
+		self.Text_Desc = entity:GetChildByName("Text_Desc").TextComponent
+		self.Text_Price = entity:GetChildByName("Text_Price").TextComponent
+		
+		self.BtnPurchase = entity:GetChildByName("Btn_Purchase")
+		self.BtnPurchase:ConnectEvent(ButtonClickEvent, function()
+			local shopData = _ShopDataSetLogic:GetData(self.ShopItemId)
+			if shopData == nil then
+				log_error("Shop data not found.")
+				return
+			end
+			
+			local totalPrice = shopData.Price
+			if not _UserService.LocalPlayer.PlayerAccount:HasEnoughCurrency(totalPrice) then
+				log_error("Not enough currency.")		
+				return
+			end
+			
+			_ShopSampleLogic.PurchasePopup.UIShop_Purchase:Open(self.ShopItemId)
+		end)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Apply(integer shopItemId)
+		local shopData = _ShopDataSetLogic:GetData(shopItemId)
+		if shopData == nil then
+			log_error("Shop data not found for ID: " .. tostring(shopItemId))
+			return
+		end
+		
+		self.ShopItemId = shopItemId
+		
+		local title = ""
+		local currentTimeElapsed = _DateTimeLogic:GetTimeElapsed()
+		if shopData.StartDate <= currentTimeElapsed and shopData.EndDate >= currentTimeElapsed then
+			local startDate = DateTime(shopData.StartDate)
+			local endDate = DateTime(shopData.EndDate)
+			
+			title = string.format("%s\n%s ~ %s", shopData.Name, startDate:ToFormattedString("yyyy년 M월 d일"), endDate:ToFormattedString("yyyy년 M월 d일"))
+		else
+			title = shopData.Name
+		end
+		self.Text_Name.Text = title
+		
+		self.Text_Desc.Text = shopData.Desc
+		self.Sprite_Icon.ImageRUID = shopData.IconRUID
+		self.Text_Price.Text = tostring(shopData.Price)
+		
+		if shopData.PurchaseLimit > 0 then
+			local purchaseCount = _UserService.LocalPlayer.PlayerShop:GetPurchaseCount(self.ShopItemId)
+			local remaining = shopData.PurchaseLimit - purchaseCount
+			self.BtnPurchase.TextComponent.Text = string.format("구매 (%d/%d)", purchaseCount, shopData.PurchaseLimit)
+			
+			if remaining <= 0 then
+				self.BtnPurchase.ButtonComponent.Enable = false
+			end
+		else
+			self.BtnPurchase.ButtonComponent.Enable = true
+			self.BtnPurchase.TextComponent.Text = "구매"	
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		self.ShopItemId = 0
+	end
+
+end

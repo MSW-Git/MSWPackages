@@ -1,0 +1,117 @@
+@Component
+script UIShop_Purchase extends Component
+
+	property TextComponent Text_Name = nil
+
+	property SpriteGUIRendererComponent Sprite_Icon = nil
+
+	property TextComponent Text_Desc = nil
+
+	property TextComponent Text_Count = nil
+
+	property integer Count = 0
+
+	property integer ShopItemId = 0
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		
+		local panel = entity:GetChildByName("Panel")
+		local title = panel:GetChildByName("Title")
+		local btnExit = title:GetChildByName("Btn_Exit")
+		btnExit:ConnectEvent(ButtonClickEvent, function()
+			self:Close()
+		end)
+		
+		local main = panel:GetChildByName("Main")
+		self.Text_Name = main:GetChildByName("Text_Name").TextComponent
+		
+		local body = main:GetChildByName("Body")
+		self.Sprite_Icon = body:GetChildByName("UISprite_Icon").SpriteGUIRendererComponent
+		self.Text_Desc = body:GetChildByName("Text_Desc").TextComponent
+		
+		local countGroup = body:GetChildByName("CountGroup")
+		self.Text_Count = countGroup:GetChildByName("UIText_Count").TextComponent
+		local btnPlus = countGroup:GetChildByName("Btn_Plus")
+		btnPlus:ConnectEvent(ButtonClickEvent, function()
+			local shopData = _ShopDataSetLogic:GetData(self.ShopItemId)
+			if shopData == nil then
+				return
+			end
+			
+			local meso = _UserService.LocalPlayer.PlayerAccount:GetMeso()
+			local maxCount = meso / shopData.Price
+			self.Count = math.min(self.Count + 1, maxCount)
+			self.Text_Count.Text = tostring(self.Count)
+		end)
+		
+		local btnMinus = countGroup:GetChildByName("Btn_Minus")
+		btnMinus:ConnectEvent(ButtonClickEvent, function()    
+			self.Count = math.max(self.Count - 1, 1)
+			self.Text_Count.Text = tostring(self.Count)
+		end)
+		
+		local bottom = main:GetChildByName("Bottom")
+		local btnPurchase = bottom:GetChildByName("Btn_Purchase")
+		btnPurchase:ConnectEvent(ButtonClickEvent, function()
+			if self.Count <= 0 then
+				log_error("Invalid item count.")
+				return
+			end
+			
+			local shopData = _ShopDataSetLogic:GetData(self.ShopItemId)
+			if shopData == nil then
+				log_error("Shop data not found.")
+				return
+			end
+			
+			local curElapsed = _DateTimeLogic:GetTimeElapsed()
+			if not _ShopDataSetLogic:IsInSalePeriod(shopData, curElapsed) then
+				log_error("Item is no longer available for purchase")
+				return
+			end
+			
+			local player = _UserService.LocalPlayer
+			local curPurchaseCount = player.PlayerShop:GetPurchaseCount(self.ShopItemId)
+			if shopData.PurchaseLimit > 0 and curPurchaseCount >= shopData.PurchaseLimit then
+				log_error("Purchase limit exceeded")
+				return
+			end
+			
+			local totalPrice = shopData.Price * self.Count
+			if not player.PlayerAccount:HasEnoughCurrency(totalPrice) then
+				log_error("Not enough currency.")		
+				return
+			end
+		
+			_UserService.LocalPlayer.PlayerShop:RequestPurchaseShopItem(self.ShopItemId, self.Count)
+			self:Close()
+		end)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Open(integer shopItemId)
+		local shopData = _ShopDataSetLogic:GetData(shopItemId)
+		if shopData == nil then
+			return
+		end
+		
+		self.ShopItemId = shopItemId
+		self.Text_Name.Text = shopData.Name
+		self.Sprite_Icon.ImageRUID = shopData.IconRUID
+		self.Text_Desc.Text = shopData.Desc
+		self.Count = 1
+		self.Text_Count.Text = tostring(self.Count)
+		
+		self.Entity:SetEnable(true)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Close()
+		self.ShopItemId = 0
+		self.Count = 0
+		self.Entity:SetEnable(false)
+	end
+
+end

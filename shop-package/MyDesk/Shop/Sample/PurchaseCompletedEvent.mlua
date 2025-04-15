@@ -1,0 +1,10 @@
+@Event
+script PurchaseCompletedEvent extends EventType
+
+	property string Reason = ""
+
+	property integer ShopItemId = 0
+
+	property integer Count = 0
+
+end

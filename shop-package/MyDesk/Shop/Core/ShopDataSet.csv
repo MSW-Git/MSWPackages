@@ -1,0 +1,4 @@
+﻿ShopItemId,Name,Desc,Price,IconRUID,RewardItemId,RewardItemCount,PurchaseLimit,StartDate,EndDate
+4,RedPotion,Restores 50 HP when consumed,100,323920d2805d4ec1aa85eca9e3e1cab2,Item1,1,10,,
+5,BluePotion,Restores 50 MP when consumed,150,7e9b39b73f4945b1a8d77db6c99a6946,Item2,2,,,2025/04/11 02:09:53
+6,IronSword,A basic sword made of iron dealing 10-15 damage,300,682ef6cc7aa64076820f7e1da4dd54f8,Item3,3,,2025/04/06 08:29:33,2025/04/07 08:40:33

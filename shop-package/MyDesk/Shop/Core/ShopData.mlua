@@ -1,0 +1,83 @@
+@Struct
+script ShopData
+
+	@Description("Unique identifier for the shop item")
+	property integer ShopItemId = 0
+
+	@Description("Display name of the shop item shown in the UI")
+	property string Name = ""
+
+	@Description("Description text explaining the shop item's details")
+	property string Desc = ""
+
+	@Description("Purchase price in the game's currency")
+	property integer Price = 0
+
+	@Description("Resource ID for the icon representing the shop item")
+	property string IconRUID = ""
+
+	@Description("Identifier of the item that will be rewarded upon purchase")
+	property string RewardItemId = ""
+
+	@Description("Quantity of reward items given per purchase")
+	property integer RewardItemCount = 0
+
+	@Description("Maximum times a player can purchase this item (0 = unlimited)")
+	property integer PurchaseLimit = 0
+
+	@Description("Unix timestamp (UTC) indicating when the item becomes available")
+	property integer StartDate = 0
+
+	@Description("Unix timestamp (UTC) after which the item is no longer purchasable")
+	property integer EndDate = 0
+
+	method boolean Load(any r)
+		---@type UserDataRow
+		local row = r
+		if row == nil then
+			return false
+		end
+		
+		self.ShopItemId = tonumber(row:GetItem("ShopItemId")) or 0
+		if self.ShopItemId <= 0 then
+			return false
+		end
+		
+		self.Name = row:GetItem("Name")
+		if _Util:IsNilorEmptyString(self.Name) then
+			return false
+		end
+		
+		self.Desc = row:GetItem("Desc")
+		if _Util:IsNilorEmptyString(self.Desc) then
+			return false
+		end
+		
+		self.Price = tonumber(row:GetItem("Price")) or 0
+		if self.Price < 0 then
+			return false
+		end
+		
+		self.IconRUID = row:GetItem("IconRUID")
+		if _Util:IsNilorEmptyString(self.IconRUID) then
+			return false
+		end
+		
+		self.RewardItemId = row:GetItem("RewardItemId")
+		if _Util:IsNilorEmptyString(self.RewardItemId) then
+			return false
+		end
+		
+		self.RewardItemCount = tonumber(row:GetItem("RewardItemCount")) or 0
+		if self.RewardItemCount <= 0 then
+			return false
+		end
+		
+		self.PurchaseLimit = tonumber(row:GetItem("PurchaseLimit")) or 0
+		self.StartDate = _DateTimeLogic:GetElapsedFromDateString(row:GetItem("StartDate"))
+		self.EndDate = _DateTimeLogic:GetElapsedFromDateString(row:GetItem("EndDate"))
+		
+		return true
+	end
+
+end

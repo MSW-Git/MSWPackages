@@ -1,0 +1,172 @@
+@Component
+script PlayerShop extends Component
+
+	@Description("Key used for database storage of shop data")
+	property string DBKey = "Shop"
+
+	@Description("Flag indicating if shop data should be saved during the next save operation")
+	property boolean IsSaveDB = false
+
+	@Description("Table tracking purchase count for each shop item, indexed by ShopItemId")
+	property table PurchaseCount = {}
+
+	@Description("Timestamp of the last purchase request, used for rate limiting")
+	property integer LastRequestTime = 0
+
+	@Description("Minimum time interval (in seconds) between purchase requests")
+	property number MinRequestInterval = 0
+
+	@Description("Callback to validate if player has enough currency for purchase")
+	property any onCurrencyValidate = nil
+
+	@Description("Callback to execute the actual purchase operation")
+	property any onPurchase = nil
+
+	@Description("Callback triggered when purchase is successfully completed")
+	property any onPurchaseSuccess = nil
+
+	@Description("Callback triggered when purchase fails with failure reason")
+	property any onPurchaseFailed = nil
+
+	@ExecSpace("ServerOnly")
+	method boolean SaveToDB(table saveData)
+		if not self.IsSaveDB then
+			return false
+		end
+		
+		local total = {}
+		if not _Util:IsNilorEmptyTable(self.PurchaseCount) then
+			local dbPurchaseCount = {}
+			for id, count in pairs(self.PurchaseCount) do
+				dbPurchaseCount[tostring(id)] = count
+			end
+			
+			total["PurchaseCount"] = dbPurchaseCount
+		end
+		
+		local dbString = ""
+		if not _Util:IsNilorEmptyTable(total) then
+			dbString = _HttpService:JSONEncode(total)
+		end
+		
+		saveData[self.DBKey] = dbString
+				
+		self.IsSaveDB = false
+		return true
+	end
+
+	@ExecSpace("ServerOnly")
+	method void LoadFromDB(table loadKeys)
+		table.insert(loadKeys, self.DBKey)
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean OnLoadedDataFromDB(table loadedData)
+		---@type DataStorageItem
+		local sds = loadedData[self.DBKey]
+		if sds ~= nil and (_Util:IsNilorEmptyString(sds.Value) == false) then
+			local dataTable = _HttpService:JSONDecode(sds.Value)
+			
+			local purchaseCount = dataTable["PurchaseCount"]
+			local curElapsed = _DateTimeLogic:GetTimeElapsed()
+			if not _Util:IsNilorEmptyTable(purchaseCount) then
+				for strShopItemId, count in pairs(purchaseCount) do
+					local shopItemId = tonumber(strShopItemId)
+					local shopData = _ShopDataSetLogic:GetData(shopItemId)
+					if not _ShopDataSetLogic:IsInSalePeriod(shopData, curElapsed) then
+						self.IsSaveDB = true
+						continue
+					end
+					
+					self.PurchaseCount[shopItemId] = count
+				end
+			end
+		end
+		
+		self:SyncInit(self.PurchaseCount, self.Entity.PlayerComponent.UserId)
+		return true
+	end
+
+	@ExecSpace("Client")
+	method void SyncInit(table purchaseCount)
+		self.PurchaseCount = purchaseCount
+	end
+
+	@ExecSpace("Server")
+	method void RequestPurchaseShopItem(integer shopItemId, integer count)
+		local currentTime = _UtilLogic.ServerElapsedSeconds
+		if self.LastRequestTime == 0 then
+			self.LastRequestTime = currentTime
+		end
+		
+		if currentTime - self.LastRequestTime < self.MinRequestInterval then
+			log_error("Request rate limited: " .. self.Entity.PlayerComponent.UserId)
+			return
+		end
+		
+		self.LastRequestTime = currentTime
+		self:PurchaseShopItem(shopItemId, count)
+	end
+
+	@ExecSpace("ServerOnly")
+	method void PurchaseShopItem(integer shopItemId, integer count)
+		local function handleFailure(reason)
+			if self.onPurchaseFailed ~= nil then
+				self.onPurchaseFailed(shopItemId, count, reason)
+			end
+		end
+		
+		if count <= 0 then
+			handleFailure("Invalid item count")
+			return
+		end
+		
+		local shopData = _ShopDataSetLogic:GetData(shopItemId)
+		if shopData == nil then
+			handleFailure("Item not found")
+			return
+		end
+		
+		local curElapsed = _DateTimeLogic:GetTimeElapsed()
+		if not _ShopDataSetLogic:IsInSalePeriod(shopData, curElapsed) then
+			handleFailure("Item is no longer available for purchase")
+			return
+		end
+		
+		local curPurchaseCount = self:GetPurchaseCount(shopItemId)
+		local nextPurchaseCount = curPurchaseCount + count
+		if shopData.PurchaseLimit > 0 and nextPurchaseCount > shopData.PurchaseLimit then
+			handleFailure("Purchase limit exceeded")
+			return	
+		end
+		
+		local totalPrice = shopData.Price * count
+		if self.onCurrencyValidate ~= nil and not self.onCurrencyValidate(totalPrice) then
+			handleFailure("Not enough currency")
+			return
+		end
+		
+		if self.onPurchase ~= nil and not self.onPurchase(shopItemId, count) then
+			handleFailure("Purchase operation failed")
+			return
+		end
+		
+		self.PurchaseCount[shopItemId] = nextPurchaseCount
+		self:SyncPurchaseCount(shopItemId, self.PurchaseCount[shopItemId], self.Entity.PlayerComponent.UserId)
+		self.IsSaveDB = true
+		
+		if self.onPurchaseSuccess ~= nil then
+			self.onPurchaseSuccess(shopItemId, count)
+		end
+	end
+
+	method integer GetPurchaseCount(integer shopItemId)
+		return self.PurchaseCount[shopItemId] or 0
+	end
+
+	@ExecSpace("Client")
+	method void SyncPurchaseCount(integer shopItemId, integer purchaseCount)
+		self.PurchaseCount[shopItemId] = purchaseCount
+	end
+
+end

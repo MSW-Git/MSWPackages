@@ -1,0 +1,64 @@
+@Logic
+script ShopDataSetLogic extends Logic
+
+	property table Data = {}
+
+	method void OnBeginPlay()
+		local tbl = _DataService:GetTable("ShopDataSet")
+		
+		for i, row in ipairs(tbl:GetAllRow()) do	
+			local data = ShopData()
+			if not data:Load(row) then
+				log_error("Failed to load data for row: " .. tostring(i)..", Id : "..tostring(data.ShopItemId))
+				continue
+			end
+		
+			self.Data[data.ShopItemId] = data
+		end
+	end
+
+	method ShopData GetData(integer shopItemId)
+		return self.Data[shopItemId]
+	end
+
+	method table GetItemsInSalePeriod()
+		local result = {}
+		
+		local currentTimeElapsed = _DateTimeLogic:GetTimeElapsed()
+		for id, d in pairs(_ShopDataSetLogic.Data) do
+			---@type ShopData
+			local data = d
+			
+			if self:IsInSalePeriod(data, currentTimeElapsed) then
+				table.insert(result, d)
+			end
+		end
+		
+		return result
+	end
+
+	method boolean IsInSalePeriod(ShopData data, integer currentTime)
+		if data == nil then
+			return false
+		end
+		
+		-- Always valid if start/end dates are not set
+		if data.StartDate <= 0 and data.EndDate <= 0 then
+			return true
+		end
+
+		-- If only start date is set (no end date), valid after start date
+		if data.StartDate > 0 and data.EndDate <= 0 then
+			return currentTime >= data.StartDate
+		end
+		
+		-- If only end date is set (no start date), valid until end date
+		if data.StartDate <= 0 and data.EndDate > 0 then
+			return currentTime <= data.EndDate
+		end
+		
+		-- Check if current time is within the sales period
+		return data.StartDate <= currentTime and data.EndDate >= currentTime
+	end
+
+end

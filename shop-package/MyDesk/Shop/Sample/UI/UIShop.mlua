@@ -1,0 +1,148 @@
+@Component
+script UIShop extends Component
+
+	property table ShopData = {}
+
+	property TextComponent Text_Meso = nil
+
+	property GridViewComponent GridView = nil
+
+	property integer NextUpdateTime = 0
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		
+		local panel = entity:GetChildByName("Panel")
+		
+		local title = panel:GetChildByName("Title")
+		local btnExit = title:GetChildByName("Btn_Exit")
+		btnExit:ConnectEvent(ButtonClickEvent, function()
+			self:Close()
+		end)
+		
+		local meso = title:GetChildByName("UISprite_Meso")
+		self.Text_Meso = meso:GetChildByName("UIText_Meso").TextComponent
+		
+		local main = panel:GetChildByName("Main")
+		local item = main:GetChildByName("UIShopItem")
+		
+		self.GridView = main:GetChildByName("GridView").GridViewComponent
+		self.GridView.ItemEntity = item
+		self.GridView.OnClear = self.OnClear
+		self.GridView.OnRefresh = self.OnRefresh
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnUpdate(number delta)
+		local currentTimeElapsed = _DateTimeLogic:GetTimeElapsed()
+		if self.NextUpdateTime <= currentTimeElapsed then
+			self:RefreshAvailableItems()
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Open()
+		self:RefreshAvailableItems()
+		self:SetTextMeso()
+		
+		self.Entity:SetEnable(true)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Close()
+		self.NextUpdateTime = math.maxinteger
+		self.Entity:SetEnable(false)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void RefreshAvailableItems()
+		table.clear(self.ShopData)
+		self.ShopData = _ShopDataSetLogic:GetItemsInSalePeriod()
+		
+		self.NextUpdateTime = self:CalcNextUpdateTime()
+		
+		self.GridView.TotalCount = #self.ShopData
+		self.GridView:Refresh(true, true)
+	end
+
+	@ExecSpace("ClientOnly")
+	method integer CalcNextUpdateTime()
+		local nextUpdateTime = math.maxinteger
+		local currentTimeElapsed = _DateTimeLogic:GetTimeElapsed()
+		for id, d in pairs(_ShopDataSetLogic.Data) do
+			---@type ShopData
+			local data = d
+			
+			if data.StartDate ~= 0 and data.StartDate > currentTimeElapsed and nextUpdateTime > data.StartDate then
+				nextUpdateTime = data.StartDate
+			end
+		end
+		
+		for _, d in pairs(self.ShopData) do
+			---@type ShopData
+			local data = d
+			
+			if data.EndDate ~= 0 and data.EndDate < nextUpdateTime then
+				nextUpdateTime = data.EndDate
+			end
+		end
+		
+		return nextUpdateTime
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Refresh(PurchaseCompletedEvent evt)
+		if evt then
+			for i, d in pairs(self.ShopData) do
+				---@type ShopData
+				local data = d
+				if data.ShopItemId == evt.ShopItemId then
+					self.GridView:RefreshIndex(i - 1)
+					break
+				end
+			end	
+		end
+		
+		self:SetTextMeso()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetTextMeso()
+		self.Text_Meso.Text = tostring( _UserService.LocalPlayer.PlayerAccount:GetMeso())
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnRefresh(integer index, Entity itemEntity)
+		local luaIndex = index + 1
+		
+		---@type ShopData
+		local shopData = self.ShopData[luaIndex]
+		if shopData == nil then
+			return
+		end
+		
+		itemEntity.UIShopItem:Apply(shopData.ShopItemId)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClear(integer index, Entity itemEntity)
+		itemEntity.UIShopItem:Clear()
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("LocalPlayer")
+	handler HandlePurchaseCompletedEvent(PurchaseCompletedEvent event)
+		-- Parameters
+		-- local reason = event.reason
+		-- local shopId = event.shopId
+		-- local count = event.count
+		---------------------------------------------------------
+		if not self.Entity.EnabledInHierarchy then
+			return
+		end
+		
+		self:Refresh(event)
+	end
+
+end

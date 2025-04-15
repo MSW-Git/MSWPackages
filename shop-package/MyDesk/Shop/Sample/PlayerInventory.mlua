@@ -1,0 +1,25 @@
+@Component
+script PlayerInventory extends Component
+
+	@ExecSpace("ServerOnly")
+	method void OnBeginPlay()
+		local playerAccount = self.Entity.PlayerAccount
+		if playerAccount == nil then
+			log_error("PlayerAccount component not found.")
+			return
+		end
+		
+		playerAccount.onPurchaseItemGrant = function(itemId, count)
+			return self:PurchaseItem(itemId, count)
+		end
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean PurchaseItem(string itemId, integer count)
+		-- Implements the logic for item purchases.
+		-- For example, performs tasks such as adding items to the player's inventory.
+		log("Purchasing item: ID = " .. itemId .. ", Count = " .. count)
+		return true
+	end
+
+end
