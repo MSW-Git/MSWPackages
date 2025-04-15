@@ -13,7 +13,7 @@ See the README file in each package for detailed usage information.
 | Package | Description | Link |
 |---------|-------------|------|
 | gm-message | Provides in-game notification messages for creators. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/gm-message-package/gm-message-package.modpackage) |
-
+| mail | Provides the ability to send in-game mail messages to creators. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/mail-package/mail-package.modpackage)|
 
 ## License
 
