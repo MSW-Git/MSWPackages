@@ -44,6 +44,7 @@ luac.out
 *.directory
 *.scriptfile
 *.model
+*.userdataset
 
 # Basic source files
 */MyDesk/*.mlua
