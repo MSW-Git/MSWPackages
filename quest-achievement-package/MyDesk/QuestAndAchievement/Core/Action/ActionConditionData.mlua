@@ -1,8 +1,6 @@
 @Struct
 script ActionConditionData
 
-	property integer Enum = 0
-
 	method any Clone()
 		return nil
 	end

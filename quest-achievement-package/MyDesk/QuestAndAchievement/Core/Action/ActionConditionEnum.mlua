@@ -1,7 +1,7 @@
 @Logic
 script ActionConditionEnum extends Logic
 
-	property table StructTable = {}
+	property table StructTypeTable = {}
 
 	property table EnumToStrTable = {}
 
@@ -19,13 +19,13 @@ script ActionConditionEnum extends Logic
 
 	method boolean Init()
 		local configTable = {
-			{ "Attend", ActionConditionData_Attend() },
-			{ "Jump", ActionConditionData_Jump() },
-			{ "MesoChange", ActionConditionData_MesoChange() },
-			{ "StaminaChange", ActionConditionData_StaminaChange() },
+			{ "Attend", ActionConditionData_Attend },
+			{ "Jump", ActionConditionData_Jump },
+			{ "MesoChange", ActionConditionData_MesoChange },
+			{ "StaminaChange", ActionConditionData_StaminaChange },
 		}
 		
-		local structTable = self.StructTable
+		local structTable = self.StructTypeTable
 		local enumToStrTable = self.EnumToStrTable
 		local strToEnumTable = self.StrToEnumTable
 		
@@ -65,13 +65,12 @@ script ActionConditionEnum extends Logic
 	end
 
 	method any CreateData(integer enum)
-		---@type ActionConditionData
-		local conditionData = self.StructTable[enum]
-		if conditionData == nil then
+		local structType = self.StructTypeTable[enum]
+		if structType == nil then
 			return nil
 		end
 		
-		return conditionData:Clone()
+		return structType()
 	end
 
 	method any LoadData(any row, string colNameEnum, string colNameArg, string colNameExtra)
