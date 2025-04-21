@@ -1,0 +1,27 @@
+@Logic
+script PressToNotify extends Logic
+
+	property integer Counter = 0
+
+	@EventSender("Service", "InputService")
+	handler HandleKeyDownEvent(KeyDownEvent event)
+		--------------- Native Event Sender Info ----------------
+		-- Sender: InputService
+		-- Space: Client
+		---------------------------------------------------------
+		
+		-- Parameters
+		local key = event.key
+		---------------------------------------------------------
+		
+		self.Counter += 1
+		if key == KeyboardKey.Alpha1 then
+			_MaplestoryToast:Show("Counter : ## -> ##", {self.Counter - 1, self.Counter}, Color.white, 1, {"e3fe4bdb469c44d0baf6664b6d45f392", "e310761e74f64c1ea7874739a241e14c", "e3fe4bdb469c44d0baf6664b6d45f392", "c163ca74fe6047cb80d27de3a3b29644"}, true)
+		elseif key == KeyboardKey.Alpha2 then
+			_MaplestoryToast:Show("Counter : ## -> ##", {self.Counter - 1, self.Counter}, Color.white, 1, {"e3fe4bdb469c44d0baf6664b6d45f392", "e310761e74f64c1ea7874739a241e14c", "e3fe4bdb469c44d0baf6664b6d45f392", "c163ca74fe6047cb80d27de3a3b29644"}, false)	
+		elseif key == KeyboardKey.Alpha3 then
+			_MaplestoryToast:ChangeArgs({self.Counter - 1, self.Counter})
+		end
+	end
+
+end

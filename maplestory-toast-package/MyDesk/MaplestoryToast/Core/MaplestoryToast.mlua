@@ -1,0 +1,212 @@
+@Logic
+script MaplestoryToast extends Logic
+
+	property string UIPath = "/ui/DefaultGroup"
+
+	property string ArgsPattern = "##"
+
+	property Entity Toast = nil
+
+	property SpriteGUIRendererComponent LeftDeco = nil
+
+	property SpriteGUIRendererComponent MiddleDeco = nil
+
+	property SpriteGUIRendererComponent RightDeco = nil
+
+	property TextComponent InformText = nil
+
+	property Entity Portrait = nil
+
+	property number FadeInDuration = 0.5
+
+	property number FadeOutDuration = 0.5
+
+	property number Duration = 0
+
+	property boolean UseFading = false
+
+	property table SplitedSentence = {}
+
+	property any FadeInTweener = nil
+
+	property any FadeOutTweener = nil
+
+	property integer SimpleHideTimer = 0
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local parentUIEntity = _EntityService:GetEntityByPath(self.UIPath)
+		
+		local maplestoryToast = _SpawnService:SpawnByModelId(_EntryService:GetModelIdByName("Model_MaplestoryToast"), "MaplestoryToast", Vector3.zero, parentUIEntity)
+		maplestoryToast.UITransformComponent.anchoredPosition.y = 250
+		self.Toast = maplestoryToast
+		
+		self.LeftDeco = maplestoryToast:GetChildByName("Left").SpriteGUIRendererComponent
+		self.RightDeco = maplestoryToast:GetChildByName("Right").SpriteGUIRendererComponent
+		
+		local middlePart = maplestoryToast:GetChildByName("Middle")
+		self.MiddleDeco = middlePart.SpriteGUIRendererComponent
+		self.InformText = middlePart:GetChildByName("InformText").TextComponent
+		
+		self.Portrait = self.RightDeco.Entity:GetChildByName("Portrait")
+		
+		self.FadeInTweener = _TweenLogic:MakeTween(0, 1, self.FadeInDuration, EaseType.Linear, function(value) 
+			self.Toast.CanvasGroupComponent.GroupAlpha = value 
+		end)
+		self.FadeInTweener.AutoDestroy = false
+		
+		self.FadeOutTweener = _TweenLogic:MakeTween(1, 0, self.FadeOutDuration, EaseType.Linear, function(value) 
+			self.Toast.CanvasGroupComponent.GroupAlpha = value 
+		end)
+		self.FadeOutTweener:SetOnEndCallback(function() 
+			self:Hide()
+		end)
+		self.FadeOutTweener.AutoDestroy = false
+		
+		self:Hide()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Show(string informSentence, table informArgs, Color informColor, number duration, table decorationRUIDs, boolean useFading)
+		self:Hide()
+		
+		self.InformText.FontColor = informColor
+		self:SplitSentence(informSentence)
+		local mergedSentence = self:MergeSentenceWithArgs(informArgs)
+		self:SetInformTextAndRUIDs(mergedSentence, decorationRUIDs)
+		
+		self.Duration = duration
+		self.UseFading = useFading
+		self.Toast.CanvasGroupComponent.GroupAlpha = 1
+		
+		if self.UseFading then	
+			self.FadeInTweener:Restart()
+			
+			self.FadeOutTweener.Delay = self.FadeInDuration + duration
+			self.FadeOutTweener:Restart()
+		else
+			
+			self.SimpleHideTimer = _TimerService:SetTimerOnce(function()
+				self.SimpleHideTimer = 0
+				self:Hide()
+			end, duration)
+		end
+		
+		self.Toast.Visible = true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ChangeArgs(table informArgs)
+		local mergedSentence = self:MergeSentenceWithArgs(informArgs)
+		self.InformText.Text = mergedSentence
+		self:ResizeUI()
+		
+		if self.UseFading then
+			self.FadeOutTweener:Restart()
+		else
+			self:ClearPreviousTimer()
+			self.SimpleHideTimer = _TimerService:SetTimerOnce(function()
+				self.SimpleHideTimer = 0
+				self:Hide()
+			end, self.Duration)
+		end
+		
+		self.Toast.CanvasGroupComponent.GroupAlpha = 1
+		self.Toast.Visible = true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Hide()
+		self:ClearPreviousTimer()
+		self.Toast.Visible = false
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ClearPreviousTimer()
+		if self.SimpleHideTimer ~= 0 then
+			_TimerService:ClearTimer(self.SimpleHideTimer)
+			self.SimpleHideTimer = 0
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method table SplitSentence(string informSentence)
+		local splitedSentence = self.SplitedSentence
+		table.clear(splitedSentence)
+		
+		local s, e = string.find(informSentence, self.ArgsPattern, 1, true)
+		while s ~= nil do
+			table.insert(splitedSentence, string.sub(informSentence, 1, s - 1))
+			informSentence = string.sub(informSentence, s+2)
+			s, e = string.find(informSentence, self.ArgsPattern, 1, true)
+		end
+		table.insert(splitedSentence, informSentence)
+		
+		return splitedSentence
+	end
+
+	@ExecSpace("ClientOnly")
+	method string MergeSentenceWithArgs(table informArgs)
+		local fullText = ""
+		for i, str in ipairs(informArgs) do
+			if not self.SplitedSentence[i] then
+				continue
+			end 
+			fullText ..= self.SplitedSentence[i]
+			fullText ..= informArgs[i]
+		end
+		fullText ..= self.SplitedSentence[#self.SplitedSentence] or ""
+		
+		return fullText
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetInformTextAndRUIDs(string sentence, table decorationRUIDs)
+		self.InformText.Text = sentence
+		
+		if _Util:IsNilorEmptyString(decorationRUIDs[1]) == false then
+			local sprite = _ResourceService:LoadSpriteAndWait(decorationRUIDs[1])
+			self.LeftDeco.Entity.UITransformComponent.RectSize = Vector2(sprite.Width, sprite.Height)
+			self.LeftDeco.ImageRUID = decorationRUIDs[1]
+			self.LeftDeco.Enable = true
+		else
+			self.LeftDeco.Enable = false
+		end
+		
+		if _Util:IsNilorEmptyString(decorationRUIDs[2]) == false then
+			local sprite = _ResourceService:LoadSpriteAndWait(decorationRUIDs[2])
+			self.MiddleDeco.Entity.UITransformComponent.RectSize = Vector2(sprite.Width, sprite.Height)
+			self.MiddleDeco.ImageRUID = decorationRUIDs[2]
+			self.MiddleDeco.Enable = true
+		else
+			self.MiddleDeco.Enable = false
+		end
+		
+		if _Util:IsNilorEmptyString(decorationRUIDs[3]) == false then
+			local sprite = _ResourceService:LoadSpriteAndWait(decorationRUIDs[3])
+		    self.RightDeco.Entity.UITransformComponent.RectSize = Vector2(sprite.Width, sprite.Height)
+			self.RightDeco.ImageRUID = decorationRUIDs[3]
+			self.RightDeco.Enable = true
+		else
+			self.RightDeco.Enable = false
+		end
+		
+		if _Util:IsNilorEmptyString(decorationRUIDs[4]) == false then
+			self.Portrait.SpriteGUIRendererComponent.ImageRUID = decorationRUIDs[4]
+			self.Portrait.Enable = true
+		else
+			self.Portrait.Enable = false
+		end
+		
+		self:ResizeUI()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ResizeUI()
+		local middleWidth = math.min(self.InformText:GetPreferredWidth(self.InformText.Text), 750)
+		self.LeftDeco.Entity.UITransformComponent.anchoredPosition.x = -middleWidth
+		self.MiddleDeco.Entity.UITransformComponent.RectSize.x = middleWidth * 2
+		self.RightDeco.Entity.UITransformComponent.anchoredPosition.x = middleWidth
+	end
+
+end
