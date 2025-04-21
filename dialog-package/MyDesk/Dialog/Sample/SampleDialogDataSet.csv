@@ -1,0 +1,6 @@
+﻿DialogId,ScriptId,PortraitRUID,CharacterName,CharacterScript,SelectionScripts,SelectionScriptIds
+Tutorial,T_1,660bfa18a9ab4562a1f9aabe2d1c90c5,아리스,"반가워요! 제가 *@Nick*님을 위해서 튜토리얼을 진행해도 될까요?
+@Nick님을 위해 저와 *리브*가 열심히 준비했어요.",음..,T_2
+Tutorial,T_2,,@Nick,*튜토리얼*은 필요없어.,아리스를 쳐다본다.|리브를 쳐다본다.,T_3|T_4
+Tutorial,T_3,4a878f605d384370a4e3f41413e46064,아리스,"그, 그래요. *@Nick*님께 튜토리얼이라니, 제가 너무 무례했네요, 하하. 그럼 바로 *로비*로 넘어갈게요.",,
+Tutorial,T_4,4c93747a7708407bbd2c8a7792a436f5,리브,...*...*,,

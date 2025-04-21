@@ -1,0 +1,57 @@
+@Component
+script UIDialogSelection extends Component
+
+	property string OnNormalRUID = "2b1b2841a4af49f18fb998b4c8cec11a"
+
+	property string OnFocusedRUID = "4c276fb0f112432cb5a42f36f1be2d17"
+
+	property Color OnNormalColor = Color(1,1,1,1)
+
+	property Color OnFocusedColor = Color(0.318,0.373,0.478,1)
+
+	property Entity Script = nil
+
+	property integer Index = 0
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		self.Script = self.Entity:GetChildByName("Text_SelectionScript")
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Initialize(integer index, string selectionScript)
+		self.Index = index
+		self.Script.TextComponent.Text = selectionScript
+		self:OnDefocused()
+		
+		self.Entity.Enable = true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnFocused()
+		self.Entity.SpriteGUIRendererComponent.ImageRUID = self.OnFocusedRUID
+		self.Script.TextComponent.FontColor = self.OnFocusedColor
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnDefocused()
+		self.Entity.SpriteGUIRendererComponent.ImageRUID = self.OnNormalRUID
+		self.Script.TextComponent.FontColor = self.OnNormalColor
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("Self")
+	handler HandleButtonClickEvent(ButtonClickEvent event)
+		--------------- Native Event Sender Info ----------------
+		-- Sender: ButtonComponent
+		-- Space: Client
+		---------------------------------------------------------
+		
+		-- Parameters
+		-- local Entity = event.Entity
+		---------------------------------------------------------
+		
+		_DialogLogic.DialogPanel:OnClickSelection(self.Index)
+	end
+
+end

@@ -1,0 +1,57 @@
+@Logic
+script DialogDataLogic extends Logic
+
+	property table ScriptDataByScriptId = {}
+
+	property table ScriptIdsByDialogId = {}
+
+	property string HighlightHexcode = "#69b4f4"
+
+	property string HighlightMarker = "*"
+
+	property string NicknameMarker = "@Nick"
+
+	property string DataSetSplitSeparator = "|"
+
+	@ExecSpace("ClientOnly")
+	method void LoadData(string dialogDataSetName)
+		local scriptDataByScriptId = self.ScriptDataByScriptId
+		local scriptIdsByDialogId = self.ScriptIdsByDialogId
+		
+		local dialogDataSet = _DataService:GetTable(dialogDataSetName)
+		for i, row in ipairs(dialogDataSet:GetAllRow()) do
+			local dialogId = row:GetItem("DialogId")
+			
+			local scriptData = DialogScriptData()
+			scriptData:Init(row)
+			scriptDataByScriptId[scriptData.ScriptId] = scriptData
+		
+			if not scriptIdsByDialogId[dialogId] then
+				scriptIdsByDialogId[dialogId] = {}
+			end	
+			table.insert(scriptIdsByDialogId[dialogId], scriptData.ScriptId)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method DialogScriptData GetFirstScriptData(string dialogId)
+		if self.ScriptIdsByDialogId[dialogId] == nil then
+			return nil
+		end
+		
+		local firstLineId = self.ScriptIdsByDialogId[dialogId][1]
+		return self:GetScriptData(firstLineId)
+	end
+
+	@ExecSpace("ClientOnly")
+	method DialogScriptData GetScriptData(string scriptId)
+		return self.ScriptDataByScriptId[scriptId]
+	end
+
+	@ExecSpace("ClientOnly")
+	method string ReplaceNicknameMarker(string text)
+		local newText, _ = string.gsub(text, self.NicknameMarker, _UserService.LocalPlayer.PlayerComponent.Nickname)
+		return newText
+	end
+
+end

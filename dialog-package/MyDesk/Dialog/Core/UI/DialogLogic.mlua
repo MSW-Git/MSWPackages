@@ -1,0 +1,42 @@
+@Logic
+script DialogLogic extends Logic
+
+	property string ParentUIPath = "/ui/DefaultGroup"
+
+	property UIDialogPanel DialogPanel = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local parent = _EntityService:GetEntityByPath(self.ParentUIPath)
+		local dialogEntity = _SpawnService:SpawnByModelId(_EntryService:GetModelIdByName("Model_UIDialog"), "UIDialog", Vector3.zero, parent)
+		self.DialogPanel = dialogEntity.UIDialogPanel
+		dialogEntity.Enable = false
+	end
+
+	@ExecSpace("ClientOnly")
+	method void StartDialog(string dialogId)
+		local scriptData = _DialogDataLogic:GetFirstScriptData(dialogId)
+		if scriptData == nil then
+			return
+		end
+		
+		self.DialogPanel:Open(scriptData)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ShowScript(string scriptId)
+		local scriptData = _DialogDataLogic:GetScriptData(scriptId)
+		if scriptData == nil then
+			self:End()
+			return
+		end
+		
+		self.DialogPanel:Set(scriptData)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void End()
+		self.DialogPanel:Close()
+	end
+
+end

@@ -1,0 +1,36 @@
+@Struct
+script DialogScriptData
+
+	property string ScriptId = ""
+
+	property string CharacterName = ""
+
+	property string CharacterScript = ""
+
+	property string PortraitRUID = ""
+
+	property table SelectionScripts = {}
+
+	property table SelectionScriptIds = {}
+
+	method void Init(any row)
+		---@type UserDataRow
+		local dataRow = row
+		
+		self.ScriptId = dataRow:GetItem("ScriptId")
+		self.PortraitRUID = dataRow:GetItem("PortraitRUID")
+		self.CharacterName = dataRow:GetItem("CharacterName")
+		self.CharacterScript = dataRow:GetItem("CharacterScript")
+		
+		local selectionScriptsStr = dataRow:GetItem("SelectionScripts")
+		if _Util:IsNilorEmptyString(selectionScriptsStr) == false then
+			self.SelectionScripts = _UtilLogic:Split(selectionScriptsStr, _DialogDataLogic.DataSetSplitSeparator)
+		end
+		
+		local selectionLineIds = dataRow:GetItem("SelectionScriptIds")
+		if _Util:IsNilorEmptyString(selectionLineIds) == false then
+			self.SelectionScriptIds = _UtilLogic:Split(selectionLineIds, _DialogDataLogic.DataSetSplitSeparator)
+		end
+	end
+
+end

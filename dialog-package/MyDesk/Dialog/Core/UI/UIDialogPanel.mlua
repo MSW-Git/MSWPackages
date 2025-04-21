@@ -1,0 +1,331 @@
+@Component
+script UIDialogPanel extends Component
+
+	property Entity BackgroundDim = nil
+
+	property Entity DialogDim = nil
+
+	property Entity PortraitSprite = nil
+
+	property Entity PortraitAvatar = nil
+
+	property Entity CharacterName = nil
+
+	property Entity CharacterScript = nil
+
+	property Entity SelectionBackground = nil
+
+	property Entity SelectionParent = nil
+
+	property Entity SelectionArrows = nil
+
+	property Entity NextScript = nil
+
+	property any ScriptData = nil
+
+	property string Script = ""
+
+	property table ScriptHighlightPositions = {}
+
+	property boolean IsScriptPrinting = false
+
+	property number ScriptPrintingTime = 0
+
+	property number PRINT_SPEED = 25
+
+	property boolean IsSelecting = false
+
+	property integer FocusedSelection = 0
+
+	property any SelectionFadeOutTween = nil
+
+	property number SelectionFadeOutDuration = 0.5
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		self.BackgroundDim = self.Entity:GetChildByName("BackgroundDim")
+		
+		local portraitParent = self.Entity:GetChildByName("Bg_Portrait")
+		self.PortraitSprite = portraitParent:GetChildByName("Img_Sprite")
+		self.PortraitAvatar = portraitParent:GetChildByName("Img_Avatar")
+		
+		self.DialogDim = self.Entity:GetChildByName("DialogDim")
+		local scriptContainer = self.DialogDim:GetChildByName("ScriptContainer")
+		self.CharacterName = _EntityService:GetEntityByPath(scriptContainer.Path.."/Bg_CharacterName/Text_CharacterName")
+		self.CharacterScript = _EntityService:GetEntityByPath(scriptContainer.Path.."/Bg_Script/Text_Script")
+		
+		self.NextScript = self.Entity:GetChildByName("Btn_NextScript")
+		self.NextScript:ConnectEvent(ButtonClickEvent,function() self:OnClickNext() end)
+		
+		self.SelectionBackground = self.Entity:GetChildByName("Bg_Selection")
+		self.SelectionParent = self.SelectionBackground:GetChildByName("SelectionParent")
+		self.SelectionArrows = self.SelectionBackground:GetChildByName("ScrollArrows")
+		self.SelectionArrows.Enable = false
+		
+		local tween = _TweenLogic:MakeTween(1, 0, self.SelectionFadeOutDuration, EaseType.Linear, function(i) 
+			self.SelectionBackground.CanvasGroupComponent.GroupAlpha = i
+		end)
+		tween:SetOnEndCallback(function() 
+			---@type DialogScriptData
+			local scriptData = self.ScriptData
+			_DialogLogic:ShowScript(scriptData.SelectionScriptIds[self.FocusedSelection])
+		end)
+		tween.AutoDestroy = false
+		self.SelectionFadeOutTween = tween
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Open(DialogScriptData data)
+		self:Set(data)
+		
+		for i, child in ipairs(self.SelectionParent.Children) do
+			child.Enable = false
+		end
+		
+		self.Entity.Enable = true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Set(DialogScriptData data)
+		self.ScriptData = data
+		
+		if _Util:IsNilorEmptyString(data.PortraitRUID) == false then
+			self.PortraitSprite.SpriteGUIRendererComponent.ImageRUID = data.PortraitRUID
+			self.PortraitSprite.Enable = true
+			self.PortraitAvatar.Enable = false
+		else
+			self.PortraitAvatar.CostumeManagerComponent.DefaultEquipUserId = _UserService.LocalPlayer.PlayerComponent.UserId
+			self.PortraitAvatar.Enable = true
+			self.PortraitSprite.Enable = false
+		end
+		
+		if string.equals(data.CharacterName, _DialogDataLogic.NicknameMarker) then
+			self.CharacterName.TextComponent.Text = _UserService.LocalPlayer.PlayerComponent.Nickname
+		else
+			self.CharacterName.TextComponent.Text = data.CharacterName
+		end
+		
+		self.CharacterScript.TextComponent.Text = ""
+		self.ScriptPrintingTime = 0
+		self.IsScriptPrinting = true
+		
+		self.Script = _DialogDataLogic:ReplaceNicknameMarker(data.CharacterScript)
+		self:CacheHightlightIndicies()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void CacheHightlightIndicies()
+		local text = self.Script
+		table.clear(self.ScriptHighlightPositions)
+		
+		local startIndex = 1
+		local matchIndex, _ = string.find(text, _DialogDataLogic.HighlightMarker)
+		while matchIndex do
+			table.insert(self.ScriptHighlightPositions, matchIndex)
+			
+			text, _ = string.gsub(text, _DialogDataLogic.HighlightMarker, "", 1)
+			matchIndex, _ = string.find(text, _DialogDataLogic.HighlightMarker)
+		end
+		
+		if matchIndex then
+			table.insert(self.ScriptHighlightPositions, matchIndex)
+		end
+		
+		self.Script = text
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickNext()
+		if self.IsScriptPrinting then
+			self:OnPrintEnd()
+			return
+		end
+		
+		if self.NextScript.Enable == false then
+			return
+		end
+		
+		---@type DialogScriptData
+		local scriptData = self.ScriptData
+		_DialogLogic:ShowScript(scriptData.SelectionScriptIds[1])
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickSelection(integer index)
+		if self.SelectionParent.Enable == false or self.IsSelecting == false then
+			return
+		end
+		self.IsSelecting = false
+		
+		self.FocusedSelection = index
+		local selections = self.SelectionParent.Children
+		
+		for i = 1, #selections do
+			local selection = selections[i]
+			if i == index then
+				selection.UIDialogSelection:OnFocused()
+			else
+				selection.Enable = false
+			end
+		end
+		
+		---@type Tweener
+		local tween = self.SelectionFadeOutTween
+		tween:Restart()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnUpdate(number delta)
+		if not self.IsScriptPrinting then
+			return
+		end
+		
+		self.ScriptPrintingTime += delta
+		
+		local printingLength = math.ceil(self.ScriptPrintingTime * self.PRINT_SPEED)
+		if printingLength == utf8.len(self.CharacterScript.TextComponent.Text) then
+			return
+		end
+		
+		local printingScript = utf8.offset(self.Script, printingLength) - 1
+		self.CharacterScript.TextComponent.Text = self:ApplyHighlight(string.sub(self.Script, 1, printingScript))
+		if utf8.len(self.Script) == printingLength then
+			self:OnPrintEnd()
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method string ApplyHighlight(string printingScript)
+		local highlightPositions = self.ScriptHighlightPositions
+		if #highlightPositions == 0 then
+			return printingScript
+		end
+		
+		local printingScriptLen = string.len(printingScript)
+		local tagFormat = "<color=" .. _DialogDataLogic.HighlightHexcode .. ">%s</color>"
+		
+		local newText = string.sub(printingScript, 1, highlightPositions[1] - 1)
+		
+		for i = 1, #highlightPositions - 1, 2 do
+			local highlightStart = highlightPositions[i]
+			local highlightEnd = highlightPositions[i+1] - 1
+			local highlightKeyword = string.sub(printingScript, highlightStart, highlightEnd)
+			
+			newText ..= string.format(tagFormat, highlightKeyword)
+			
+			if highlightEnd < printingScriptLen and highlightPositions[i+2] then
+				newText ..= string.sub(printingScript, highlightEnd + 1, highlightPositions[i+2] - 1)
+			end
+		end
+		
+		if highlightPositions[#highlightPositions] < printingScriptLen then
+			newText ..= string.sub(printingScript, highlightPositions[#highlightPositions])
+		end
+		
+		return newText
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnPrintEnd()
+		self.IsScriptPrinting = false
+		self.NextScript.Enable = true
+		self.CharacterScript.TextComponent.Text = self:ApplyHighlight(self.Script)
+		
+		---@type DialogScriptData
+		local scriptData = self.ScriptData
+		
+		if #scriptData.SelectionScripts == 0 then
+			self.SelectionParent.Enable = false
+			self.NextScript.Enable = true
+		else
+			self:SetSelectionScripts(scriptData.SelectionScripts)
+			self.SelectionParent.Enable = true
+			self.SelectionBackground.CanvasGroupComponent.GroupAlpha = 1
+			self.NextScript.Enable = false
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetSelectionScripts(table selectionScripts)
+		self.IsSelecting = true
+		
+		local selectionScriptHolders = self.SelectionParent.Children
+		for i = #selectionScriptHolders + 1, #selectionScripts do
+			_SpawnService:SpawnByEntity(selectionScriptHolders[1], selectionScriptHolders[1].Name, Vector3.zero, self.SelectionParent)
+		end
+		selectionScriptHolders = self.SelectionParent.Children
+		
+		for i = #selectionScripts + 1, #selectionScriptHolders do
+			local selectionScriptHolder = selectionScriptHolders[i]
+			selectionScriptHolder.Enable = false
+		end
+		
+		for i = 1, #selectionScripts do
+			local selectionScriptHolder = selectionScriptHolders[i]
+			selectionScriptHolder.UIDialogSelection:Initialize(i, selectionScripts[i])
+		end
+		
+		self.SelectionArrows.Enable = 5 < #selectionScripts
+		
+		self.FocusedSelection = 1
+		selectionScriptHolders[1].UIDialogSelection:OnFocused()
+		self.SelectionParent.ScrollLayoutGroupComponent:SetScrollPositionByItemIndex(1)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ChangeFocusedSelection(integer direction)
+		if self.IsSelecting == false then
+			return
+		end
+		
+		local previousSelection = self.SelectionParent.Children[self.FocusedSelection]
+		if isvalid(previousSelection) and previousSelection.Enable then
+			previousSelection.UIDialogSelection:OnDefocused()
+		end
+		
+		---@type DialogScriptData
+		local data = self.ScriptData
+		self.FocusedSelection = math.clamp(self.FocusedSelection + direction, 1, #data.SelectionScriptIds)
+		
+		self.SelectionParent.Children[self.FocusedSelection].UIDialogSelection:OnFocused()
+		self.SelectionParent.ScrollLayoutGroupComponent:SetScrollPositionByItemIndex(self.FocusedSelection)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Close()
+		---@type Tweener
+		local tween = self.SelectionFadeOutTween
+		tween:Stop()
+		
+		self.ScriptData = nil
+		self.Entity.Enable = false
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("Service", "InputService")
+	handler HandleKeyDownEvent(KeyDownEvent event)
+		--------------- Native Event Sender Info ----------------
+		-- Sender: InputService
+		-- Space: Client
+		---------------------------------------------------------
+		
+		-- Parameters
+		 local key = event.key
+		---------------------------------------------------------
+		
+		if self.Entity.Enable == false or self.ScriptData == nil then
+			return
+		end
+		
+		if key == KeyboardKey.Space then
+			self:OnClickNext()
+		elseif key == KeyboardKey.UpArrow then
+			self:ChangeFocusedSelection(-1)
+		elseif key == KeyboardKey.DownArrow then
+			self:ChangeFocusedSelection(1)
+		elseif key == KeyboardKey.Return then
+			self:OnClickSelection(self.FocusedSelection)
+		end
+	end
+
+end
