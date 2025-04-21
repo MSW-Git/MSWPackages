@@ -1,0 +1,171 @@
+@Component
+script UIInventoryTabHolder extends Component
+
+	property table TabNames = {}
+
+	property table InsertFunctions = {}
+
+	property integer InsertFunc_MatchAndKeepSearch = 1
+
+	property integer InsertFunc_MatchAndStop = 2
+
+	property integer InsertFunc_NotMatch = 3
+
+	property UIInventoryGrid InventoryGrid = nil
+
+	property integer TabEnum = 0
+
+	property table ItemStructsByEnum = {}
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local children = self.Entity.Children
+		
+		self.TabNames = {
+			"All",
+			"Weapon",
+			"Armor",
+			"Acc",
+			"etc",
+		}
+		
+		for i, child in ipairs(children) do
+			child.UIInventoryTab:Initalize(i, self.TabNames[i])
+		end
+		
+		self.TabEnum = 1
+		local currentTab = self.Entity.Children[self.TabEnum]
+		currentTab.UIInventoryTab:OnSelected()
+		
+		self:SetCachingItemsFunctions()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetCachingItemsFunctions()
+		---@param itemData ItemData
+		---@return integer
+		local function IsAll(itemData)
+			return self.InsertFunc_MatchAndKeepSearch
+		end
+		
+		---@param itemData ItemData
+		---@return integer
+		local function IsWeapon(itemData)
+			local itemGearData = itemData:GetGearData()
+			if itemGearData == nil then
+				return self.InsertFunc_NotMatch
+			end
+			
+			if _GearCategoryEnum:IsWeapon(itemGearData.GearCategory) then
+				return self.InsertFunc_MatchAndStop
+			end
+			
+			return self.InsertFunc_NotMatch
+		end
+		
+		---@param itemData ItemData
+		---@return integer
+		local function IsArmor(itemData)	
+			local itemGearData = itemData:GetGearData()
+			if itemGearData == nil then
+				return self.InsertFunc_NotMatch
+			end
+			
+			if _GearCategoryEnum:IsArmor(itemGearData.GearCategory) then
+				return self.InsertFunc_MatchAndStop
+			end
+		end
+		
+		---@param itemData ItemData
+		---@return integer
+		local function IsAcc(itemData)
+			local itemGearData = itemData:GetGearData()
+			if itemGearData == nil then
+				return self.InsertFunc_NotMatch
+			end
+			
+			if _GearCategoryEnum:IsAccessory(itemGearData.GearCategory) then
+				return self.InsertFunc_MatchAndStop
+			end
+		end
+		
+		---@param itemData ItemData
+		---@return integer
+		local function IsNotGear(itemData)
+			if itemData:GetGearData() == nil then
+				return self.InsertFunc_MatchAndStop
+			end
+			
+			return self.InsertFunc_NotMatch
+		end
+		
+		self.InsertFunctions = {
+			IsAll,
+			IsWeapon,
+			IsArmor,
+			IsAcc,
+			IsNotGear
+		}
+	end
+
+	@ExecSpace("ClientOnly")
+	method void CacheItemsByEnum()
+		---@type table<string, ItemStruct>
+		local items = _UserService.LocalPlayer.PlayerInventory.Items
+		local tabCount = _Util:TableLen(self.TabNames)
+		
+		for tabEnum = 1, tabCount do
+			if self.ItemStructsByEnum[tabEnum] == nil then
+				self.ItemStructsByEnum[tabEnum] = {}
+			end
+			table.clear(self.ItemStructsByEnum[tabEnum])
+		end
+		
+		for guid, itemStruct in pairs(items) do
+			local itemData = itemStruct:GetItemData()
+			
+			for tabEnum = 1, tabCount do
+				local resultEnum = self.InsertFunctions[tabEnum](itemData)
+				if resultEnum == self.InsertFunc_MatchAndKeepSearch then
+					table.insert(self.ItemStructsByEnum[tabEnum], itemStruct)
+					continue
+				end
+				
+				if resultEnum == self.InsertFunc_MatchAndStop then
+					table.insert(self.ItemStructsByEnum[tabEnum], itemStruct)
+					break
+				end
+				
+				if resultEnum == self.InsertFunc_NotMatch then
+					continue
+				end
+			end
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnTabClicked(integer enum)
+		if self.TabEnum == enum then
+			return
+		end
+		
+		local previousTab = self.Entity.Children[self.TabEnum]
+		previousTab.UIInventoryTab:OnDeselected()
+		
+		local currentTab = self.Entity.Children[enum]
+		currentTab.UIInventoryTab:OnSelected()
+		
+		self.TabEnum = enum
+		self:Update(false)
+		return
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Update(boolean shouldCaching)
+		if shouldCaching then
+			self:CacheItemsByEnum()
+		end
+		self.InventoryGrid:Update(self.ItemStructsByEnum[self.TabEnum])
+	end
+
+end

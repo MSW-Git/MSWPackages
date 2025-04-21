@@ -1,0 +1,39 @@
+@Struct
+script JobData
+
+	property integer Id = 0
+
+	property string Name = ""
+
+	property table DefaultGearItemIds = {}
+
+	property integer Cost = 0
+
+	property integer Sort = 0
+
+	method boolean Init(any dataRow)
+		---@type UserDataRow
+		local row = dataRow
+		self.Id = math.tointeger(tonumber(row:GetItem("Id")))
+		
+		self.Name = row:GetItem("Name")
+		
+		local defaultNormalGearItemIdsStr = row:GetItem('DefaultGearItemIds')
+		if not _Util:IsNilorEmptyString(defaultNormalGearItemIdsStr) then
+			local strs = _UtilLogic:Split(defaultNormalGearItemIdsStr, '|')
+			for i, str in ipairs(strs) do
+				local itemId = math.tointeger(tonumber(str))
+				if itemId == nil then
+					continue
+				end
+				
+				table.insert(self.DefaultGearItemIds, itemId)
+			end
+		end
+		
+		self.Sort = tonumber(row:GetItem("Sort"))
+		
+		return true
+	end
+
+end

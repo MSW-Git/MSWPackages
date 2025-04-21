@@ -1,0 +1,57 @@
+@Component
+script UIInventoryTab extends Component
+
+	property string DeselectedBackgroundRUID = "76359b32034643c6b5da0717f9c380bb"
+
+	property string SelectedBackgroundRUID = "a0ea29a36ce140049bcc088d25469dc5"
+
+	property Color ColorHighlight = Color(0,0,0,0)
+
+	property UIInventoryTabHolder TabHolder = nil
+
+	property integer TabEnum = 0
+
+	property SpriteGUIRendererComponent ImageBackground = nil
+
+	property SpriteGUIRendererComponent ImageIcon = nil
+
+	property TextComponent TextName = nil
+
+	@ExecSpace("ClientOnly")
+	method void Initalize(integer tabEnum, string tabName)
+		self.TabHolder = self.Entity.Parent.UIInventoryTabHolder
+		
+		self.ColorHighlight = Color.FromHexCode("#47d674")
+		
+		local background = self.Entity:GetChildByName("Background")
+		self.ImageBackground = background.SpriteGUIRendererComponent
+		self.ImageIcon = background:GetChildByName("Icon").SpriteGUIRendererComponent
+		self.TextName = background:GetChildByName("UIText").TextComponent
+		self.TextName.Text = tabName
+		
+		self.TabEnum = tabEnum
+		
+		self:OnDeselected()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnSelected()
+		self.ImageBackground.ImageRUID = self.SelectedBackgroundRUID
+		self.ImageIcon.Color = Color.white
+		self.TextName.FontColor = Color.white
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnDeselected()
+		self.ImageBackground.ImageRUID = self.DeselectedBackgroundRUID
+		self.ImageIcon.Color = self.ColorHighlight
+		self.TextName.FontColor = self.ColorHighlight
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("Self")
+	handler HandleButtonClickEvent(ButtonClickEvent event)
+		self.TabHolder:OnTabClicked(self.TabEnum)
+	end
+
+end

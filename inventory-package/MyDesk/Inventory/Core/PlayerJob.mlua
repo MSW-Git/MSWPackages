@@ -1,0 +1,421 @@
+@Component
+script PlayerJob extends Component
+
+	property string DataStorageKey = "PlayerJob"
+
+	property boolean IsSaveDB = false
+
+	@TargetUserSync
+	property boolean InitSyncEnd = false
+
+	property table JobLevels = {}
+
+	property table JobAccExps = {}
+
+	property table JobUnlockTimes = {}
+
+	@ExecSpace("ServerOnly")
+	method void LoadFromDB(table loadKeys)
+		table.insert(loadKeys, self.DataStorageKey)
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean OnLoadedDataFromDB(table loadedData)
+		--[[
+			"JobAccExps" : {"110" : 1, "120" : 2}
+			"JobNames" : {"110" : 'name1', "120" : 'name2'}
+		]]
+		---@type DataStorageItem
+		local storageData = loadedData[self.DataStorageKey]
+		if storageData ~= nil and (_Util:IsNilorEmptyString(storageData.Value) == false) then
+			local dbTable = _HttpService:JSONDecode(storageData.Value)
+			
+			self.JobAccExps = self:DeserializeJobAccExps(dbTable["JobAccExps"])
+			self.JobUnlockTimes = self:DeserializeJobUnlockTimes(dbTable["JobUnlockTimes"])
+			
+			for jobCode, accExp in pairs(self.JobAccExps) do
+				self.JobLevels[jobCode] = _JobBasicStatDataLogic:FindCurrentLevel(jobCode, accExp)
+			end
+		end
+		
+		local jobAccExpsStr = self:SerializeJobAccExps()
+		local userId = self.Entity.PlayerComponent.UserId
+		self:SyncInitJobAccExps(jobAccExpsStr, userId)
+		
+		self.InitSyncEnd = true
+		return true
+	end
+
+	@ExecSpace("ServerOnly")
+	method void SaveToDB(table saveData)
+		if self.IsSaveDB == false then
+			return
+		end
+		
+		local dbTable = {}
+		
+		local jobAccExpsStr = self:SerializeJobAccExps()
+		if not _Util:IsNilorEmptyString(jobAccExpsStr) then
+			dbTable['JobAccExps'] = jobAccExpsStr
+		end
+		
+		local jobUnlockTimesStr = self:SerializeJobUnlockTimes()
+		if not _Util:IsNilorEmptyString(jobUnlockTimesStr) then
+			dbTable['JobUnlockTimes'] = jobUnlockTimesStr
+		end
+		
+		local dbString = ""
+		if not _Util:IsNilorEmptyTable(dbTable) then
+			dbString = _HttpService:JSONEncode(dbTable)
+		end
+		
+		saveData[self.DataStorageKey] = dbString
+	end
+
+	method string SerializeJobAccExps()
+		local dbJobLevels = {}
+		
+		for jobCode, exp in pairs(self.JobAccExps) do
+			local jobCodeStr = tostring(jobCode)
+			dbJobLevels[jobCodeStr] = exp
+		end
+		
+		if _Util:IsNilorEmptyTable(dbJobLevels) then
+			return nil
+		end
+		
+		return _HttpService:JSONEncode(dbJobLevels)
+	end
+
+	method table DeserializeJobAccExps(string jobAccExpsStr)
+		local jobAccExps = {}
+		if _Util:IsNilorEmptyString(jobAccExpsStr) then
+			return jobAccExps
+		end
+		
+		
+		local dbJobAccExps = _HttpService:JSONDecode(jobAccExpsStr)
+		for jobCodeStr, accExp in pairs(dbJobAccExps) do
+			local jobCode = math.tointeger(tonumber(jobCodeStr))
+			jobAccExps[jobCode] = accExp
+		end
+		
+		return jobAccExps
+	end
+
+	@ExecSpace("Client")
+	method void SyncInitJobAccExps(string jobAccExpsStr)
+		if _Util:IsNilorEmptyString(jobAccExpsStr) then
+			return
+		end
+		
+		self.JobAccExps = self:DeserializeJobAccExps(jobAccExpsStr)
+		for jobCode, accExp in pairs(self.JobAccExps) do
+			self.JobLevels[jobCode] = _JobBasicStatDataLogic:FindCurrentLevel(jobCode, accExp)
+		end
+	end
+
+	@ExecSpace("ServerOnly")
+	method string SerializeJobUnlockTimes()
+		local dbTimes = {}
+		
+		for jobCode, elapsed in pairs(self.JobUnlockTimes) do
+			local jobCodeStr = tostring(jobCode)
+			dbTimes[jobCodeStr] = elapsed
+		end
+		
+		if _Util:IsNilorEmptyTable(dbTimes) then
+			return nil
+		end
+		
+		return _HttpService:JSONEncode(dbTimes)
+	end
+
+	@ExecSpace("ServerOnly")
+	method table DeserializeJobUnlockTimes(string timesStr)
+		local jobUnlockTimes = {}
+		if _Util:IsNilorEmptyString(timesStr) then
+			return jobUnlockTimes
+		end
+		
+		local dbJobUnlockTimes = _HttpService:JSONDecode(timesStr)
+		for jobCodeStr, elapsed in pairs(dbJobUnlockTimes) do
+			local jobCode = math.tointeger(tonumber(jobCodeStr))
+			jobUnlockTimes[jobCode] = elapsed
+		end
+		
+		return jobUnlockTimes
+	end
+
+	@ExecSpace("ServerOnly")
+	method void AddExp(integer jobCode, integer exp)
+		if exp <= 0 then
+			return
+		end
+		
+		local prevExp = self.JobAccExps[jobCode]
+		if prevExp == nil then
+			return	-- Job Unlocked
+		end
+		
+		local prevLevel = self.JobLevels[jobCode]
+		if prevLevel == nil then
+			return	-- Job Unlocked
+		end
+		
+		local maxAccExp = _JobBasicStatDataLogic:GetMaxAccExp(jobCode)
+		if maxAccExp == nil then
+			return	-- data error
+		end
+		
+		local nextExp = math.min(prevExp + exp, maxAccExp)
+		local curLevel = _JobBasicStatDataLogic:FindCurrentLevel(jobCode, nextExp)
+		
+		if prevExp == nextExp then
+			return
+		end
+		
+		self.JobAccExps[jobCode] = nextExp
+		self.IsSaveDB = true
+		
+		local prevReqExp = _JobBasicStatDataLogic:GetAccExp(jobCode, prevLevel) - prevExp
+		local nextReqExp = _JobBasicStatDataLogic:GetAccExp(jobCode, curLevel) - nextExp
+		
+		local userId = self.Entity.PlayerComponent.UserId
+		
+		if prevLevel ~= curLevel then
+			self.JobLevels[jobCode] = curLevel
+			
+			local levelEvt = JobLevelChangedEvent()
+			levelEvt:Init(jobCode, prevLevel, curLevel)
+			self.Entity:SendEvent(levelEvt)
+		end
+		
+		local evt = JobAccExpChangedEvent()
+		evt:Init(jobCode, prevExp, nextExp)
+		self:SendJobAccExpChangedEvent(evt)
+	end
+
+	@ExecSpace("ServerOnly")
+	method void SendJobAccExpChangedEvent(JobAccExpChangedEvent evt)
+		self.Entity:SendEvent(evt)
+		self:SendJobAccExpChangedEventToClient(evt, self.Entity.PlayerComponent.UserId)
+	end
+
+	@ExecSpace("Client")
+	method void SendJobAccExpChangedEventToClient(JobAccExpChangedEvent evt)
+		self.JobAccExps[evt.JobCode] = evt.CurAccExp
+		
+		local prevLevel = self:GetJobLevel(evt.JobCode)
+		local curLevel = _JobBasicStatDataLogic:FindCurrentLevel(evt.JobCode, evt.CurAccExp)
+		if prevLevel ~= curLevel then
+			self.JobLevels[evt.JobCode] = curLevel
+			
+			local levelEvt = JobLevelChangedEvent()
+			levelEvt:Init(evt.JobCode, prevLevel, curLevel)
+			self.Entity:SendEvent(levelEvt)
+		end
+		
+		self.Entity:SendEvent(evt)
+	end
+
+	@ExecSpace("ServerOnly")
+	method void SubtractExp(integer jobCode, integer exp)
+		if exp <= 0 then
+			return
+		end
+		
+		local prevExp = self.JobAccExps[jobCode]
+		if prevExp == nil then
+			return
+		end
+		
+		local prevLevel = self.JobLevels[jobCode]
+		if prevLevel == nil then
+			return
+		end
+		
+		local nextExp = math.max(0, prevExp - exp)
+		local curLevel = _JobBasicStatDataLogic:FindCurrentLevel(jobCode, nextExp)
+		
+		if prevExp == nextExp then
+			return
+		end
+		
+		self.JobAccExps[jobCode] = nextExp
+		self.IsSaveDB = true
+		
+		local prevReqExp = _JobBasicStatDataLogic:GetAccExp(jobCode, prevLevel) - prevExp
+		local nextReqExp = _JobBasicStatDataLogic:GetAccExp(jobCode, curLevel) - nextExp
+		
+		if prevLevel ~= curLevel then
+			self.JobLevels[jobCode] = curLevel
+			
+			local levelEvt = JobLevelChangedEvent()
+			levelEvt:Init(jobCode, prevLevel, curLevel)
+			self.Entity:SendEvent(levelEvt)
+		end
+		
+		local accExpEvt = JobAccExpChangedEvent()
+		accExpEvt:Init(jobCode, prevExp, nextExp)
+		self:SendJobAccExpChangedEvent(accExpEvt)
+	end
+
+	@ExecSpace("ServerOnly")
+	method void SetLevel(integer jobCode, integer level)
+		local prevLevelData = _JobBasicStatDataLogic:GetJobStatInLevel(jobCode, level - 1)
+		if prevLevelData == nil then
+			return
+		end
+		
+		local prevAccExp = self.JobAccExps[jobCode]
+		if prevAccExp == nil then
+			return
+		end
+		
+		local nextAccExp = prevLevelData.AccumulatedExp
+		if nextAccExp == prevAccExp then
+			return
+		end
+		
+		if prevAccExp < nextAccExp then
+			self:AddExp(jobCode, nextAccExp - prevAccExp)
+		else
+			self:SubtractExp(jobCode, prevAccExp - nextAccExp)
+		end
+	end
+
+	@ExecSpace("ServerOnly")
+	method void UnlockJob(integer jobCode)
+		if not self:IsJobLocked(jobCode) then
+			return
+		end
+		
+		self.JobAccExps[jobCode] = 0
+		self.JobLevels[jobCode] = _JobBasicStatDataLogic:FindCurrentLevel(jobCode, 0)
+		self.JobUnlockTimes[jobCode] = _DateTimeLogic:GetTimeElapsed()
+		
+		self.Entity.PlayerInventory:CreateAndAttachDefaultGear(jobCode)
+		
+		self.IsSaveDB = true
+		
+		local evt = JobUnlockEvent()
+		evt.JobCode = jobCode
+		evt.IsUnlock = true
+		
+		self.Entity:SendEvent(evt)
+		self:SendJobUnlockEventToClient(evt, self.Entity.PlayerComponent.UserId)
+	end
+
+	@ExecSpace("Client")
+	method void SendErrorCodeToClient(integer errorCode, string message)
+		_ErrorCodeEnum:ShowErrorMsg(errorCode)
+	end
+
+	@ExecSpace("Client")
+	method void SendJobUnlockEventToClient(JobUnlockEvent evt)
+		local jobCode = evt.JobCode
+		
+		if evt.IsUnlock then
+			self.JobAccExps[jobCode] = 0
+			self.JobLevels[jobCode] = _JobBasicStatDataLogic:FindCurrentLevel(jobCode, 0)
+		else
+			self.JobAccExps[jobCode] = nil
+			self.JobLevels[jobCode] = nil
+		end
+		
+		self.Entity:SendEvent(evt)
+	end
+
+	method boolean IsJobLocked(integer job)
+		if self:GetJobLevel(job) >= 1 then
+			return false
+		end
+		
+		return true
+	end
+
+	method boolean IsJobLockedAll()
+		for i, jobAccExp in pairs(self.JobAccExps) do
+			return false
+		end
+		
+		return true
+	end
+
+	@ExecSpace("ClientOnly")
+	method table GetUnlockedJobTable()
+		local jobs = {}
+		for job, v in pairs(_JobDataLogic.TableData) do
+			if self:IsJobLocked(job) then
+				continue
+			end
+			jobs[job] = true
+		end
+		
+		return jobs
+	end
+
+	method table GetUnlockedJobDataTable()
+		local jobs = {}
+		local sortJobData = _JobDataLogic:GetSortJobDataList()
+		for _, v in pairs(sortJobData) do
+			---@type JobData
+			local data = v
+			if self:IsJobLocked(data.Id) then
+				continue
+			end
+			table.insert(jobs, data)
+		end
+		
+		return jobs
+	end
+
+	method integer GetJobLevel(integer job)
+		local level = self.JobLevels[job]
+		if level == nil then
+			return 0
+		end
+		return level
+	end
+
+	method integer GetUnionLevel()
+		local result = 0
+		for job, level in pairs(self.JobLevels) do
+			result += level
+		end
+		
+		return result
+	end
+
+	method integer GetHighestJobLevel()
+		local result = 0
+		for job, level in pairs(self.JobLevels) do
+			result = math.max(level,result)
+		end
+		
+		return result
+	end
+
+	method table GetJobDataTableByLevel()
+		local jobs = {}
+		local sortJobData = _JobDataLogic:GetSortJobDataList()
+		for _, v in pairs(sortJobData) do
+			---@type JobData
+			local data = v
+			table.insert(jobs, data)
+		end
+		
+		table.sort(jobs,function(a,b)
+			---@type JobData,JobData
+			local jobA,jobB = a,b
+			if self.JobAccExps[jobA.Id] == self.JobAccExps[jobB.Id] then
+				return jobA.Sort < jobB.Sort
+			end
+			return (self.JobAccExps[a.Id] or 0) > (self.JobAccExps[b.Id] or 0) 
+		end)
+		
+		return jobs
+	end
+
+end

@@ -1,0 +1,6 @@
+@Event
+script InvenInvalidateEvent extends EventType
+
+	property integer Job = 0
+
+end

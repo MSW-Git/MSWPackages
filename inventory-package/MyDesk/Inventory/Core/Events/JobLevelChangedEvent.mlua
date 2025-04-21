@@ -1,0 +1,16 @@
+@Event
+script JobLevelChangedEvent extends EventType
+
+	property integer JobCode = 0
+
+	property integer PrevLevel = 0
+
+	property integer CurLevel = 0
+
+	method void Init(integer jobCode, integer prevLevel, integer curLevel)
+		self.JobCode = jobCode
+		self.PrevLevel = prevLevel
+		self.CurLevel = curLevel
+	end
+
+end

@@ -1,0 +1,117 @@
+@Struct
+script ItemData
+
+	property integer Id = 0
+
+	property string Name = ""
+
+	property string RUID = ""
+
+	property string UsableFunction = ""
+
+	property table UsableFunctionParams = {}
+
+	property boolean CanDiscard = false
+
+	property boolean NonStackable = false
+
+	property integer Category = 0
+
+	property number CooldownTime = 0
+
+	property boolean IsNotConsumeOnUse = false
+
+	property any GearData = nil
+
+	property Vector2 RUIDOffset = nil
+
+	property integer ExpirationDate = 0
+
+	property integer ExpirationPeriodDay = 0
+
+	method boolean Init(any dataRow)
+		---@type UserDataRow
+		local row = dataRow
+		self.Id = math.tointeger(tonumber(row:GetItem("Id")))
+		self.Name = row:GetItem("Name")
+		self.RUID = row:GetItem("RUID")
+		self.Category = _ItemCategoryEnum:ToInt(row:GetItem('Category'))
+		
+		self.UsableFunction = row:GetItem("UsableFunction")
+		if _Util:IsNilorEmptyString(self.UsableFunction) == false then
+			local splitedParams = _UtilLogic:Split(row:GetItem("UsableFunctionParams"), "|")
+			for i, paramStr in ipairs(splitedParams) do
+				if _Util:IsNilorEmptyString(paramStr) == false then
+					table.insert(self.UsableFunctionParams, paramStr)
+				end
+			end
+		end
+		
+		local canDiscard = row:GetItem("CanDiscard")
+		if not _Util:IsNilorEmptyString(canDiscard) then
+			if canDiscard == "1" then
+				self.CanDiscard = true
+			end
+		end
+		
+		if self.Category == _ItemCategoryEnum.Gear then
+			self.NonStackable = true
+		else
+			local nonStackable = row:GetItem("NonStackable")
+			if not _Util:IsNilorEmptyString(nonStackable) then
+				if nonStackable == "1" then
+					self.NonStackable = true
+				end
+			end
+		end
+		
+		local isNotConsumeOnUse = row:GetItem("IsNotConsumeOnUse")
+		if not _Util:IsNilorEmptyString(isNotConsumeOnUse) then
+			if isNotConsumeOnUse == "1" then
+				self.IsNotConsumeOnUse = true
+			end
+		end
+		
+		self.CooldownTime = math.tointeger(tonumber(row:GetItem("CooldownTime")))
+		if self.CooldownTime == nil then
+			self.CooldownTime = 0
+		end
+		
+		if self.Category == _ItemCategoryEnum.Gear then
+			self.GearData = _ItemGearDataLogic:GetData(self.Id)
+		end
+		
+		local ExpirationDate = row:GetItem("ExpirationDate")
+		if _UtilLogic:IsNilorEmptyString(ExpirationDate) then
+			self.ExpirationDate = 0
+		else
+			self.ExpirationDate = DateTime(ExpirationDate).Elapsed
+		end
+		
+		local ExpirationPeriodDay = row:GetItem("ExpirationPeriodDay")
+		if _UtilLogic:IsNilorEmptyString(ExpirationPeriodDay) then
+			self.ExpirationPeriodDay = 0
+		else
+			self.ExpirationPeriodDay = TimeSpan.FromDays(tonumber(ExpirationPeriodDay)).Elapsed
+		end
+		
+		return true
+	end
+
+	method ItemGearData GetGearData()
+		if self.GearData == nil then
+			return
+		end
+		
+		return self.GearData
+	end
+
+	method boolean IsLockable()
+		if self.Category ~= _ItemCategoryEnum.Gear then
+			return false
+		end
+		
+		return true
+	end
+
+end

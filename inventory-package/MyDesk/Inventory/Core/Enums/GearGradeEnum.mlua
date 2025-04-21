@@ -1,0 +1,96 @@
+@Logic
+script GearGradeEnum extends Logic
+
+	property table StringToEnumTable = {}
+
+	property table EnumToStringTable = {}
+
+	property table ColorTable = {}
+
+	property table EnumToBackRUIDTable = {}
+
+	property integer None = 0
+
+	property integer Rare = 1
+
+	property integer Epic = 2
+
+	property integer Unique = 3
+
+	property integer Legendary = 4
+
+	method void Init()
+		local stringToEnumTable = {}
+		self.StringToEnumTable = stringToEnumTable
+		stringToEnumTable["None"] = self.None
+		stringToEnumTable["Rare"] = self.Rare
+		stringToEnumTable["Epic"] = self.Epic
+		stringToEnumTable["Unique"] = self.Unique
+		stringToEnumTable["Legendary"] = self.Legendary
+		
+		local enumToUIString = {}
+		self.EnumToStringTable = enumToUIString
+		enumToUIString[self.None] = "None"
+		enumToUIString[self.Rare] = "Rare"
+		enumToUIString[self.Epic] = "Epic"
+		enumToUIString[self.Unique] = "Unique"
+		enumToUIString[self.Legendary] = "Legendary"
+		
+		local colorTable = {}
+		self.ColorTable = colorTable
+		colorTable[self.None] = Color.FromHexCode('#b6b6b6')
+		colorTable[self.Rare] = Color.FromHexCode('#83c2ee')
+		colorTable[self.Epic] = Color.FromHexCode('#cea3f6')
+		colorTable[self.Unique] = Color.FromHexCode('#fac162')
+		colorTable[self.Legendary] = Color.FromHexCode('#8cdf6f')
+		
+		local enumToBackRUIDTable = {}
+		self.EnumToBackRUIDTable = enumToBackRUIDTable
+		enumToBackRUIDTable[self.None] = "aa931a755e5949699233b817029a3e36"
+		enumToBackRUIDTable[self.Rare] = "dcbbede8a7a0478b97e2ffa23b7fc14a"
+		enumToBackRUIDTable[self.Epic] = "90c4bb16c95a4ae3916098b6ffb4d0e4"
+		enumToBackRUIDTable[self.Unique] = "74d4021ef1794501acb73b78d267574e"
+		enumToBackRUIDTable[self.Legendary] = "70565cb756634ae7a168975f7a18fb1d"
+	end
+
+	method integer ToInt(string typeStr)
+		local enum = self.StringToEnumTable[typeStr]
+		if enum == nil then
+			return self.None
+		end
+		return enum
+	end
+
+	method string EnumToStr(integer gradeEnum)
+		local str = self.EnumToStringTable[gradeEnum]
+		if str == nil then
+			return "Unknown"
+		end
+		return str
+	end
+
+	method Color GetEnumColor(integer gradeEnum)
+		local color = self.ColorTable[gradeEnum]
+		if color == nil then
+			return Color.white
+		end
+		return color
+	end
+
+	method integer StrToEnum(string gradeString)
+		if self.StringToEnumTable[gradeString] == nil then
+			return self.None
+		end
+		
+		return self.StringToEnumTable[gradeString]
+	end
+
+	method string GetBackgroundRUID(integer gradeEnum)
+		if self.EnumToBackRUIDTable[gradeEnum] == nil then
+			return self._T.EnumToBackRUIDTable[self.None]
+		end
+		
+		return self.EnumToBackRUIDTable[gradeEnum]
+	end
+
+end

@@ -1,0 +1,16 @@
+@Event
+script JobAccExpChangedEvent extends EventType
+
+	property integer JobCode = 0
+
+	property integer PrevAccExp = 0
+
+	property integer CurAccExp = 0
+
+	method void Init(integer jobCode, integer prevAccExp, integer curAccExp)
+		self.JobCode = jobCode
+		self.PrevAccExp = prevAccExp
+		self.CurAccExp = curAccExp
+	end
+
+end

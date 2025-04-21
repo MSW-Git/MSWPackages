@@ -1,0 +1,28 @@
+@Component
+script UIInventoryGridCell extends Component
+
+	property UIItemSlot ItemSlot = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		self.ItemSlot = self.Entity.UIItemSlot
+		self.ItemSlot.OnItemClickedFunc = function() self:OnItemClicked() end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnItemClicked()
+		---@type ItemStruct
+		local itemStruct = self.ItemSlot.ItemStruct
+		if itemStruct == nil then
+			return
+		end
+		
+		local gearStruct = itemStruct:GetGearStruct()
+		if gearStruct then
+			self.Entity.Parent.UIInventoryGrid.EquipPopup:Open(true, itemStruct)
+		else
+			self.Entity.Parent.UIInventoryGrid.UsePopup:Open(itemStruct)
+		end
+	end
+
+end

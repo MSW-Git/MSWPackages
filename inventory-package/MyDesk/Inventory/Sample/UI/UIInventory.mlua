@@ -1,0 +1,204 @@
+@Component
+script UIInventory extends Component
+
+	property TextComponent TextName = nil
+
+	property TextComponent TextLevel = nil
+
+	property TextComponent TextCapacity = nil
+
+	property TextComponent TextInventorySort = nil
+
+	property UIEquippedGearPanel EquippedGearPanel = nil
+
+	property UIInventoryTabHolder InventoryTabHolder = nil
+
+	property UIInventoryGrid InventoryGrid = nil
+
+	property UIEquipPopup EquipPopup = nil
+
+	property UIUsePopup UsePopup = nil
+
+	property integer SortEnum = 0
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		self.EquipPopup = self.Entity:GetChildByName("EquipPopup").UIEquipPopup
+		self.EquipPopup.Inventory = self
+		self.EquipPopup.Entity.Enable = false
+		
+		self.UsePopup = self.Entity:GetChildByName("UsePopup").UIUsePopup
+		self.UsePopup.Inventory = self
+		self.UsePopup.Entity.Enable = false
+		
+		local panel = self.Entity:GetChildByName("Panel")
+		local buttonClose = panel:GetChildByName("ButtonClose")
+		buttonClose:ConnectEvent(ButtonClickEvent, function() self:Close() end)
+		
+		local playerPanel = panel:GetChildByName("EquipPanel")
+		self.EquippedGearPanel = playerPanel.UIEquippedGearPanel
+		self.EquippedGearPanel.EquipPopup = self.EquipPopup
+		local playerInfo = playerPanel:GetChildByName("PlayerInfo")
+		local nameBackground = playerInfo:GetChildByName("NameBackground")
+		self.TextName = nameBackground:GetChildByName("Name").TextComponent
+		local levelBackground = nameBackground:GetChildByName("LevelBackground")
+		self.TextLevel = levelBackground:GetChildByName("Level").TextComponent
+		
+		local inventoryPanel = panel:GetChildByName("InventoryPanel")
+		
+		local originalGridCell = _SpawnService:SpawnByModelId(_EntryService:GetModelIdByName("ItemSlot"), "ItemSlot", Vector3.zero, self.Entity)
+		originalGridCell.Enable = false
+		---@type UIInventoryGridCell
+		local inventoryGridCell = originalGridCell:AddComponent(UIInventoryGridCell)
+		
+		self.InventoryGrid = inventoryPanel:GetChildByName("Grid").UIInventoryGrid
+		self.InventoryGrid:SetGridViewItem(originalGridCell)
+		self.InventoryGrid.Inventory = self
+		self.InventoryGrid.EquipPopup = self.EquipPopup
+		self.InventoryGrid.UsePopup = self.UsePopup
+		
+		self.InventoryTabHolder = inventoryPanel:GetChildByName("TabHolder").UIInventoryTabHolder
+		self.InventoryTabHolder.InventoryGrid = self.InventoryGrid
+		
+		local capacityTextHolder = inventoryPanel:GetChildByName("Capacity")
+		self.TextCapacity = capacityTextHolder:GetChildByName("Text").TextComponent
+		
+		local buttonSort = inventoryPanel:GetChildByName("ButtonSort")
+		buttonSort:ConnectEvent(ButtonClickEvent, function() self:OnSortButtonClicked() end)
+		self.TextInventorySort = buttonSort:GetChildByName("Text").TextComponent
+		self.SortEnum = 1
+		self.TextInventorySort.Text = _InventorySortEnum:GetSortName(self.SortEnum)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnSortButtonClicked()
+		self.SortEnum = self.SortEnum == _InventorySortEnum.MAX and 1 or self.SortEnum + 1
+		self.TextInventorySort.Text = _InventorySortEnum:GetSortName(self.SortEnum)
+		self.InventoryTabHolder:Update(false)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Toggle()
+		if self.Entity.Enable == false then
+			self:Open()
+		else
+			self:Close()
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Open()
+		local playerJob = _UserService.LocalPlayer.PlayerJob
+		local playerInventory = _UserService.LocalPlayer.PlayerInventory
+		
+		if playerInventory.CurrentJob == nil then
+			---@type table<integer, JobData>
+			local jobDataList = _JobDataLogic:GetSortJobDataList()
+			---@type JobData
+			local firstJob = nil
+			for i, jobData in ipairs(jobDataList) do
+				if playerJob:IsJobLocked(jobData.Id) then
+					continue
+				end
+				
+				firstJob = jobData
+				break
+			end
+			
+			if firstJob == nil then
+				self:Toggle()
+				return
+			end
+			
+			playerInventory.CurrentJob = firstJob.Id
+		end
+		
+		local jobData = _JobDataLogic:GetData(playerInventory.CurrentJob)
+		
+		self.TextName.Text = jobData.Name
+		self.TextLevel.Text = tostring(playerJob:GetJobLevel(jobData.Id))
+		
+		self.TextCapacity.Text = string.format("%d / %d", _Util:TableLen(playerInventory.Items), playerInventory.InventoryCapacity)
+		
+		self.EquippedGearPanel:Update(playerInventory.AttachedNormalGearItems[jobData.Id])
+		self.InventoryTabHolder:Update(true)
+		
+		self.Entity.Enable = true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Close()
+		_UserService.LocalPlayer.PlayerInventory:RemoveAllNewItemsFromList()
+		
+		self.Entity.Enable = false
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("LocalPlayer")
+	handler HandleInvenAttachNormalGearEvent(InvenAttachNormalGearEvent event)
+		if self.Entity.Enable == false then
+			return
+		end
+		
+		local playerJob = _UserService.LocalPlayer.PlayerJob
+		local playerInventory = _UserService.LocalPlayer.PlayerInventory
+		
+		 local Job = event.Job
+		if playerInventory.CurrentJob ~= Job then
+			return
+		end
+		
+		self.EquippedGearPanel:Update(playerInventory.AttachedNormalGearItems[Job])
+		self.InventoryTabHolder:Update(true)
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("LocalPlayer")
+	handler HandleInvenDetachNormalGearEvent(InvenDetachNormalGearEvent event)
+		if self.Entity.Enable == false then
+			return
+		end
+		
+		local playerJob = _UserService.LocalPlayer.PlayerJob
+		local playerInventory = _UserService.LocalPlayer.PlayerInventory
+		
+		 local Job = event.Job
+		if playerInventory.CurrentJob ~= Job then
+			return
+		end
+		
+		self.EquippedGearPanel:Update(playerInventory.AttachedNormalGearItems[Job])
+		self.InventoryTabHolder:Update(true)
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("LocalPlayer")
+	handler HandleInvenItemAddedEvent(InvenItemAddedEvent event)
+		if self.Entity.Enable == false then
+			return
+		end
+		
+		self.InventoryTabHolder:Update(true)
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("LocalPlayer")
+	handler HandleInvenItemModifiedEvent(InvenItemModifiedEvent event)
+		if self.Entity.Enable == false then
+			return
+		end
+		
+		self.InventoryTabHolder:Update(true)
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("LocalPlayer")
+	handler HandleInvenItemRemovedEvent(InvenItemRemovedEvent event)
+		if self.Entity.Enable == false then
+			return
+		end
+		
+		self.InventoryTabHolder:Update(true)
+	end
+
+end

@@ -1,0 +1,6 @@
+@Event
+script InvenItemModifiedEvent extends EventType
+
+	property table GUIDs = {}
+
+end

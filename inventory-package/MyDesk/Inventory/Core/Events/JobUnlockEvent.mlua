@@ -1,0 +1,10 @@
+@Event
+script JobUnlockEvent extends EventType
+
+	property integer JobCode = 0
+
+	property boolean IsUnlock = true
+
+	property boolean IsFromTool = false
+
+end

@@ -1,0 +1,68 @@
+@Component
+script UIEquippedGearPanel extends Component
+
+	property CostumeManagerComponent CostumeManager = nil
+
+	property table SlotEntityByGearCategory = {}
+
+	property UIEquipPopup EquipPopup = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local playerInfo = self.Entity:GetChildByName("PlayerInfo")
+		local avatar = playerInfo:GetChildByName("UIAvatarEntity")
+		self.CostumeManager = avatar.CostumeManagerComponent
+		
+		local equipmentGrid = self.Entity:GetChildByName("EquipInfoGrid")
+		self.SlotEntityByGearCategory = {
+			[_GearCategoryEnum.OneHandedWeapon] = equipmentGrid:GetChildByName("MainWeapon"),
+			[_GearCategoryEnum.SubWeapon] = equipmentGrid:GetChildByName("SubWeapon"),
+			[_GearCategoryEnum.Longcoat] = equipmentGrid:GetChildByName("Coat"),
+			[_GearCategoryEnum.Cap] = equipmentGrid:GetChildByName("Cap"),
+			[_GearCategoryEnum.Shoes] = equipmentGrid:GetChildByName("Shoes"),
+			[_GearCategoryEnum.Glove] = equipmentGrid:GetChildByName("Glove"),
+			[_GearCategoryEnum.Cape] = equipmentGrid:GetChildByName("Cape"),
+			[_GearCategoryEnum.Shoulder] = equipmentGrid:GetChildByName("Shoulder"),
+			[_GearCategoryEnum.EarAccessory] = equipmentGrid:GetChildByName("EarAcc"),
+			[_GearCategoryEnum.Pendant] = equipmentGrid:GetChildByName("FaceAcc"),
+		}
+		
+		for i, entity in pairs(self.SlotEntityByGearCategory) do
+			---@type Entity
+			local slotEntity = entity
+			slotEntity.UIEquippedGearGridCell.EquipPopup = self.EquipPopup
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Update(table gearGUIDByCategory)
+		if gearGUIDByCategory == nil then
+			gearGUIDByCategory = {}
+		end
+		
+		local playerInventory = _UserService.LocalPlayer.PlayerInventory
+		
+		for i, gearEnum in ipairs(_GearCategoryEnum:GetEnums()) do
+			if gearEnum == _GearCategoryEnum.TwoHandedWeapon then
+				gearEnum = _GearCategoryEnum.OneHandedWeapon
+			end
+			
+			---@type Entity
+			local slotEntity = self.SlotEntityByGearCategory[gearEnum]
+			
+			local gearGUID = gearGUIDByCategory[gearEnum]
+			if gearGUID then
+				---@type ItemStruct
+				local itemStruct = playerInventory.Items[gearGUID]
+				slotEntity.UIEquippedGearGridCell:Set(itemStruct)
+				
+				local gearData = itemStruct:GetGearData()
+				self.CostumeManager:SetEquip(_GearCategoryEnum:ToAvatarCategory(gearEnum), gearData.AvatarRUID)
+			else
+				slotEntity.UIEquippedGearGridCell:Clear()
+				self.CostumeManager:SetEquip(_GearCategoryEnum:ToAvatarCategory(gearEnum), "")
+			end
+		end
+	end
+
+end

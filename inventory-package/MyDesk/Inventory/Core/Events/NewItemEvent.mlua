@@ -1,0 +1,4 @@
+@Event
+script NewItemEvent extends EventType
+
+end

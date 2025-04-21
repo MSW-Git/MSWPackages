@@ -1,0 +1,11 @@
+﻿Id,Name,AvatarRUID,GearCategory,ReqLevel,ReqJob,DefaultGrade
+010001,Pensalir Battle Helm,a8f555328bca4745a881a93346b9be38,Cap,,,None
+030001,Pensalir Battle Gloves,acca69e4e49945738b11e61d48261ca7,Glove,,,Rare
+040001,Pensalir Battle Boots,0f1991a4e28549de9ab56a67fbfe531c,Shoes,,,Epic
+050001,Pensalir Battle Cape,33868c96632d490c93136b9adbfd2413,Cape,,,Unique
+020001,Pensalir Battle Mail,8143b856f2f645e299e2a8666be2ae57,Longcoat,,,Legendary
+080001,Meister Battle Shoulder,,Shoulder,,,
+060001,Fafnir Mercy,,OneHandedWeapon,,10,Legendary
+070001,Noble Bladebinder,,SubWeapon,,10,Legendary
+090001,Estella Earrings,0b2cfa2a7e544360a602c07c56ba7fee,EarAccessory,,,
+100001,Guardian Angel Pendant,,Pendant,,,

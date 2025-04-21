@@ -1,0 +1,8 @@
+@Struct
+script WorldDataLoadStepStruct
+
+	property string Name = ""
+
+	property any Func = nil
+
+end

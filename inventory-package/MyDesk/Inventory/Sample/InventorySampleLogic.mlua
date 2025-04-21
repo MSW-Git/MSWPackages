@@ -1,0 +1,61 @@
+@Logic
+script InventorySampleLogic extends Logic
+
+	property Entity Inventory = nil
+
+	property string ParentUIPath = "/ui/DefaultGroup"
+
+	@ExecSpace("Server")
+	method void RequestAddStaminaItem()
+		if _AdminLogic:IsAdmin(senderUserId) == false then
+			return
+		end
+		
+		local createParam = ItemCreateParamStruct()
+		createParam:Set(500001, 1, nil)
+		
+		_ItemFactoryLogic:TryAddItem(senderUserId, createParam, ItemCreateResultStruct())
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("Service", "InputService")
+	handler HandleKeyDownEvent(KeyDownEvent event)
+		 local key = event.key
+		
+		if _UserService.LocalPlayer.PlayerInventory.InitSyncEnd == false then
+			return
+		end
+		
+		if key == KeyboardKey.I then
+			if isvalid(self.Inventory) == false then
+				local uiParent = _EntityService:GetEntityByPath(self.ParentUIPath)
+				self.Inventory = _SpawnService:SpawnByModelId(_EntryService:GetModelIdByName("Inventory"), "Inventory", Vector3.zero, uiParent)
+				self.Inventory.Enable = false
+			end
+			
+			self.Inventory.UIInventory:Toggle()
+		elseif key == KeyboardKey.Alpha1 then
+			self:RequestAddStaminaItem()
+		end
+	end
+
+	@ExecSpace("ServerOnly")
+	@EventSender("Service", "UserService")
+	handler HandleUserEnterEvent(UserEnterEvent event)
+		 local UserId = event.UserId
+		
+		if _DataLoadLogic:IsLoadSuccessAndWait() == false then
+			return
+		end
+		
+		if _AdminLogic:IsAdmin(UserId) == false then
+			return
+		end
+		
+		local user = _UserService:GetUserEntityByUserId(UserId)
+		if user.PlayerJob:IsJobLockedAll() then
+			user.PlayerJob:UnlockJob(_PlayerJobCodeEnum.Adele)
+		end
+	end
+
+end

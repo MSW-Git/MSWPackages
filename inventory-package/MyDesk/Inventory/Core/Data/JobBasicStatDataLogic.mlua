@@ -1,0 +1,158 @@
+@Logic
+script JobBasicStatDataLogic extends DataSetLogic
+
+	property table Data = {}
+
+	method boolean Load()
+		if self:IsInit() then
+			return true
+		end
+		self:Inner_Start()
+		
+		if not _JobDataLogic:IsInit() then
+			log_error("_JobDataLogic is not init.")
+			return false
+		end
+		
+		local jobList = _JobDataLogic:GetJobCodes()
+		local dataTable = {}
+		for _, jobCode in ipairs(jobList) do
+			local tableName = jobCode.."BasicStatDataSet"
+			local jobBasicStatDataSet = _DataService:GetTable(tableName)
+			local statDataList = {}
+			local accumulatedExp = 0
+			
+			for i, row in ipairs(jobBasicStatDataSet:GetAllRow()) do
+				local level = math.tointeger(tonumber(row:GetItem("Level")))
+				if level == nil then
+					continue
+				end
+				if level ~= i then
+					log_error(string.format("%s's row %d and level %d cannot match", tableName, i, level))
+					return false
+				end
+						
+				local basicStat = JobBasicStatData()
+				basicStat:Init(row)
+				
+				accumulatedExp += basicStat.MaxExp
+				basicStat.AccumulatedExp = accumulatedExp
+				
+				table.insert(statDataList, basicStat)
+				self:Inner_Wait()
+			end
+			
+			dataTable[jobCode] = statDataList
+		end
+		
+		self.Data = dataTable
+		
+		self:Inner_End()
+		return true
+	end
+
+	method JobBasicStatData GetJobStatInLevel(integer jobCode, integer level)
+		local statDataList = self.Data[jobCode]
+		if statDataList == nil then
+			return nil
+		end
+		
+		if level < 1 or #statDataList < level then
+			return nil
+		end
+		
+		return statDataList[level]
+	end
+
+	method integer GetJobMaxLevel(integer jobCode)
+		local statDataList = self.Data[jobCode]
+		if statDataList == nil then
+			return nil
+		end
+		
+		return #statDataList
+	end
+
+	method integer GetAccExp(integer jobCode, integer level)
+		local data = self:GetJobStatInLevel(jobCode, level)
+		if data == nil then
+			return nil
+		end
+		
+		return data.AccumulatedExp
+	end
+
+	method integer GetMaxAccExp(integer jobCode)
+		local maxLevel = self:GetJobMaxLevel(jobCode)
+		if maxLevel == nil then
+			return nil
+		end
+		
+		return self:GetJobStatInLevel(jobCode, maxLevel).AccumulatedExp
+	end
+
+	method integer GetMaxExp(integer jobCode, integer level)
+		local data = self:GetJobStatInLevel(jobCode, level)
+		if data == nil then
+			return nil
+		end
+		return data.MaxExp
+	end
+
+	method integer FindCurrentLevel(integer jobCode, integer accExp)
+		local left = 1
+		local right = self:GetJobMaxLevel(jobCode)
+		
+		if right == nil then
+			return nil
+		end
+		
+		local statDataList = self.Data[jobCode]
+		
+		while left <= right do
+			local mid = math.floor((left + right) / 2)
+			if statDataList[mid].AccumulatedExp <= accExp then
+				left = mid + 1
+			else
+				right = mid - 1
+			end
+		end
+		
+		local result = math.min(self:GetJobMaxLevel(jobCode), left)
+		return result
+	end
+
+	method number GetCurrentRatioExp(integer jobCode, integer accExp)
+		local level = self:FindCurrentLevel(jobCode, accExp)
+		local curLevelStat = self:GetJobStatInLevel(jobCode, level)
+		if curLevelStat == nil then
+			return 0
+		end
+		
+		local prevLevelAccExp = 0
+		local prevLevelStat = self:GetJobStatInLevel(jobCode, level - 1)
+		if prevLevelStat ~= nil then
+			prevLevelAccExp = prevLevelStat.AccumulatedExp
+		end
+		
+		local curExp = accExp - prevLevelAccExp
+		return curExp / curLevelStat.MaxExp
+	end
+
+	method integer GetCurrentExp(integer jobCode, integer accExp)
+		local level = self:FindCurrentLevel(jobCode, accExp)
+		local curLevelStat = self:GetJobStatInLevel(jobCode, level)
+		if curLevelStat == nil then
+			return 0
+		end
+		
+		local prevLevelAccExp = 0
+		local prevLevelStat = self:GetJobStatInLevel(jobCode, level - 1)
+		if prevLevelStat ~= nil then
+			prevLevelAccExp = prevLevelStat.AccumulatedExp
+		end
+		
+		return accExp - prevLevelAccExp
+	end
+
+end

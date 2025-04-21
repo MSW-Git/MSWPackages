@@ -1,0 +1,35 @@
+@Logic
+script PlayerJobCodeEnum extends Logic
+
+	property integer None = 0
+
+	property integer Adele = 10
+
+	property table JobCodeList = nil
+
+	property table StringToEnumTable = nil
+
+	method void Init()
+		local stringToEnumTable = {}
+		self.StringToEnumTable = stringToEnumTable
+		stringToEnumTable["Adele"] = self.Adele
+		
+		local jobCodeList = {}
+		self.JobCodeList = jobCodeList
+		
+		table.insert(jobCodeList, self.Adele)
+	end
+
+	method table GetJobCodeList()
+		return self.JobCodeList
+	end
+
+	method integer ToInt(string typeStr)
+		local enum = self.StringToEnumTable[typeStr]
+		if enum == nil then
+			return self.None
+		end
+		return enum
+	end
+
+end

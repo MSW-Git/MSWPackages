@@ -1,0 +1,49 @@
+@Component
+script UIInventoryGrid extends Component
+
+	property GridViewComponent GridView = nil
+
+	property Entity GridCellBaseEntity = nil
+
+	property UIInventory Inventory = nil
+
+	property table SortedItemStructs = {}
+
+	property UIEquipPopup EquipPopup = nil
+
+	property UIUsePopup UsePopup = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnInitialize()
+		self.GridView = self.Entity.GridViewComponent
+		self.GridView.OnRefresh = function(index, entity) self:OnRefresh(index + 1, entity) end
+		self.GridView.OnClear = function(index, entity) self:OnClear(entity) end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetGridViewItem(Entity baseEntity)
+		self.GridCellBaseEntity = baseEntity
+		self.GridView.ItemEntity = baseEntity
+		self.GridView.TotalCount = _UserService.LocalPlayer.PlayerInventory.InventoryCapacity
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Update(table itemStructs)
+		table.sort(itemStructs, _InventorySortEnum:GetSortFunc(self.Inventory.SortEnum))
+		self.SortedItemStructs = itemStructs
+		
+		self.GridView:Refresh(true, true)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnRefresh(integer index, Entity entity)
+		local itemStruct = self.SortedItemStructs[index]
+		entity.UIItemSlot:Set(itemStruct)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClear(Entity entity)
+		entity.UIItemSlot:Clear()
+	end
+
+end

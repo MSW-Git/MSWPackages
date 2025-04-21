@@ -1,0 +1,109 @@
+@Logic
+script DataLoadLogic extends Logic
+
+	property boolean IsLoadEnd = false
+
+	property boolean IsLoadSuccess = false
+
+	property table StepList = {}
+
+	property integer StepIndex = 1
+
+	method void OnBeginPlay()
+		self:InitOnBeginPlay()
+		
+		self:AddStep("LoadDataSet_1", function() return self:LoadDataSet_1() end)
+		self:AddStep("LoadDataSet_2", function() return self:LoadDataSet_2() end)
+		self:AddStep("NotifyToServer", function()
+			if self:IsClient() then
+				_UserService.LocalPlayer.PlayerDBManager:NotifyWorldDataLoadCompleted()
+			end
+			return true
+		end)
+		
+		_TimerService:SetTimerOnce(self.DoStep, 0.1)
+	end
+
+	method void InitOnBeginPlay()
+		_AvatarCategoryEnum:Init()
+		_GearGradeEnum:Init()
+		_ItemCategoryEnum:Init()
+		_GearCategoryEnum:Init()
+		_InventorySortEnum:Init()
+		_PlayerJobCodeEnum:Init()
+	end
+
+	method void AddStep(string name, any func)
+		local stepStruct = WorldDataLoadStepStruct()
+		stepStruct.Name = name
+		stepStruct.Func = func
+		
+		table.insert(self.StepList, stepStruct)
+	end
+
+	method void DoStep()
+		local stepIndex = self.StepIndex
+		
+		---@type WorldDataLoadStepStruct
+		local stepStruct = self.StepList[stepIndex]
+		if stepStruct == nil then
+			self.IsLoadEnd = true
+			self.IsLoadSuccess = true
+			return
+		end
+		
+		local name = stepStruct.Name
+		local func = stepStruct.Func 
+		
+		local success, result = pcall(func)
+		if not success then
+			self.IsLoadEnd = true
+			log_error(string.format("DataLoadLogic Exception. StepIndex : %d, Name : %s, Msg : %s", stepIndex, name, result))
+			return
+		elseif not result then
+			self.IsLoadEnd = true
+			log_error(string.format("DataLoadLogic Failed. StepIndex : %d, Name : %s, Msg : %s", stepIndex, name, result))
+			return
+		end
+		
+		self.StepIndex += 1
+		_TimerService:SetTimerOnce(self.DoStep, 0.01)
+	end
+
+	method boolean LoadDataSet_1()
+		if not _JobDataLogic:Load() then
+			return false
+		end
+		wait(0.01)
+		
+		if not _JobBasicStatDataLogic:Load() then
+			return false
+		end
+		wait(0.01)
+		
+		return true
+	end
+
+	method boolean LoadDataSet_2()
+		if not _ItemGearDataLogic:Load() then
+			return false
+		end
+		wait(0.01)
+		
+		if not _ItemDataLogic:Load() then
+			return false
+		end
+		wait(0.01)
+		
+		return true
+	end
+
+	method boolean IsLoadSuccessAndWait()
+		while not self.IsLoadEnd do
+			wait(1)
+		end
+		
+		return self.IsLoadSuccess
+	end
+
+end

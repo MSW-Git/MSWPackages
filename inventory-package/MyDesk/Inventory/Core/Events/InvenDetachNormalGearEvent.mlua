@@ -1,0 +1,13 @@
+@Event
+script InvenDetachNormalGearEvent extends EventType
+
+	property integer Job = 0
+
+	property integer GearCategory = 0
+
+	method void Init(integer job, integer gearCategory)
+		self.Job = job
+		self.GearCategory = gearCategory
+	end
+
+end

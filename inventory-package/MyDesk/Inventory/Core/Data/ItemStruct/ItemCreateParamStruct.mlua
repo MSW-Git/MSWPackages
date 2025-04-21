@@ -1,0 +1,131 @@
+@Struct
+script ItemCreateParamStruct
+
+	property integer ItemId = 0
+
+	property integer ItemCount = 0
+
+	property integer EndDateMinute = 0
+
+	property integer Grade = nil
+
+	property boolean IsIgnoreInvenCapacity = true
+
+	method void CopyFrom(ItemCreateParamStruct other)
+		self.ItemId = other.ItemId
+		self.ItemCount = other.ItemCount
+		self.EndDateMinute = other.EndDateMinute
+		self.Grade = other.Grade
+	end
+
+	method ItemCreateParamStruct Clone()
+		local struct = ItemCreateParamStruct()
+		struct:CopyFrom(self)
+		
+		return struct
+	end
+
+	method boolean IsValidData(table failInfo)
+		if self.ItemId == nil or self.ItemId <= 0 or self.ItemCount == nil or self.ItemCount <= 0 then
+			return false
+		end
+		
+		if not self:IsValidGearData(failInfo) then
+			return false
+		end
+		
+		return true
+	end
+
+	method boolean IsValidGearData(table failInfo)
+		local itemData = _ItemDataLogic:GetData(self.ItemId)
+		if itemData == nil then
+			local message = string.format('ItemCreateParamStruct Error. Cannot find itemId. ItemId : %d', self.ItemId)
+			log_error(message)
+			failInfo.Message = message
+			return false
+		end
+		
+		local isGearItem = (itemData.Category == _ItemCategoryEnum.Gear)
+		if not isGearItem then
+			return true
+		end
+		
+		local gearData = itemData:GetGearData()
+		if gearData == nil then
+			local message = string.format('ItemCreateParamStruct Error. Cannot find gearData. ItemId : %d', self.ItemId)
+			log_error(message)
+			failInfo.Message = message
+			return false
+		end
+		
+		return true
+	end
+
+	method ItemStruct CreateItemStruct(boolean nonStackable)
+		local itemData = _ItemDataLogic:GetData(self.ItemId)
+		if itemData == nil then
+			return nil
+		end
+		
+		local itemStruct = ItemStruct()
+		itemStruct.ItemId = self.ItemId
+		if nonStackable then
+			itemStruct.Count = 1
+		else
+			itemStruct.Count = self.ItemCount
+		end
+		
+		itemStruct.EndDateMinute = self.EndDateMinute
+		itemStruct.Lock = false
+		
+		if itemData.Category == _ItemCategoryEnum.Gear then
+			if not self:CreateGearStruct(itemStruct) then
+				return nil
+			end
+		end
+		
+		return itemStruct
+	end
+
+	method boolean CreateGearStruct(ItemStruct itemStruct)
+		local gearData = itemStruct:GetGearData()
+		if gearData == nil then
+			return false
+		end
+		
+		local gearStruct = ItemGearStruct()
+		itemStruct.ItemGearStruct = gearStruct
+		
+		if self.Grade ~= nil then
+			gearStruct.Grade = self.Grade
+		else
+			gearStruct.Grade = gearData.DefaultGrade
+		end
+		
+		return true
+	end
+
+	method boolean Set(integer itemId, integer count, integer endDateMinute)
+		local itemData = _ItemDataLogic:GetData(itemId)
+		if itemData == nil then
+			return false
+		end
+		
+		self.ItemId = itemId
+		self.ItemCount = count
+		
+		if endDateMinute == nil then
+			if itemData.ExpirationPeriodDay ~= 0 then
+				self.EndDateMinute = math.floor((itemData.ExpirationPeriodDay + _DateTimeLogic:GetTimeElapsed() ) / 1000 / 60)
+			else
+				self.EndDateMinute = math.floor(itemData.ExpirationDate / 1000 / 60)
+			end
+		else
+			self.EndDateMinute = endDateMinute
+		end
+		
+		return true
+	end
+
+end

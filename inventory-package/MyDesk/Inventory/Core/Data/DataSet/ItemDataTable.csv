@@ -1,0 +1,12 @@
+﻿Id,Name,RUID,Category,UsableFunction,UsableFunctionParams,CanDiscard,NonStackable,IsNotConsumeOnUse,CooldownTime,ExpirationDate,ExpirationPeriodDay
+010001,Pensalir Battle Helm,thumbnail://a8f555328bca4745a881a93346b9be38,Gear,,,1,,,,,
+030001,Pensalir Battle Gloves,thumbnail://acca69e4e49945738b11e61d48261ca7,Gear,,,1,,,,,
+040001,Pensalir Battle Boots,thumbnail://0f1991a4e28549de9ab56a67fbfe531c,Gear,,,1,,,,,
+050001,Pensalir Battle Cape,thumbnail://33868c96632d490c93136b9adbfd2413,Gear,,,1,,,,,
+020001,Pensalir Battle Mail,thumbnail://8143b856f2f645e299e2a8666be2ae57,Gear,,,1,,,,,
+080001,Meister Battle Shoulder,a5b1d17d69384f9d896f8192d48403f1,Gear,,,1,,,,,
+060001,Fafnir Mercy,38ec4f10dfaa4dcaa53233410d898f0c,Gear,,,1,,,,,
+070001,Noble Bladebinder,ec6568dea50a40d0bd3adb6e2c60eeba,Gear,,,1,,,,,
+090001,Estella Earrings,thumbnail://0b2cfa2a7e544360a602c07c56ba7fee,Gear,,,1,,,,,
+100001,Guardian Angel Pendant,80de96ecbe964808bab5f53dbbc6fc53,Gear,,,1,,,,,
+500001,Stamina,52e384eb9a613864ca5fb683e506c440,Usable,Stamina,30,1,,,1,12/31/2050 23:59:59,

@@ -1,0 +1,39 @@
+@Component
+script UIEquippedGearGridCell extends Component
+
+	property UIItemSlot ItemSlot = nil
+
+	property UIEquipPopup EquipPopup = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local itemSlotEntity = _SpawnService:SpawnByModelId(_EntryService:GetModelIdByName("ItemSlot"), "ItemSlot", Vector3.zero, self.Entity)
+		self.ItemSlot = itemSlotEntity.UIItemSlot
+		self.ItemSlot.OnItemClickedFunc = function() self:OnGearIconClicked() end
+		itemSlotEntity.UITransformComponent.RectSize = self.Entity.UITransformComponent.RectSize
+		itemSlotEntity.Enable = false
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Set(ItemStruct itemStruct)
+		self.ItemSlot:Set(itemStruct)
+		self.ItemSlot.ImageDim.Enable = false
+		self.ItemSlot.Entity.Enable = true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		self.ItemSlot.Entity.Enable = false
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnGearIconClicked()
+		local itemStruct = self.ItemSlot.ItemStruct
+		if itemStruct == nil then
+			return
+		end
+		
+		self.EquipPopup:Open(false, itemStruct)
+	end
+
+end

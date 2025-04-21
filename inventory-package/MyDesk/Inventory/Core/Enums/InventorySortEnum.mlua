@@ -1,0 +1,90 @@
+@Logic
+script InventorySortEnum extends Logic
+
+	property table SortFunctionByEnum = {}
+
+	property table SortNameByEnum = {}
+
+	property integer None = 0
+
+	property integer ItemId = 1
+
+	property integer EndDateMinute = 2
+
+	property integer MAX = 2
+
+	method void Init()
+		local sortFuncTable = {}
+		self.SortFunctionByEnum = sortFuncTable
+		
+		---@param a ItemStruct
+		---@param b ItemStruct
+		local function defaultFunc(a, b)
+			if a.ItemId ~= b.ItemId then
+				return a.ItemId < b.ItemId
+			end
+			
+			if a.EndDateMinute ~= b.EndDateMinute then
+				if a.EndDateMinute == 0 then
+					return false
+				end
+				
+				if b.EndDateMinute == 0 then
+					return true
+				end
+				
+				return a.EndDateMinute < b.EndDateMinute
+			end
+			
+			return a.GUID < b.GUID
+		end
+		sortFuncTable[self.None] = defaultFunc
+		sortFuncTable[self.ItemId] = defaultFunc
+		
+		---@param a ItemStruct
+		---@param b ItemStruct
+		local function endDateMinuteFunc(a, b)
+			if a.EndDateMinute ~= b.EndDateMinute then
+				if a.EndDateMinute == 0 then
+					return false
+				end
+				
+				if b.EndDateMinute == 0 then
+					return true
+				end
+					
+				return a.EndDateMinute < b.EndDateMinute
+			end
+			
+			if a.ItemId ~= b.ItemId then
+				return a.ItemId < b.ItemId
+			end
+			
+			return a.GUID < b.GUID
+		end
+		sortFuncTable[self.EndDateMinute] = endDateMinuteFunc
+		
+		self.SortNameByEnum = {
+			[self.ItemId] = "Item Id",
+			[self.EndDateMinute] = "Expiration time",
+		}
+	end
+
+	method any GetSortFunc(integer enum)
+		local func = self.SortFunctionByEnum[enum]
+		if func == nil then
+			func = self.SortFunctionByEnum[self.None]
+		end
+		
+		return func
+	end
+
+	method string GetSortName(integer enum)
+		if self.SortNameByEnum[enum] == nil then
+			return self.SortNameByEnum[self.None]
+		end
+		
+		return self.SortNameByEnum[enum]
+	end
+
+end

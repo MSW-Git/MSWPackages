@@ -1,0 +1,71 @@
+@Logic
+script JobDataLogic extends DataSetLogic
+
+	property table TableData = {}
+
+	property table SortedJobDataList = {}
+
+	property table JobCodes = {}
+
+	method boolean Load()
+		if self:IsInit() then
+			return true
+		end
+		self:Inner_Start()
+		
+		local tableData = self.TableData
+		table.clear(tableData)
+		local jobCodes = {}
+		local dataSet = _DataService:GetTable("JobDataSet")
+		for i, row in ipairs(dataSet:GetAllRow()) do
+			local jobData = JobData()
+			if jobData:Init(row) == false then
+				continue
+			end
+			
+			local id = jobData.Id
+			if tableData[id] ~= nil then
+				log_warning("JobDataSet LoadData. Already id exits. ItemId : " .. tostring(id))
+				return false
+			end
+			
+			tableData[id] = jobData
+			
+			table.insert(jobCodes, jobData.Id)
+		end
+		
+		self.JobCodes = jobCodes
+		
+		local sortedTableData = {}
+		self.SortedJobDataList = sortedTableData
+		
+		for k, jobData in pairs(tableData) do	
+			table.insert(sortedTableData, jobData)
+		end
+		
+		table.sort(sortedTableData, function(a, b)
+			---@type JobData
+			local left = a
+			---@type JobData
+			local right = b
+			
+			return left.Sort < right.Sort
+		end)
+		
+		self:Inner_End()
+		return true
+	end
+
+	method JobData GetData(integer job)
+		return self.TableData[job]
+	end
+
+	method table GetJobCodes()
+		return self.JobCodes
+	end
+
+	method table GetSortJobDataList()
+		return self.SortedJobDataList
+	end
+
+end

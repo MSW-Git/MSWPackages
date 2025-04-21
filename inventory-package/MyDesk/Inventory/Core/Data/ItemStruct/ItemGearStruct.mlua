@@ -1,0 +1,49 @@
+@Struct
+script ItemGearStruct
+
+	property boolean IsAttached = false
+
+	property integer Grade = 0
+
+	method void CopyFrom(ItemGearStruct other)
+		self.IsAttached = other.IsAttached
+		self.Grade = other.Grade
+	end
+
+	method ItemGearStruct Clone()
+		local cloneStruct = ItemGearStruct()
+		cloneStruct:CopyFrom(self)
+		
+		return cloneStruct
+	end
+
+	method boolean Deserialize(table dbItem)
+		local hasDeserializedData = false
+		
+		local gradeStr = dbItem['G']
+		if not _Util:IsNilorEmptyString(gradeStr) then
+			local strs = _UtilLogic:Split(gradeStr, ',')
+			self.Grade = math.tointeger(tonumber(strs[1]))
+			if self.Grade == nil then
+				self.Grade = 0
+			end
+			
+			hasDeserializedData = true
+		end
+		
+		return hasDeserializedData
+	end
+
+	method boolean Serialize(table dbItem)
+		if self.Grade ~= 0 then
+			local strs = {}
+			table.insert(strs, tostring(self.Grade))
+				
+			local str = table.concat(strs, ',')
+			dbItem['G'] = str
+		end
+		
+		return true
+	end
+
+end

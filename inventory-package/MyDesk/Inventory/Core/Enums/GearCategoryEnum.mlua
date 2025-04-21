@@ -1,0 +1,162 @@
+@Logic
+script GearCategoryEnum extends Logic
+
+	property table StringToEnumTable = {}
+
+	property table EnumToRUIDTable = {}
+
+	property table EnumToAvatarCategoryTable = {}
+
+	property table WeaponTable = {}
+
+	property table ArmorTable = {}
+
+	property table AccTable = {}
+
+	property integer None = 0
+
+	property integer Cap = 1
+
+	property integer Longcoat = 2
+
+	property integer Glove = 3
+
+	property integer Shoes = 4
+
+	property integer Cape = 5
+
+	property integer OneHandedWeapon = 6
+
+	property integer SubWeapon = 7
+
+	property integer Shoulder = 8
+
+	property integer EarAccessory = 9
+
+	property integer Pendant = 10
+
+	property integer TwoHandedWeapon = 11
+
+	property integer MAX = 12
+
+	method void Init()
+		local stringToEnumTable = {}
+		self.StringToEnumTable = stringToEnumTable
+		stringToEnumTable["Cap"] = self.Cap
+		stringToEnumTable["Longcoat"] = self.Longcoat
+		stringToEnumTable["Glove"] = self.Glove
+		stringToEnumTable["Shoes"] = self.Shoes
+		stringToEnumTable["Cape"] = self.Cape
+		stringToEnumTable["OneHandedWeapon"] = self.OneHandedWeapon
+		stringToEnumTable["TwoHandedWeapon"] = self.TwoHandedWeapon
+		stringToEnumTable["SubWeapon"] = self.SubWeapon
+		stringToEnumTable["Shoulder"] = self.Shoulder
+		stringToEnumTable["EarAccessory"] = self.EarAccessory
+		stringToEnumTable["Pendant"] = self.Pendant
+		
+		local enumToRUIDTable = {}
+		self.EnumToRUIDTable = enumToRUIDTable
+		enumToRUIDTable[self.Cap] = "cc3e39ff09844be6884440bffad2a481"
+		enumToRUIDTable[self.Longcoat] = "4dcf6a3ae60745e8919d19eb947e2cee"
+		enumToRUIDTable[self.Glove] = "a9f0c56879dd4fc7afd0a8fa4c7eb94f"
+		enumToRUIDTable[self.Shoes] = "7c9e49db961241ed9e07b10186d401ea"
+		enumToRUIDTable[self.Cape] = "b9727d71f412438bac9906ee33c6f94d"
+		enumToRUIDTable[self.OneHandedWeapon] = "b3db6c16a7094d8ba404ebbc165cc4c4"
+		enumToRUIDTable[self.TwoHandedWeapon] = "b3db6c16a7094d8ba404ebbc165cc4c4"
+		enumToRUIDTable[self.SubWeapon] = "b3db6c16a7094d8ba404ebbc165cc4c4"
+		enumToRUIDTable[self.Shoulder] = "c9124ecda2dc42788e87e9c81cf2423f"
+		enumToRUIDTable[self.EarAccessory] = "514ec3f1bd1648d4bdb094924f7f2438"
+		enumToRUIDTable[self.Pendant] = "f32d6dcdcdd44a98b579d06f8e3e99e9"
+		
+		local enumToAvatarCategoryTable = {}
+		self.EnumToAvatarCategoryTable = enumToAvatarCategoryTable
+		enumToAvatarCategoryTable[self.Cap] = _AvatarCategoryEnum.Cap
+		enumToAvatarCategoryTable[self.Longcoat] = _AvatarCategoryEnum.Longcoat
+		enumToAvatarCategoryTable[self.Glove] = _AvatarCategoryEnum.Glove
+		enumToAvatarCategoryTable[self.Shoes] = _AvatarCategoryEnum.Shoes
+		enumToAvatarCategoryTable[self.Cape] = _AvatarCategoryEnum.Cape
+		enumToAvatarCategoryTable[self.OneHandedWeapon] = _AvatarCategoryEnum.OneHandedWeapon
+		enumToAvatarCategoryTable[self.TwoHandedWeapon] = _AvatarCategoryEnum.TwoHandedWeapon
+		enumToAvatarCategoryTable[self.SubWeapon] = _AvatarCategoryEnum.SubWeapon
+		enumToAvatarCategoryTable[self.EarAccessory] = _AvatarCategoryEnum.EarAccessory
+		
+		local weaponTable = {}
+		self.WeaponTable = weaponTable
+		weaponTable[self.OneHandedWeapon] = true
+		weaponTable[self.TwoHandedWeapon] = true
+		weaponTable[self.SubWeapon] = true
+		
+		local armorTable = {}
+		self.ArmorTable = armorTable
+		armorTable[self.Cap] = true
+		armorTable[self.Longcoat] = true
+		armorTable[self.Glove] = true
+		armorTable[self.Shoes] = true
+		armorTable[self.Cape] = true
+		armorTable[self.Shoulder] = true
+		
+		local accTable = {}
+		self.AccTable = accTable
+		accTable[self.EarAccessory] = true
+		accTable[self.Pendant] = true
+	end
+
+	method integer ToInt(string typeStr)
+		local enum = self.StringToEnumTable[typeStr]
+		if enum == nil then
+			return self.None
+		end
+		return enum
+	end
+
+	method integer ToAvatarCategory(integer gearCategory)
+		local enum = self.EnumToAvatarCategoryTable[gearCategory]
+		if enum == nil then
+			return self.None
+		end
+		return enum
+	end
+
+	method boolean IsWeapon(integer gearCategory)
+		if self.WeaponTable[gearCategory] == nil then
+			return false
+		end
+		
+		return true
+	end
+
+	method boolean IsArmor(integer gearCategory)
+		if self.ArmorTable[gearCategory] == nil then
+			return false
+		end
+		
+		return true
+	end
+
+	method boolean IsAccessory(integer gearCategory)
+		if self.AccTable[gearCategory] == nil then
+			return false
+		end
+		
+		return true
+	end
+
+	method string ToIconRUID(integer gearCategory)
+		local str = self.EnumToRUIDTable[gearCategory]
+		if str == nil then
+			return ""
+		end
+		return str
+	end
+
+	method table GetEnums()
+		local enums = {}
+		
+		for str, enum in pairs(self.StringToEnumTable) do
+			table.insert(enums, enum)
+		end
+		
+		return enums
+	end
+
+end

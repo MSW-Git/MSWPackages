@@ -1,0 +1,145 @@
+@Component
+script UIEquipPopup extends Component
+
+	property TextComponent TextMessage = nil
+
+	property TextComponent TextConfirm = nil
+
+	property TextComponent TextCancel = nil
+
+	property TextComponent TextLock = nil
+
+	property UIItemSlot ItemSlot = nil
+
+	property UIInventory Inventory = nil
+
+	property any ItemStruct = nil
+
+	property boolean IsOpenedFromInventory = false
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local panel = self.Entity:GetChildByName("Panel")
+		local textTitle = panel:GetChildByName("Title").TextComponent
+		textTitle.Text = "장비"
+		
+		local itemDecoration = panel:GetChildByName("ItemDecoration")
+		local itemSlotEntity = _SpawnService:SpawnByModelId(_EntryService:GetModelIdByName("ItemSlot"), "ItemSlot", Vector3.zero, itemDecoration)
+		self.ItemSlot = itemSlotEntity.UIItemSlot
+		
+		self.TextMessage = panel:GetChildByName("Message").TextComponent
+		
+		local buttonConfirm = panel:GetChildByName("ButtonConfirm")
+		buttonConfirm:ConnectEvent(ButtonClickEvent, function() self:OnConfirmButtonClicked() end)
+		self.TextConfirm = buttonConfirm.TextComponent
+		
+		local buttonCancel = panel:GetChildByName("ButtonCancel")
+		buttonCancel:ConnectEvent(ButtonClickEvent, function() self:OnCancelButtonClicked() end)
+		self.TextCancel = buttonCancel.TextComponent
+		
+		local buttonDelete = panel:GetChildByName("ButtonDelete")
+		buttonDelete:ConnectEvent(ButtonClickEvent, function() self:OnDeleteButtonClicked() end)
+		
+		local buttonLock = panel:GetChildByName("ButtonLock")
+		buttonLock:ConnectEvent(ButtonClickEvent, function() self:OnLockButtonClicked() end)
+		self.TextLock = buttonLock:GetChildByName("TextLock").TextComponent
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Open(boolean isOpenedFromInventory, ItemStruct itemStruct)
+		self.IsOpenedFromInventory = isOpenedFromInventory
+		self.ItemStruct = itemStruct
+		
+		self.ItemSlot:Set(itemStruct)
+		self.ItemSlot.ImageDim.Enable = false
+		
+		local mainKeyword = itemStruct:IsAttached() and "해제" or "장착"
+		self.TextMessage.Text = string.format("%s하시겠습니까?", mainKeyword)
+		self.TextConfirm.Text = mainKeyword
+		
+		self.Entity.Enable = true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnConfirmButtonClicked()
+		if self.Entity.Enable == false or self.ItemStruct == nil then
+			return
+		end
+		
+		---@type ItemStruct
+		local itemStruct = self.ItemStruct
+		local itemData = itemStruct:GetItemData()
+		local playerInventory = _UserService.LocalPlayer.PlayerInventory
+		
+		if itemStruct:IsAttached() then	
+			playerInventory:RequestDetachNormalGear(playerInventory.CurrentJob, itemStruct:GetGearData().GearCategory)
+		else 
+			playerInventory:RequestAttachNormalGear(playerInventory.CurrentJob, itemStruct.GUID)
+		end
+		
+		self:Close()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnCancelButtonClicked()
+		self:Close()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnDeleteButtonClicked()
+		if self.Entity.Enable == false or self.ItemStruct == nil then
+			return
+		end
+		
+		---@type ItemStruct
+		local itemStruct = self.ItemStruct
+		_UserService.LocalPlayer.PlayerInventory:RequestDiscardItem(itemStruct.GUID, 1)
+		
+		self:Close()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnLockButtonClicked()
+		if self.Entity.Enable == false or self.ItemStruct == nil then
+			return
+		end
+		
+		---@type ItemStruct
+		local itemStruct = self.ItemStruct
+		_UserService.LocalPlayer.PlayerInventory:RequestLockItem(itemStruct.GUID, not itemStruct.Lock)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Close()
+		self.ItemStruct = nil
+		
+		self.Entity.Enable = false
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("LocalPlayer")
+	handler HandleInvenItemModifiedEvent(InvenItemModifiedEvent event)
+		-- Parameters
+		local GUIDs = event.GUIDs
+		---------------------------------------------------------
+		
+		if self.Entity.Enable == false then
+			return
+		end
+		
+		---@type ItemStruct
+		local itemStruct = self.ItemStruct
+		if itemStruct == nil then
+			return
+		end
+		local itemGUID = itemStruct.GUID
+		
+		for i, modifiedItemGUID in ipairs(GUIDs) do
+			if itemGUID == modifiedItemGUID then
+				self:Open(self.IsOpenedFromInventory, itemStruct)
+				return
+			end
+		end
+	end
+
+end

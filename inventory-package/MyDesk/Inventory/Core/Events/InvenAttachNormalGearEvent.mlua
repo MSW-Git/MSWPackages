@@ -1,0 +1,13 @@
+@Event
+script InvenAttachNormalGearEvent extends EventType
+
+	property integer Job = 0
+
+	property string GUID = ""
+
+	method void Init(integer job, string guid)
+		self.Job = job
+		self.GUID = guid
+	end
+
+end

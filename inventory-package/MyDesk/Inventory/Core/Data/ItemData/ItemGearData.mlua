@@ -1,0 +1,57 @@
+@Struct
+script ItemGearData
+
+	property integer Id = 0
+
+	property string AvatarRUID = ""
+
+	property integer GearCategory = 0
+
+	property integer ReqLevel = 0
+
+	property integer ReqJob = 0
+
+	property integer DefaultGrade = nil
+
+	method integer CanEquip(integer job, integer jobLevel)
+		local jobData = _JobDataLogic:GetData(job)
+		if jobData == nil then
+			return _ErrorCodeEnum.InvalidParam
+		end
+		
+		if self.ReqJob ~= 0 and self.ReqJob ~= job then
+			return _ErrorCodeEnum.Item_RequireJob
+		end
+		
+		if self.ReqLevel > jobLevel then
+			return _ErrorCodeEnum.Item_RequireLevel
+		end
+		
+		return _ErrorCodeEnum.Success
+	end
+
+	method boolean Init(any dataRow)
+		---@type UserDataRow
+		local row = dataRow
+		self.Id = math.tointeger(tonumber(row:GetItem("Id")))
+		
+		self.AvatarRUID = row:GetItem("AvatarRUID")
+		
+		self.GearCategory = _GearCategoryEnum:ToInt(row:GetItem('GearCategory'))
+		
+		self.ReqLevel = math.tointeger(tonumber(row:GetItem('ReqLevel')))
+		if self.ReqLevel == nil then
+			self.ReqLevel = 0
+		end
+		
+		self.ReqJob = math.tointeger(tonumber(row:GetItem('ReqJob')))
+		if self.ReqJob == nil then
+			self.ReqJob = 0
+		end
+		
+		self.DefaultGrade = _GearGradeEnum:StrToEnum(row:GetItem("DefaultGrade"))
+		
+		return true
+	end
+
+end

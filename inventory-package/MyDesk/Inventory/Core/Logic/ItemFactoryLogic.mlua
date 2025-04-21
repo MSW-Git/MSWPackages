@@ -1,0 +1,889 @@
+@Logic
+script ItemFactoryLogic extends Logic
+
+	property any EndDateAscFunc = nil
+
+	@ExecSpace("ServerOnly")
+	method void OnBeginPlay()
+		---@param a ItemStruct
+		---@param b ItemStruct
+		local function func(a, b)
+			if a.EndDateMinute == 0 or b.EndDateMinute == 0 then
+				if b.EndDateMinute ~= 0 then
+					return false
+				end
+				
+				if a.EndDateMinute ~= 0 then
+					return true
+				end
+				
+				return false
+			end
+			
+			return a.EndDateMinute < b.EndDateMinute
+		end
+		
+		self.EndDateAscFunc = func
+	end
+
+	@ExecSpace("ServerOnly")
+	method integer TryAddItem(string userId, ItemCreateParamStruct createParam, ItemCreateResultStruct resultStruct)
+		--[[
+			Create single Item. If item creating fails, an error code is returned and the items remain uncreated.
+		]]
+		
+		if resultStruct == nil then
+			return _ErrorCodeEnum.InvalidParam
+		end
+		
+		local createParamList = { createParam }
+		local result = self:Inner_AddItems(userId, createParamList, true,  resultStruct)
+		if result ~= _ErrorCodeEnum.Success then
+			log_error("Inner_AddItems Simulation failed. Error : " .. tostring(result))
+			return result
+		end
+		
+		local innerResult = self:Inner_AddItems(userId, createParamList, false,  resultStruct)
+		if innerResult ~= _ErrorCodeEnum.Success then
+			log_error("Inner_AddItems failed. Error : " .. tostring(innerResult))
+			return innerResult
+		end
+		
+		return _ErrorCodeEnum.Success
+	end
+
+	@ExecSpace("ServerOnly")
+	method integer TryAddMultipleItems(string userId, table createParamList, ItemCreateResultStruct resultStruct)
+		--[[
+			Create multiple items at once. If creating even a single item fails, an error code is returned and none of the items are created.
+		]]
+		
+		if resultStruct == nil then
+			return _ErrorCodeEnum.InvalidParam
+		end
+		local result = self:Inner_AddItems(userId, createParamList, true,  resultStruct)
+		if result ~= _ErrorCodeEnum.Success then
+			return result
+		end
+		
+		local innerResult = self:Inner_AddItems(userId, createParamList, false,  resultStruct)
+		if innerResult ~= _ErrorCodeEnum.Success then
+			log_error("Inner_AddItems failed. Error : " .. tostring(innerResult))
+			return innerResult
+		end
+		
+		return _ErrorCodeEnum.Success
+	end
+
+	@ExecSpace("ServerOnly")
+	method integer TryRollbackAddItems(string userId, ItemCreateResultStruct resultStruct)
+		--[[
+			Use this when you need to roll back after successfully creating items (TryAddItem / TryAddMultipleItems).
+			By default, if item creation fails, it is rolled back internally, so there is no need to call the Rollback function.
+		]]
+		
+		if resultStruct == nil then
+			return _ErrorCodeEnum.InvalidParam
+		end
+		
+		if _Util:IsNilorEmptyString(userId) then
+			return _ErrorCodeEnum.InvalidParam
+		end
+		
+		local userEntity = _UserService:GetUserEntityByUserId(userId)
+		if not isvalid(userEntity) then
+			return _ErrorCodeEnum.User_CannotFind
+		end
+		
+		if not userEntity.PlayerDBManager.IsLoadSuccess then
+			return _ErrorCodeEnum.User_NotInitializedDB
+		end
+		
+		local inven = userEntity.PlayerInventory
+		if not isvalid(inven) then
+			return _ErrorCodeEnum.Invalid_Component
+		end
+		
+		if inven.InitSyncEnd == false then
+			return _ErrorCodeEnum.User_NotInitializedDB
+		end
+		
+		self:Inner_RollbackAddedItems(userId, inven, resultStruct, true)
+		return _ErrorCodeEnum.Success
+	end
+
+	@ExecSpace("ServerOnly")
+	method integer TryDeleteItem(string userId, ItemDeleteParamStruct deleteParam, ItemDeleteResultStruct resultStruct)
+		--[[
+			Delete single item. If item deleting fails, an error code is returned and the items remain unchanged.
+		]]
+		
+		if resultStruct == nil then
+			return _ErrorCodeEnum.InvalidParam
+		end
+		
+		local deleteParamList = { deleteParam }
+		local result = self:Inner_DeleteItems(userId, deleteParamList, true,  resultStruct)
+		if result ~= _ErrorCodeEnum.Success then
+			log_error("Inner_DeleteItems Simulation failed. Error : " .. tostring(result))
+			return result
+		end
+		
+		local innerResult = self:Inner_DeleteItems(userId, deleteParamList, false,  resultStruct)
+		if innerResult ~= _ErrorCodeEnum.Success then
+			log_error("Inner_DeleteItems failed. Error : " .. tostring(innerResult))
+			return innerResult
+		end
+		
+		return _ErrorCodeEnum.Success
+	end
+
+	@ExecSpace("ServerOnly")
+	method integer TryDeleteMultipleItems(string userId, table deleteParamList, ItemDeleteResultStruct resultStruct)
+		--[[
+			Delete multiple items at once. If deletion of even a single item fails, an error code is returned and none of the items are deleted.
+			Do not split the same item across multiple entries in DeleteParamList.
+		
+			For example:
+			- Adding the same item GUID multiple times to DeleteParamList	
+			- Including both the GUID and the ItemId of the same item multiple times are not allowed.
+		]]
+		
+		if resultStruct == nil then
+			return _ErrorCodeEnum.InvalidParam
+		end
+		
+		local validResult = self:IsValidDeleteParamList(userId, deleteParamList)
+		if validResult == nil then
+			return _ErrorCodeEnum.InvalidParam
+		end
+		
+		local result = self:Inner_DeleteItems(userId, deleteParamList, true,  resultStruct)
+		if result ~= _ErrorCodeEnum.Success then
+			return result
+		end
+		
+		local innerResult = self:Inner_DeleteItems(userId, deleteParamList, false,  resultStruct)
+		if innerResult ~= _ErrorCodeEnum.Success then
+			log_error("Inner_AddItems failed. Error : " .. tostring(innerResult))
+			return innerResult
+		end
+		
+		return _ErrorCodeEnum.Success
+	end
+
+	@ExecSpace("ServerOnly")
+	method integer TrySimulateDeleteItem(string userId, ItemDeleteParamStruct deleteParam)
+		local deleteParamList = { deleteParam }
+		local resultStruct = ItemDeleteResultStruct()
+		return self:Inner_DeleteItems(userId, deleteParamList, true, resultStruct)
+	end
+
+	@ExecSpace("ServerOnly")
+	method integer TrySimulateDeleteMultipleItems(string userId, table deleteParamList)
+		local resultStruct = ItemDeleteResultStruct()
+		return self:Inner_DeleteItems(userId, deleteParamList, true,resultStruct)
+	end
+
+	@ExecSpace("ServerOnly")
+	method integer TryRollbackDeleteItems(string userId, ItemDeleteResultStruct resultStruct)
+		--[[
+			Use this when you need to roll back after successfully deleting items (TryDeleteItem / TryDeleteMultipleItems).
+			By default, if item deletion fails, it is rolled back internally, so calling the Rollback function is unnecessary.
+		]]
+		
+		if resultStruct == nil then
+			return _ErrorCodeEnum.InvalidParam
+		end
+		
+		if _Util:IsNilorEmptyString(userId) then
+			return _ErrorCodeEnum.InvalidParam
+		end
+		
+		local userEntity = _UserService:GetUserEntityByUserId(userId)
+		if not isvalid(userEntity) then
+			return _ErrorCodeEnum.User_CannotFind
+		end
+		
+		if not userEntity.PlayerDBManager.IsLoadSuccess then
+			return _ErrorCodeEnum.User_NotInitializedDB
+		end
+		
+		local inven = userEntity.PlayerInventory
+		if not isvalid(inven) then
+			return _ErrorCodeEnum.Invalid_Component
+		end
+		
+		if inven.InitSyncEnd == false then
+			return _ErrorCodeEnum.User_NotInitializedDB
+		end
+		
+		self:Inner_RollbackDeletedItems(userId, inven, resultStruct, true)
+		return _ErrorCodeEnum.Success
+	end
+
+	@ExecSpace("ServerOnly")
+	method void Inner_RollbackAddedItems(string userId, PlayerInventory inven, ItemCreateResultStruct resultStruct, boolean isSendSyncEvent)
+		--[[
+			Rollback inventory: Rollback begins from changes to item counts.
+			The following errors should never occur.
+		]]
+		
+		local invenItems = inven.Items
+		local removedItemGUIDs = {}
+		local resultItemCountTable = {}
+		
+		for GUID, accCount in pairs(resultStruct.AccItemCountTable) do
+			---@type ItemStruct
+			local itemStruct = invenItems[GUID]
+			if itemStruct == nil then
+				log_error('ItemFactoryLogic Inner_RollbackItems Error. Cannot find item. GUID : ' .. GUID)
+				continue
+			end
+			
+			local countBef = itemStruct.Count
+			if countBef < accCount then
+				log_error('ItemFactoryLogic Inner_RollbackItems Error. Item accCount is greater then itemCount. GUID : ' .. GUID)
+			end
+			
+			itemStruct.Count -= accCount
+			
+			if itemStruct.Count > 0 then
+				resultItemCountTable[GUID] = itemStruct.Count
+				continue
+			end
+		
+			invenItems[GUID] = nil
+			table.insert(removedItemGUIDs, GUID)
+		end
+		
+		inven.IsSaveDB = true
+		
+		if isSendSyncEvent then
+			inven:SyncRemovedItemsToClient(removedItemGUIDs, userId)
+			inven:SyncItemCountsToClient(resultItemCountTable, userId)
+		end
+	end
+
+	@ExecSpace("ServerOnly")
+	method integer Inner_AddItems(string userId, table createParamList, boolean isSimulate, ItemCreateResultStruct resultStruct)
+		local userEntity = _UserService.UserEntities[userId]
+		if not isvalid(userEntity) then
+			return _ErrorCodeEnum.User_CannotFind
+		end
+		
+		if not isvalid(userEntity.PlayerDBManager) or userEntity.PlayerDBManager.IsLoadSuccess == false then
+			return _ErrorCodeEnum.User_NotInitializedDB
+		end
+		
+		local inven = userEntity.PlayerInventory
+		if not isvalid(inven) then
+			return _ErrorCodeEnum.Invalid_Component
+		end
+		
+		if inven.InitSyncEnd == false then
+			return _ErrorCodeEnum.User_NotInitializedDB
+		end
+		
+		local errorCode = _ErrorCodeEnum.Success
+		for _, v in ipairs(createParamList) do
+			local addFunc = function()
+				return self:Inner_AddItem(userId, inven, v, isSimulate,  resultStruct)
+			end
+			
+			local success, result = pcall(addFunc)
+			if success then
+				if result ~= _ErrorCodeEnum.Success then
+					errorCode = result
+					break
+				end
+			else
+				log_error('Inner_AddItem Error. ' .. result)
+				errorCode = _ErrorCodeEnum.ItemAdd_Exception
+				break
+			end
+		end
+		
+		if isSimulate then
+			if errorCode ~= _ErrorCodeEnum.Success then
+				return errorCode
+			end
+			
+			for cat, needSlotCount in pairs(resultStruct.AccSlotCountTable) do
+				local remainSlotCount = inven:GetRemainSlotCount(cat)
+				if remainSlotCount - needSlotCount < 0 then
+					return _ErrorCodeEnum.Inven_LackCapacity
+				end
+			end
+			
+			return _ErrorCodeEnum.Success
+		end
+		
+		if errorCode ~= _ErrorCodeEnum.Success then
+			self:Inner_RollbackAddedItems(userId, inven, resultStruct, false)
+			return errorCode
+		end
+		
+		inven.IsSaveDB = true
+		
+		local dbItems = {}
+		local invenItems = inven.Items
+		
+		for GUID, _ in pairs(resultStruct.NewItemGUIDs) do
+			---@type ItemStruct
+			local itemStruct = invenItems[GUID]
+			if itemStruct == nil then
+				log_error('ItemFactoryLogic Inner_AddItems Error. Cannot find ItemStruct. GUID : ' .. GUID)
+				continue
+			end
+			
+			local dbItem = {}
+			itemStruct:Serialize(dbItem)
+			table.insert(dbItems, dbItem)
+		end
+		
+		local resultItemCountTable = {}
+		for GUID, accCount in pairs(resultStruct.AccItemCountTable) do
+			if resultStruct.NewItemGUIDs[GUID] ~= nil then
+				continue
+			end
+			
+			---@type ItemStruct
+			local itemStruct = invenItems[GUID]
+			if itemStruct == nil then
+				continue
+			end
+			
+			resultItemCountTable[GUID] = itemStruct.Count
+		end
+		
+		inven:SyncAddItemsToClient(dbItems, resultItemCountTable, userId)
+		return _ErrorCodeEnum.Success
+	end
+
+	@ExecSpace("ServerOnly")
+	method integer Inner_AddItem(string userId, PlayerInventory inven, ItemCreateParamStruct createParam, boolean isSimulate, ItemCreateResultStruct resultStruct)
+		if not createParam:IsValidData(resultStruct.FailInfo) then
+			return _ErrorCodeEnum.InvalidParam
+		end
+		
+		local itemId = createParam.ItemId
+		local itemCount = createParam.ItemCount
+		
+		local itemData = _ItemDataLogic:GetData(itemId)
+		if itemData == nil then
+			return _ErrorCodeEnum.InvalidParam
+		end
+		
+		local isNonStackable = itemData.NonStackable
+		
+		local category = itemData.Category
+		if isNonStackable then
+			if isSimulate then
+				if not createParam.IsIgnoreInvenCapacity then
+					if resultStruct.AccSlotCountTable[category] == nil then
+						resultStruct.AccSlotCountTable[category] = itemCount
+					else
+						resultStruct.AccSlotCountTable[category] += itemCount
+					end
+				end
+			else
+				for i = 1, itemCount do
+					local errorCode = self:Inner_CreateItem(userId, inven, createParam, true,  resultStruct)
+					if errorCode ~= _ErrorCodeEnum.Success then
+						return errorCode
+					end
+				end
+			end
+			
+			return _ErrorCodeEnum.Success
+		end
+		
+		---@type ItemStruct
+		local prevItemStruct = nil
+		if isSimulate then	
+			for __, v in ipairs(resultStruct.PrevItemStructList) do
+				---@type ItemStruct
+				local itemStruct = v
+				if itemStruct:CanMergeItemCreateParam(createParam) then
+					prevItemStruct = itemStruct
+					break
+				end
+			end
+			
+			if prevItemStruct == nil then
+				for guid, v in pairs(inven.Items) do
+					---@type ItemStruct
+					local itemStruct = v
+					if itemStruct:CanMergeItemCreateParam(createParam) then
+						prevItemStruct = ItemStruct()
+						prevItemStruct:CopyFrom(itemStruct)
+						table.insert(resultStruct.PrevItemStructList, prevItemStruct)
+						break
+					end
+				end
+			end
+		else
+			if prevItemStruct == nil then
+				for guid, v in pairs(inven.Items) do
+					---@type ItemStruct
+					local itemStruct = v
+					if itemStruct:CanMergeItemCreateParam(createParam) then
+						prevItemStruct = itemStruct
+						break
+					end
+				end
+			end
+		end
+		
+		if prevItemStruct == nil then
+			if isSimulate then
+				if not createParam.IsIgnoreInvenCapacity then
+					if resultStruct.AccSlotCountTable[category] == nil then
+						resultStruct.AccSlotCountTable[category] = 1
+					else
+						resultStruct.AccSlotCountTable[category] += 1
+					end
+				end
+				
+				prevItemStruct = createParam:CreateItemStruct(isNonStackable)
+				if prevItemStruct == nil then
+					return _ErrorCodeEnum.ItemAdd_FailToCreateItemStruct
+				end
+				table.insert(resultStruct.PrevItemStructList, prevItemStruct)
+			else
+				local errorCode = self:Inner_CreateItem(userId, inven, createParam, false,  resultStruct)
+				if errorCode ~= _ErrorCodeEnum.Success then
+					return errorCode
+				end
+			end
+		else
+			if isSimulate then
+				if prevItemStruct.Count + itemCount < 0 then
+					return _ErrorCodeEnum.ItemAdd_Overflow
+				end
+				prevItemStruct.Count += itemCount
+			else
+				local countBef = prevItemStruct.Count
+				prevItemStruct.Count += itemCount
+				
+				if resultStruct.AccItemCountTable[prevItemStruct.GUID] == nil then
+					resultStruct.AccItemCountTable[prevItemStruct.GUID] = itemCount
+				else
+					resultStruct.AccItemCountTable[prevItemStruct.GUID] += itemCount
+				end
+			end
+		end
+		
+		return _ErrorCodeEnum.Success
+	end
+
+	@ExecSpace("ServerOnly")
+	method integer Inner_CreateItem(string userId, PlayerInventory inven, ItemCreateParamStruct itemCreateParam, boolean nonStackable, ItemCreateResultStruct resultStruct)
+		local invenItems = inven.Items
+		
+		local resultGUID = nil
+		for i = 1, 10 do
+			local guid = _GUIDLogic:CreateGUID()
+			if invenItems[guid] == nil then
+				resultGUID = guid
+				break
+			end
+		end
+		
+		if resultGUID == nil then
+			return _ErrorCodeEnum.ItemAdd_FailToGenerateGUID
+		end
+		
+		local itemStruct = itemCreateParam:CreateItemStruct(nonStackable)
+		if itemStruct == nil then
+			return _ErrorCodeEnum.ItemAdd_FailToCreateItemStruct
+		end
+		itemStruct.GUID = resultGUID
+		itemStruct.CreateDateTimeSec = math.tointeger(_DateTimeLogic:GetTimeElapsed() / 1000)
+		
+		invenItems[resultGUID] = itemStruct
+		
+		resultStruct.NewItemGUIDs[resultGUID] = true
+		resultStruct.AccItemCountTable[resultGUID] = itemStruct.Count
+		
+		return _ErrorCodeEnum.Success
+	end
+
+	@ExecSpace("ServerOnly")
+	method integer Inner_DeleteItems(string userId, table deleteParamList, boolean isSimulate, ItemDeleteResultStruct resultStruct)
+		local userEntity = _UserService.UserEntities[userId]
+		if not isvalid(userEntity) then
+			return _ErrorCodeEnum.User_CannotFind
+		end
+		
+		if not isvalid(userEntity.PlayerDBManager) or userEntity.PlayerDBManager.IsLoadSuccess == false then
+			return _ErrorCodeEnum.User_NotInitializedDB
+		end
+		
+		local inven = userEntity.PlayerInventory
+		if not isvalid(inven) then
+			return _ErrorCodeEnum.Invalid_Component
+		end
+		
+		if inven.InitSyncEnd == false then
+			return _ErrorCodeEnum.User_NotInitializedDB
+		end
+		
+		local errorCode = _ErrorCodeEnum.Success
+		for _, v in ipairs(deleteParamList) do
+			local addFunc = function()
+				return self:Inner_DeleteItem(userId, inven, v, isSimulate,  resultStruct)
+			end
+			
+			local success, result = pcall(addFunc)
+			if success then
+				if result ~= _ErrorCodeEnum.Success then
+					errorCode = result
+					break
+				end
+			else
+				log_error('Inner_DeleteItem Error. ' .. result)
+				errorCode = _ErrorCodeEnum.ItemDelete_Exception
+				break
+			end
+		end
+		
+		if isSimulate then
+			return _ErrorCodeEnum.Success
+		end
+		
+		if errorCode ~= _ErrorCodeEnum.Success then
+			self:Inner_RollbackDeletedItems(userId, inven, resultStruct, false)
+			return errorCode
+		end
+		
+		inven.IsSaveDB = true
+		
+		local deletedGUIDList = {}
+		for GUID, _ in pairs(resultStruct.DeletedItems) do
+			table.insert(deletedGUIDList, GUID)
+		end
+		
+		inven:SyncRemovedItemsToClient(deletedGUIDList, userId)
+		
+		local invenItems = inven.Items
+		local resultItemCountTable = {}
+		for GUID, accCount in pairs(resultStruct.DeletedItemCountTable) do
+			if resultStruct.DeletedItems[GUID] ~= nil then
+				continue
+			end
+			
+			---@type ItemStruct
+			local itemStruct = invenItems[GUID]
+			if itemStruct == nil then
+				continue
+			end
+			
+			resultItemCountTable[GUID] = itemStruct.Count
+		end
+		
+		inven:SyncItemCountsToClient(resultItemCountTable, userId)
+		return _ErrorCodeEnum.Success
+	end
+
+	@ExecSpace("ServerOnly")
+	method integer Inner_DeleteItem(string userId, PlayerInventory inven, ItemDeleteParamStruct deleteParam, boolean isSimulate, ItemDeleteResultStruct resultStruct)
+		if not deleteParam:IsValidData() then
+			return _ErrorCodeEnum.InvalidParam
+		end
+		
+		local invenItems = inven.Items
+		if not _Util:IsNilorEmptyString(deleteParam.ItemGUID) then
+			local GUID = deleteParam.ItemGUID
+			local delCount = deleteParam.ItemCount
+			
+			---@type ItemStruct
+			local itemStruct = invenItems[GUID]
+			if itemStruct == nil then
+				return _ErrorCodeEnum.Item_CannotFind
+			end
+			
+			local countBef = itemStruct.Count
+			if countBef < delCount then
+				return _ErrorCodeEnum.Item_LackCount	
+			end
+			
+			if isSimulate then
+				return _ErrorCodeEnum.Success
+			end
+			
+			itemStruct.Count -= delCount
+			
+			if itemStruct.Count <= 0 then
+				resultStruct.DeletedItems[GUID] = itemStruct
+				invenItems[GUID] = nil
+			end
+			
+			if resultStruct.DeletedItemCountTable[GUID] == nil then
+				resultStruct.DeletedItemCountTable[GUID] = delCount
+			else
+				resultStruct.DeletedItemCountTable[GUID] += delCount
+			end
+		elseif deleteParam.ItemId ~= 0 then
+			local itemId = deleteParam.ItemId
+			local remainDelCount = deleteParam.ItemCount
+			local itemData = _ItemDataLogic:GetData(itemId)
+			if itemData == nil then
+				return _ErrorCodeEnum.Item_InvalidData
+			end
+				
+			---@type table<ItemStruct>
+			local candidateItemStructList = {}
+			for guid, v in pairs(invenItems) do
+				---@type ItemStruct
+				local itemStruct = v
+				if itemStruct == nil then
+					continue
+				end
+				
+				if itemStruct.ItemId ~= itemId then
+					continue
+				end
+				
+				if itemStruct.Count <= 0 then
+					continue
+				end
+				
+				table.insert(candidateItemStructList, itemStruct)
+			end
+			table.sort(candidateItemStructList, self.EndDateAscFunc)
+			
+			if isSimulate then
+				local totalCount = 0
+				for _, itemStruct in ipairs(candidateItemStructList) do
+					totalCount += itemStruct.Count
+				end
+				
+				if totalCount < deleteParam.ItemCount then
+					return _ErrorCodeEnum.Item_LackCount
+				end
+			else
+				for _, itemStruct in ipairs(candidateItemStructList) do
+					local GUID = itemStruct.GUID
+					local delCount = math.min(itemStruct.Count, remainDelCount)
+					local countBef = itemStruct.Count
+					itemStruct.Count -= delCount
+					
+					if itemStruct.Count <= 0 then
+						resultStruct.DeletedItems[GUID] = itemStruct
+						invenItems[GUID] = nil
+					end
+					
+					if resultStruct.DeletedItemCountTable[GUID] == nil then
+						resultStruct.DeletedItemCountTable[GUID] = delCount
+					else
+						resultStruct.DeletedItemCountTable[GUID] += delCount
+					end
+					
+					remainDelCount -= delCount
+					if remainDelCount <= 0 then
+						break
+					end
+				end
+				
+				if remainDelCount > 0 then
+					return _ErrorCodeEnum.Item_LackCount	
+				end
+			end
+		else
+			return _ErrorCodeEnum.InvalidParam	
+		end
+		
+		
+		return _ErrorCodeEnum.Success
+	end
+
+	@ExecSpace("ServerOnly")
+	method void Inner_RollbackDeletedItems(string userId, PlayerInventory inven, ItemDeleteResultStruct resultStruct, boolean isSendSyncEvent)
+		--[[
+			Rollback inventory: Rollback begins from changes to item counts.
+			The following errors should never occur.
+		]]
+		
+		local invenItems = inven.Items
+		
+		local resultItemCountTable = {}
+		
+		for GUID, itemStruct in pairs(resultStruct.DeletedItems) do
+			invenItems[GUID] = itemStruct
+		end
+		
+		for GUID, delCount in pairs(resultStruct.DeletedItemCountTable) do
+			---@type ItemStruct
+			local itemStruct = invenItems[GUID]
+			if itemStruct == nil then
+				log_error('ItemFactoryLogic Inner_RollbackDeletedItems Error. Cannot find item. GUID : ' .. GUID)
+				continue
+			end
+			local countBef = itemStruct.Count
+			itemStruct.Count += delCount
+		end
+		
+		inven.IsSaveDB = true
+		
+		local dbItems = {}
+		for GUID, _ in pairs(resultStruct.DeletedItems) do
+			---@type ItemStruct
+			local itemStruct = invenItems[GUID]
+			if itemStruct == nil then
+				log_error('ItemFactoryLogic Inner_RollbackDeletedItems Error. Cannot find ItemStruct. GUID : ' .. GUID)
+				continue
+			end
+			
+			local dbItem = {}
+			itemStruct:Serialize(dbItem)
+			table.insert(dbItems, dbItem)
+		end
+		
+		for GUID, delCount in pairs(resultStruct.DeletedItemCountTable) do
+			if resultStruct.DeletedItems[GUID] ~= nil then
+				continue
+			end
+			
+			---@type ItemStruct
+			local itemStruct = invenItems[GUID]
+			if itemStruct == nil then
+				continue
+			end
+			
+			resultItemCountTable[GUID] = itemStruct.Count
+		end
+		
+		if isSendSyncEvent then
+			inven:SyncAddItemsToClient(dbItems, resultItemCountTable, userId)
+		end
+	end
+
+	method ItemStruct CreateDummyItemStruct(ItemCreateParamStruct itemCreateParam)
+		--[[
+			Returns a dummy ItemStruct without a GUID.
+			Used to display uncreated items in UI elements such as ItemSlots.
+			This ItemStruct must not be added to the inventory.
+		]]
+		
+		local itemId = itemCreateParam.ItemId
+		local itemCount = itemCreateParam.ItemCount
+		
+		local itemData = _ItemDataLogic:GetData(itemId)
+		if itemData == nil then
+			return nil
+		end
+		
+		local isNonStackable = itemData.NonStackable
+		local itemStruct = itemCreateParam:CreateItemStruct(isNonStackable)
+		if itemStruct == nil then
+			return nil
+		end
+		
+		local gearData = itemStruct:GetGearData()
+		if gearData == nil then
+			return itemStruct
+		end
+		
+		local gearStruct = itemStruct:GetGearStruct()
+		if gearStruct == nil then
+			return itemStruct
+		end
+		
+		return itemStruct
+	end
+
+	method ItemStruct CreateDummyItemStructById(integer itemId, integer count)
+		--[[
+			Returns a dummy ItemStruct without a GUID.
+			Used to display uncreated items in UI elements such as ItemSlots.
+			This ItemStruct must not be added to the inventory.
+		]]
+		
+		local itemCreateParam = ItemCreateParamStruct()
+		itemCreateParam.ItemId = itemId
+		itemCreateParam.ItemCount = count
+		
+		local itemData = _ItemDataLogic:GetData(itemId)
+		if itemData == nil then
+			return nil
+		end
+		
+		local isNonStackable = itemData.NonStackable
+		local itemStruct = itemCreateParam:CreateItemStruct(isNonStackable)
+		if itemStruct == nil then
+			return nil
+		end
+		
+		local gearData = itemStruct:GetGearData()
+		if gearData == nil then
+			return itemStruct
+		end
+		
+		local gearStruct = itemStruct:GetGearStruct()
+		if gearStruct == nil then
+			return itemStruct
+		end
+		
+		return itemStruct
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean IsValidDeleteParamList(string userId, table deleteParamList)
+		--[[
+			Do not allow duplicates of the same item’s GUID and ItemId within a single DeleteParam.
+		]]
+		
+		local userEntity = _UserService:GetUserEntityByUserId(userId)
+		if userEntity == nil then
+			return false
+		end
+		
+		if deleteParamList == nil or #deleteParamList == 0 then
+			return false
+		end
+		
+		local invenItems = userEntity.PlayerInventory.Items
+		
+		local guidTable = {}
+		local itemIDTable = {}
+		
+		for i = 1, #deleteParamList do
+			---@type ItemDeleteParamStruct
+			local deleteParam = deleteParamList[i]
+			if not deleteParam:IsValidData() then
+				return false
+			end
+			
+			if _Util:IsNilorEmptyString(deleteParam.ItemGUID) then
+				local guid = deleteParam.ItemGUID
+				if guidTable[guid] ~= nil then
+					return false
+				end
+				guidTable[guid] = true
+				
+				---@type ItemStruct
+				local itemStruct = invenItems[guid]
+				if itemStruct == nil then
+					return false
+				end
+				
+				local itemId = itemStruct.ItemId
+				if itemIDTable[itemId] ~= nil then
+					return false
+				end
+				itemIDTable[itemId] = true
+			else
+				local itemId = deleteParam.ItemId
+				if itemIDTable[itemId] ~= nil then
+					return false
+				end
+				itemIDTable[itemId] = true
+			end
+		end
+		
+		return true
+	end
+
+end

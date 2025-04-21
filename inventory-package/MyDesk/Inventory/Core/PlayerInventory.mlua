@@ -1,0 +1,1275 @@
+@Component
+script PlayerInventory extends Component
+
+	property string DataStorageKey = "PlayerInventory"
+
+	property boolean IsSaveDB = false
+
+	@TargetUserSync
+	property boolean InitSyncEnd = false
+
+	property integer InventoryCapacity = 999
+
+	property table Items = {}
+
+	property table AttachedNormalGearItems = {}
+
+	property table NewItemsSet = {}
+
+	property table CoolEndTimes = {}
+
+	property integer CurrentJob = nil
+
+	@ExecSpace("ServerOnly")
+	method void LoadFromDB(table loadKeys)
+		table.insert(loadKeys, self.DataStorageKey)
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean OnLoadedDataFromDB(table loadedData)
+		--[[
+			"JobLevels" : {"110" : 1, "120" : 99},
+			"Items" : [],
+			"GearItems" : 
+			[
+				JobCode1 : [1,2,3...],
+				JobCode2 : [4,5,6...]
+			],
+			"Cool" : {"ItemId1" : 100, "ItemId2" : 20},
+		]]
+		local userId = self.Entity.PlayerComponent.UserId
+		
+		---@type DataStorageItem
+		local storageData = loadedData[self.DataStorageKey]
+		if storageData ~= nil and (_Util:IsNilorEmptyString(storageData.Value) == false) then
+			local inventoryTable = _HttpService:JSONDecode(storageData.Value)
+			
+			local dbItems = inventoryTable["Items"]
+			if dbItems ~= nil then
+				local invenItems = self.Items
+				for i, dbItem in ipairs(dbItems) do
+					local itemStruct = ItemStruct()
+					if itemStruct:Deserialize(dbItem) == false then
+						continue
+					end
+					
+					invenItems[itemStruct.GUID] = itemStruct
+				end
+			end
+			
+			local gearItems = self:DeserializeAttachedNormalGearItems(inventoryTable["GearItems"])
+			if gearItems ~= nil then
+				for jobCode, categoryGUIDPairs in pairs(gearItems) do
+					for category, guid in pairs(categoryGUIDPairs) do
+						if self:CanAttachNormalGear(jobCode, guid) == _ErrorCodeEnum.Success then
+							self:Inner_AttachNormalGear(jobCode, guid)
+						end
+					end
+				end
+			end
+				
+			local coolEndTimeSeconds = self:DeserializeCoolEndTimes(inventoryTable["Cool"])
+			self.CoolEndTimes = coolEndTimeSeconds
+		end
+		
+		local dbItems = {}
+		for guid, v in pairs(self.Items) do
+			---@type ItemStruct
+			local itemStruct = v
+			local dbItem = {}
+			itemStruct:Serialize(dbItem)
+			table.insert(dbItems, dbItem)
+		end
+		
+		self:SyncInitItems(_HttpService:JSONEncode(dbItems), userId)
+		
+		local attachedNormalGearItemsStr = self:SerializeAttachedNormalGearItems()
+		self:SyncInitGearItems(attachedNormalGearItemsStr, userId)
+		
+		self.InitSyncEnd = true
+		
+		return true
+	end
+
+	@ExecSpace("ServerOnly")
+	method void SaveToDB(table saveData)
+		if self.IsSaveDB == false then
+			return
+		end
+		
+		local dbTable = {}
+		
+		local dbItems = {}
+		for guid, v in pairs(self.Items) do
+			---@type ItemStruct
+			local itemStruct = v
+			
+			local dbItem = {}
+			itemStruct:Serialize(dbItem)
+			table.insert(dbItems, dbItem)
+		end
+		
+		if #dbItems ~= 0 then
+			dbTable["Items"] = dbItems
+		end
+		
+		local gearItemsStr = self:SerializeAttachedNormalGearItems()
+		if not _Util:IsNilorEmptyString(gearItemsStr) then
+			dbTable["GearItems"] = gearItemsStr
+		end
+		
+		local dbString = ""
+		if not _Util:IsNilorEmptyTable(dbTable) then
+			dbString = _HttpService:JSONEncode(dbTable)
+		end
+		
+		saveData[self.DataStorageKey] = dbString
+	end
+
+	@ExecSpace("Client")
+	method void SyncInitItems(string dbItemsStr)
+		if _Util:IsNilorEmptyString(dbItemsStr) then
+			return
+		end
+		
+		local invenItems = self.Items
+		local dbItems = _HttpService:JSONDecode(dbItemsStr)
+		for _, dbItem in ipairs(dbItems) do
+			local itemStruct = ItemStruct()
+			if itemStruct:Deserialize(dbItem) then
+				invenItems[itemStruct.GUID] = itemStruct
+			end
+		end
+	end
+
+	@ExecSpace("Client")
+	method void SyncInitGearItems(string itemsStr)
+		if _Util:IsNilorEmptyString(itemsStr) then
+			return
+		end
+		
+		self.AttachedNormalGearItems = self:DeserializeAttachedNormalGearItems(itemsStr)
+		
+		local invenItems = self.Items
+		for job, categoryGuidPairs in pairs(self.AttachedNormalGearItems) do
+			for category, guid in pairs(categoryGuidPairs) do
+				---@type ItemStruct
+				local itemStruct = invenItems[guid]
+				if itemStruct == nil then
+					continue
+				end
+				
+				local gearStruct = itemStruct:GetGearStruct()
+				if gearStruct == nil then
+					continue
+				end
+				
+				gearStruct.IsAttached = true
+			end
+		end
+	end
+
+	@ExecSpace("Server")
+	method void RequestDetachNormalGear(integer job, integer gearCategory)
+		self:DetachNormalGear(job, gearCategory)
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean DetachNormalGear(integer job, integer gearCategory)
+		local userId = self.Entity.PlayerComponent.UserId
+		if not self:CanDetachNormalGear() then
+			self:SendErrorCodeToClient(_ErrorCodeEnum.Inven_LackCapacity, nil, userId)
+			return
+		end
+		
+		if not self:Inner_DetachNormalGear(job, gearCategory) then
+			self:SendErrorCodeToClient(_ErrorCodeEnum.Item_NoItemToDetach, nil, userId)
+			return
+		end
+		
+		self.IsSaveDB = true
+		self:ResponseDetachNormalGear(job, gearCategory, userId)
+	end
+
+	method boolean CanDetachNormalGear()
+		local remainSlotCount = self:GetRemainSlotCount(_ItemCategoryEnum.Gear)
+		if remainSlotCount == 0 then
+			return false
+		end
+		
+		return true
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean Inner_DetachNormalGear(integer job, integer gearCategory)
+		if self:GetNormalGearItemGUID(job, gearCategory) == nil then
+			return false
+		end
+		
+		local itemStruct = self:GetNormalGearItemStruct(job, gearCategory)
+		if itemStruct ~= nil then
+			local gearStruct = itemStruct:GetGearStruct()
+			if gearStruct ~= nil then
+				gearStruct.IsAttached = false
+			end
+		end
+		
+		self.AttachedNormalGearItems[job][gearCategory] = nil
+		return true
+	end
+
+	@ExecSpace("Client")
+	method void ResponseDetachNormalGear(integer job, integer gearCategory)
+		self:DetachNormalGearInClient(job, gearCategory)
+		
+		local evt = InvenDetachNormalGearEvent()
+		evt:Init(job, gearCategory)
+		self.Entity:SendEvent(evt)
+		
+		local invalidateEvt = InvenInvalidateEvent()
+		invalidateEvt.Job = job
+		self.Entity:SendEvent(invalidateEvt)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void DetachNormalGearInClient(integer job, integer gearCategory)
+		local guid = self:GetNormalGearItemGUID(job, gearCategory)
+		if self.AttachedNormalGearItems[job] then
+			self.AttachedNormalGearItems[job][gearCategory] = nil
+		end
+		
+		if _Util:IsNilorEmptyString(guid) then return end
+		
+		---@type ItemStruct
+		local itemStruct = self.Items[guid]
+		if itemStruct == nil then return end
+		
+		local gearStruct = itemStruct:GetGearStruct()
+		if gearStruct == nil then return end
+		
+		gearStruct.IsAttached = false
+	end
+
+	@ExecSpace("ServerOnly")
+	method void CreateAndAttachDefaultGear(integer job)
+		local jobData = _JobDataLogic:GetData(job)
+		if jobData == nil then
+			return
+		end
+		
+		local items = {}
+		for _, id in pairs(jobData.DefaultGearItemIds) do
+			local gearData = _ItemGearDataLogic:GetData(id)
+			
+			local createItem = ItemCreateParamStruct()
+			createItem:Set(id, 1, nil)
+			createItem.IsIgnoreInvenCapacity = true
+			createItem.Grade = gearData.DefaultGrade
+			table.insert(items, createItem)
+		end
+		
+		local resultStruct = ItemCreateResultStruct()
+		local result = _ItemFactoryLogic:TryAddMultipleItems(self.Entity.PlayerComponent.UserId, items, resultStruct)
+		if result ~= _ErrorCodeEnum.Success then
+			log(resultStruct.FailInfo.Message)
+			return
+		end
+		
+		local defaultItems = resultStruct.NewItemGUIDs
+		for guid, _ in pairs(defaultItems) do
+			---@type ItemStruct
+			local item = self.Items[guid]	
+			self:AttachNormalGear(job, guid)
+		end
+	end
+
+	@ExecSpace("Server")
+	method void RequestAttachNormalGear(integer job, string guid)
+		self:AttachNormalGear(job, guid)
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean AttachNormalGear(integer job, string guid)
+		local userId = self.Entity.PlayerComponent.UserId
+		
+		local errorCode = self:CanAttachNormalGear(job, guid)
+		if errorCode ~= _ErrorCodeEnum.Success then
+			self:SendErrorCodeToClient(errorCode, nil, userId)
+			return
+		end
+		
+		---@type ItemStruct
+		local itemStruct = self.Items[guid]
+		if itemStruct == nil then return end
+		
+		local itemData = _ItemDataLogic:GetData(itemStruct.ItemId)
+		if itemData == nil then return end
+		
+		local gearData = itemData:GetGearData()
+		if gearData == nil then return end
+		
+		local detachedGearCategories = {}
+		local gearCategory = gearData.GearCategory
+		if self:Inner_DetachNormalGear(job, gearCategory) then
+			table.insert(detachedGearCategories, gearCategory)	
+		end
+		
+		if gearCategory == _GearCategoryEnum.TwoHandedWeapon then
+			if self:Inner_DetachNormalGear(job, _GearCategoryEnum.OneHandedWeapon) then
+				table.insert(detachedGearCategories, _GearCategoryEnum.OneHandedWeapon)	
+			end
+		end
+		
+		if gearCategory == _GearCategoryEnum.OneHandedWeapon then
+			if self:Inner_DetachNormalGear(job, _GearCategoryEnum.TwoHandedWeapon) then
+				table.insert(detachedGearCategories, _GearCategoryEnum.TwoHandedWeapon)	
+			end
+		end
+		self.IsSaveDB = true
+		
+		local attachedGuid = nil
+		errorCode = self:Inner_AttachNormalGear(job, guid)
+		if errorCode == _ErrorCodeEnum.Success then
+			attachedGuid = guid
+		else
+			self:SendErrorCodeToClient(errorCode, nil, userId)
+		end
+		
+		self:ResponseAttachNormalGear(job, attachedGuid, detachedGearCategories, userId)
+	end
+
+	method integer CanAttachNormalGear(integer job, string guid)
+		---@type ItemStruct
+		local itemStruct = self.Items[guid]
+		if itemStruct == nil then
+			return _ErrorCodeEnum.Item_CannotFind
+		end
+		if itemStruct:IsExpired() then
+			return _ErrorCodeEnum.Item_Expired
+		end
+		
+		local itemData = _ItemDataLogic:GetData(itemStruct.ItemId)
+		if itemData == nil then
+			return _ErrorCodeEnum.Item_InvalidData
+		end
+		if itemData.Category ~= _ItemCategoryEnum.Gear then
+			return _ErrorCodeEnum.Item_InvalidCategory
+		end
+		
+		if self.Entity.PlayerJob:IsJobLocked(job) then
+			return _ErrorCodeEnum.Job_Locked
+		end
+		
+		local gearData = itemData:GetGearData()
+		if gearData == nil then
+			return _ErrorCodeEnum.Item_InvalidData
+		end
+		
+		local jobLevel = self.Entity.PlayerJob:GetJobLevel(job)
+		local errorCode = gearData:CanEquip(job, jobLevel)
+		if errorCode ~= _ErrorCodeEnum.Success then
+			return errorCode
+		end
+		
+		local gearStruct = itemStruct:GetGearStruct()
+		if gearStruct == nil then
+			return _ErrorCodeEnum.Item_InvalidGearStruct
+		end
+		if gearStruct.IsAttached then
+			return _ErrorCodeEnum.Item_AlreadyAttached
+		end
+		
+		return _ErrorCodeEnum.Success
+	end
+
+	@ExecSpace("ServerOnly")
+	method integer Inner_AttachNormalGear(integer job, string guid)
+		---@type ItemStruct
+		local itemStruct = self.Items[guid]
+		if itemStruct == nil then
+			return _ErrorCodeEnum.Item_CannotFind
+		end
+		
+		local itemData = _ItemDataLogic:GetData(itemStruct.ItemId)
+		if itemData == nil then
+			return _ErrorCodeEnum.Item_InvalidData
+		end
+		
+		local gearData = itemData:GetGearData()
+		if gearData == nil then
+			return _ErrorCodeEnum.Item_InvalidData
+		end
+		
+		local itemGearStruct = itemStruct:GetGearStruct()
+		if itemGearStruct == nil then
+			return _ErrorCodeEnum.Item_InvalidGearStruct
+		end
+		
+		if self.AttachedNormalGearItems[job] == nil then
+			self.AttachedNormalGearItems[job] = {}
+		end
+		
+		local gearCategory = gearData.GearCategory
+		if self.AttachedNormalGearItems[job][gearCategory] ~= nil then
+			return _ErrorCodeEnum.Item_NoEmptyEquipSlot
+		end
+		
+		self.AttachedNormalGearItems[job][gearCategory] = guid
+		itemGearStruct.IsAttached = true
+		
+		return _ErrorCodeEnum.Success
+	end
+
+	@ExecSpace("Client")
+	method void ResponseAttachNormalGear(integer job, string guid, table detachedGearCategories)
+		for i, category in ipairs(detachedGearCategories) do
+			self:DetachNormalGearInClient(job, category)
+			local evt = InvenDetachNormalGearEvent()
+			evt:Init(job, category)
+			self.Entity:SendEvent(evt)
+		end
+		
+		if self:AttachNormalGearInClient(job, guid) then
+			local evt = InvenAttachNormalGearEvent()
+			evt:Init(job, guid)
+			self.Entity:SendEvent(evt)
+		end
+		
+		self:RemoveNewItemFromList(guid)
+		
+		local invalidateEvt = InvenInvalidateEvent()
+		invalidateEvt.Job = job
+		self.Entity:SendEvent(invalidateEvt)
+	end
+
+	@ExecSpace("ClientOnly")
+	method boolean AttachNormalGearInClient(integer job, string guid)
+		---@type ItemStruct
+		local itemStruct = self.Items[guid]
+		if itemStruct == nil then return false end
+		
+		local itemData = _ItemDataLogic:GetData(itemStruct.ItemId)
+		if itemData == nil then return false end
+		
+		local gearData = itemData:GetGearData()
+		if gearData == nil then return false end
+		
+		local gearStruct = itemStruct:GetGearStruct()
+		if gearStruct ~= nil then
+			gearStruct.IsAttached = true
+		end
+		
+		if self.AttachedNormalGearItems[job] == nil then
+			self.AttachedNormalGearItems[job] = {}
+		end
+		
+		local gearCategory = gearData.GearCategory
+		self.AttachedNormalGearItems[job][gearCategory] = guid
+		return true
+	end
+
+	method string GetNormalGearItemGUID(integer job, integer gearCategory)
+		if self.AttachedNormalGearItems[job] == nil then 
+			return nil 
+		end
+		return self.AttachedNormalGearItems[job][gearCategory]
+	end
+
+	method ItemStruct GetNormalGearItemStruct(integer job, integer gearCategory)
+		if self.AttachedNormalGearItems[job] == nil then 
+			return nil 
+		end
+		
+		local guid = self.AttachedNormalGearItems[job][gearCategory]
+		if _Util:IsNilorEmptyString(guid) then 
+			return nil 
+		end
+		
+		return self.Items[guid]
+	end
+
+	@ExecSpace("Client")
+	method void SyncAddItemsToClient(table dbItems, table resultItemCountTable)
+		local evt = InvenItemAddedEvent()
+		for _, dbItem in ipairs(dbItems) do
+			local itemStruct = ItemStruct()
+			if itemStruct:Deserialize(dbItem) == false then
+				log_error('PlayerInventory SyncAddItemsToClient Error. Deserialize itemStruct Failed.')
+				continue
+			end
+			
+			local guid = itemStruct.GUID
+			local prevItemStruct = self.Items[guid]
+			if prevItemStruct ~= nil then
+				log_error(string.format("PlayerInventory SyncAddItemsToClient Error. ItemGUID already exist. ItemId : %s, ItemGUID : %s",
+					tostring(itemStruct.ItemId), guid))
+			end
+			
+			self.Items[guid] = itemStruct
+			table.insert(evt.GUIDs, guid)
+		end
+		
+		if #evt.GUIDs ~= 0 then
+			self:AddItemsToNewItemSet(evt.GUIDs)
+			self.Entity:SendEvent(evt)
+		end
+		
+		self:SyncItemCountsToClient(resultItemCountTable)
+	end
+
+	@ExecSpace("Client")
+	method void SyncItemCountsToClient(table resultItemCountTable)
+		local evt = InvenItemModifiedEvent()
+		local addCountTable = {}
+		for GUID, count in pairs(resultItemCountTable) do
+			---@type ItemStruct
+			local itemStruct = self.Items[GUID]
+			if itemStruct == nil then
+		
+				log_error(string.format('PlayerInventory SyncItemCountsToClient Error. Cannot find exist item. GUID : %s', GUID))
+				continue
+			end
+			if count > itemStruct.Count then
+				table.insert(addCountTable,GUID)
+			end
+			itemStruct.Count = count
+			
+			table.insert(evt.GUIDs, GUID)
+		end
+		
+		if #evt.GUIDs ~= 0 then
+			self:AddItemsToNewItemSet(addCountTable)
+			self.Entity:SendEvent(evt)
+		end
+	end
+
+	@ExecSpace("Client")
+	method void SyncRemovedItemsToClient(table guidList)
+		local evt = InvenItemRemovedEvent()
+		for _, guid in ipairs(guidList) do
+			---@type ItemStruct
+			local prevItemStruct = self.Items[guid]
+			if prevItemStruct == nil then
+				log_warning(string.format("PlayerInventory SyncRemovedItemToClient Error. Cannot find Item. ItemGUID : %s", guid))
+				return
+			end
+			
+			self.Items[guid] = nil
+			
+			table.insert(evt.GUIDs, guid)
+			table.insert(evt.ItemIds, prevItemStruct.ItemId)
+			if prevItemStruct:IsAttached() then
+				evt.IsAttached = true
+			end
+		end
+		
+		self.Entity:SendEvent(evt)
+	end
+
+	@ExecSpace("Server")
+	method void RequestDiscardItem(string guid, integer count)
+		self:DiscardItem(guid, count, true)
+	end
+
+	@ExecSpace("ServerOnly")
+	method integer DiscardItem(string guid, integer count, boolean isSendErrorCode)
+		local userId = self.Entity.PlayerComponent.UserId
+		
+		local errorCode = self:CanDiscardItem(guid, count)
+		if errorCode == _ErrorCodeEnum.Success then
+			errorCode = self:Inner_DiscardItem(guid, count)
+		end
+		
+		if isSendErrorCode and errorCode ~= _ErrorCodeEnum.Success then
+			self:SendErrorCodeToClient(errorCode, '', userId)
+		end
+		
+		return errorCode
+	end
+
+	@ExecSpace("ServerOnly")
+	method integer Inner_DiscardItem(string guid, integer count)
+		---@type ItemStruct
+		local itemStruct = self.Items[guid]
+		if itemStruct == nil then
+			return _ErrorCodeEnum.Item_CannotFind
+		end
+		
+		local deleteParam = ItemDeleteParamStruct()
+		deleteParam.ItemGUID = guid
+		deleteParam.ItemCount = count
+		
+		local userId = self.Entity.PlayerComponent.UserId
+		
+		local resultStruct = ItemDeleteResultStruct()
+		return _ItemFactoryLogic:TryDeleteItem(userId, deleteParam, resultStruct)
+	end
+
+	method integer CanDiscardItem(string guid, integer count)
+		---@type ItemStruct
+		local itemStruct = self.Items[guid]
+		if itemStruct == nil then
+			return _ErrorCodeEnum.Item_CannotFind
+		end
+		
+		count = math.floor(count)
+		if count <= 0 then
+			return _ErrorCodeEnum.Item_CountIsZero
+		end
+		
+		if itemStruct.Count < count then
+			return _ErrorCodeEnum.Item_LackCount
+		end
+		
+		return itemStruct:CanDiscardItem()
+	end
+
+	method integer GetRemainSlotCount(integer itemCategory)
+		local usedSlotCount = self:GetUsedSlotCount(itemCategory)
+		return math.max(self.InventoryCapacity - usedSlotCount, 0)
+	end
+
+	method boolean HasRemainSlotCount(integer itemCategory)
+		return self:GetRemainSlotCount(itemCategory) > 0
+	end
+
+	method boolean HasRemainSlotCountAll(integer checkSlotCount)
+		local enums = _ItemCategoryEnum:ToTable()
+		for i = 1, #enums do
+			local enum = enums[i]
+			if self:GetRemainSlotCount(enum) < checkSlotCount then
+				return false
+			end
+		end
+		
+		return true
+	end
+
+	method string SerializeAttachedNormalGearItems()
+		local dbEquipItems = {}
+		
+		for jobCode, v in pairs(self.AttachedNormalGearItems) do
+			local jobCodeStr = tostring(jobCode)
+			for category, guid in pairs(v) do
+				if dbEquipItems[jobCodeStr] == nil then
+					dbEquipItems[jobCodeStr] = {}
+				end
+				
+				local categoryStr = tostring(category)
+				dbEquipItems[jobCodeStr][categoryStr] = guid
+			end
+		end
+		
+		if _Util:IsNilorEmptyTable(dbEquipItems) then
+			return nil
+		end
+		
+		return _HttpService:JSONEncode(dbEquipItems)
+	end
+
+	method table DeserializeAttachedNormalGearItems(string gearItemsStr)
+		local equipItems = {}
+		if _Util:IsNilorEmptyString(gearItemsStr) then
+			return equipItems
+		end
+		
+		local dbEquipItems = _HttpService:JSONDecode(gearItemsStr)
+		for jobCodeStr, categoryGUIDPairs in pairs(dbEquipItems) do
+			local jobCode = math.tointeger(tonumber(jobCodeStr))
+			for categoryStr, guid in pairs(categoryGUIDPairs) do
+				local category = math.tointeger(tonumber(categoryStr))
+				if equipItems[jobCode] == nil then
+					equipItems[jobCode] = {}
+				end
+				
+				equipItems[jobCode][category] = guid
+			end
+		end
+		
+		return equipItems
+	end
+
+	method integer GetUsedSlotCount(integer itemCategory)
+		local accSlotCount = 0
+		for guid, v in pairs(self.Items) do
+			---@type ItemStruct
+			local itemStruct = v
+			if itemStruct:IsAttached() then
+				continue
+			end
+			
+			local itemData = _ItemDataLogic:GetData(itemStruct.ItemId)
+			if itemData == nil then
+				continue
+			end
+			
+			if itemData.Category ~= itemCategory then
+				continue
+			end
+			
+			accSlotCount += 1
+		end
+		
+		return accSlotCount
+	end
+
+	method integer CanUseItem(string guid, integer count)
+		---@type ItemStruct
+		local itemStruct = self.Items[guid]
+		if itemStruct == nil then
+			return _ErrorCodeEnum.Item_CannotFind
+		end
+		
+		count = math.floor(count)
+		if count <= 0 then
+			return _ErrorCodeEnum.Item_CountIsZero
+		end
+		
+		if itemStruct:IsExpired() then
+			return _ErrorCodeEnum.Item_Expired	
+		end
+		
+		local itemData = _ItemDataLogic:GetData(itemStruct.ItemId)
+		if itemData == nil then
+			return _ErrorCodeEnum.Item_InvalidData
+		end
+		
+		if itemData.Category ~= _ItemCategoryEnum.Usable then
+			return _ErrorCodeEnum.Item_InvalidCategory
+		end
+		
+		if self:HasCooldown(itemStruct.ItemId) then
+			return _ErrorCodeEnum.Item_Cooldown
+		end
+		
+		if itemStruct.Count < count then
+			return _ErrorCodeEnum.Item_LackCount
+		end
+		
+		return _ErrorCodeEnum.Success
+	end
+
+	@ExecSpace("Server")
+	method void RequestUseItem(string guid, integer count)
+		self:UseItem(guid, count, true)
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean UseItem(string guid, integer count, boolean isSendErrorCode)
+		local userId = self.Entity.PlayerComponent.UserId
+		
+		local errorCode = self:CanUseItem(guid, count)
+		if isSendErrorCode and errorCode ~= _ErrorCodeEnum.Success then
+			self:SendErrorCodeToClient(errorCode, nil, userId)
+			return false
+		end
+		
+		---@type ItemStruct
+		local itemStruct = self.Items[guid]
+		errorCode = self:Inner_DiscardItem(guid, count)
+		if isSendErrorCode and errorCode ~= _ErrorCodeEnum.Success then
+			self:SendErrorCodeToClient(errorCode, nil, userId)
+			return false
+		end
+		
+		local itemData = _ItemDataLogic:GetData(itemStruct.ItemId)
+		local useFunction = _ItemCategoryEnum:GetUsableFunction(itemData.UsableFunction)
+		if useFunction == nil then
+			self:SendErrorCodeToClient(_ErrorCodeEnum.Item_NoUseFunction, nil, userId)
+			return false
+		end
+		useFunction(itemData.UsableFunctionParams)
+		
+		self.IsSaveDB = true
+		if itemData.CooldownTime > 0.1 then
+			self.CoolEndTimes[itemStruct.ItemId] = _DateTimeLogic:GetTimeElapsed() + math.floor(itemData.CooldownTime * 1000)
+		end
+		
+		return true
+	end
+
+	method string SerializeCoolEndTimes()
+		local dbCoolEndTimes = {}
+		
+		local curElapsedTimeSecond = _DateTimeLogic:GetTimeElapsed() / 1000
+		for itemId, coolEndTime in pairs(self.CoolEndTimes) do
+			local itemData = _ItemDataLogic:GetData(itemId)
+			if itemData == nil then
+				continue
+			end
+			
+			local coolEndTimeSecond = coolEndTime / 1000
+			if coolEndTimeSecond <= curElapsedTimeSecond then
+				continue
+			end
+			
+			local itemIdStr = tostring(itemId)
+			dbCoolEndTimes[itemIdStr] = math.tointeger(coolEndTimeSecond)
+		end
+		
+		if _Util:IsNilorEmptyTable(dbCoolEndTimes) then
+			return nil
+		end
+		
+		return _HttpService:JSONEncode(dbCoolEndTimes)
+	end
+
+	method table DeserializeCoolEndTimes(string coolEndTimeSecondsStr)
+		local coolEndTimes = {}
+		if _Util:IsNilorEmptyString(coolEndTimeSecondsStr) then
+			return coolEndTimes
+		end
+		
+		local dbCoolEndTimes = _HttpService:JSONDecode(coolEndTimeSecondsStr)
+		for itemIdStr, coolEndTimeSecond in pairs(dbCoolEndTimes) do
+			local itemId = math.tointeger(tonumber(itemIdStr))
+			coolEndTimes[itemId] = math.tointeger(coolEndTimeSecond * 1000)
+		end
+		
+		return coolEndTimes
+	end
+
+	method boolean HasCooldown(integer itemId)
+		local itemData = _ItemDataLogic:GetData(itemId)
+		if itemData == nil then
+			return false
+		end
+		
+		if itemData.CooldownTime < 0.1 then
+			return false
+		end
+		
+		if self.CoolEndTimes[itemId] == nil or self.CoolEndTimes[itemId] < _DateTimeLogic:GetTimeElapsed() then
+			return false
+		end
+		
+		return true
+	end
+
+	@ExecSpace("Server")
+	method void RequestLockItem(string guid, boolean lock)
+		self:LockItem(guid, lock)
+	end
+
+	@ExecSpace("ServerOnly")
+	method void LockItem(string guid, boolean lock)
+		local userId = self.Entity.PlayerComponent.UserId
+		---@type ItemStruct
+		local itemStruct = self.Items[guid]
+		if itemStruct == nil then
+			self:SendErrorCodeToClient(_ErrorCodeEnum.Item_CannotFind, nil, userId)
+			return
+		end
+		
+		local itemData = _ItemDataLogic:GetData(itemStruct.ItemId)
+		if itemData == nil then
+			self:SendErrorCodeToClient(_ErrorCodeEnum.InvalidData, nil, userId)
+			return
+		end
+		
+		if not itemData:IsLockable() then
+			self:SendErrorCodeToClient(_ErrorCodeEnum.Item_NotLockable, nil, userId)
+			return
+		end
+		
+		self.IsSaveDB = true
+		itemStruct.Lock = lock
+		self:SyncItemLockToClient(itemStruct.GUID, lock, true, userId)
+	end
+
+	method ItemStruct GetAttachedGearItemStruct(integer job, integer gearCategory)
+		local categoryRuidTable = self.AttachedNormalGearItems[job]
+		if categoryRuidTable == nil then
+			return nil
+		end
+		
+		local ruid = categoryRuidTable[gearCategory]
+		if _Util:IsNilorEmptyString(ruid) then
+			return nil
+		end
+		
+		return self.Items[ruid]
+	end
+
+	method table GetAttachedGearItemStructList(integer job)
+		local categoryRuidTable = self.AttachedNormalGearItems[job]
+		if categoryRuidTable == nil then
+			return nil
+		end
+		
+		local itemStructList = {}
+		
+		for gearCategory, ruid in pairs(categoryRuidTable) do
+			if _Util:IsNilorEmptyString(ruid) then
+				continue
+			end
+			
+			local itemStruct = self.Items[ruid]
+			if itemStruct == nil then
+				continue
+			end
+			table.insert(itemStructList, itemStruct)
+		end
+		
+		return itemStructList
+	end
+
+	method integer GetItemCount(integer itemId, integer curElapsed)
+		if curElapsed == nil then
+			curElapsed = _DateTimeLogic:GetTimeElapsed()
+		end
+		
+		local accCount = 0
+		for guid, v in pairs(self.Items) do
+			---@type ItemStruct	
+			local itemStruct = v
+			if itemStruct.ItemId ~= itemId then 
+				continue
+			elseif itemStruct.Lock then 
+				continue 
+			elseif itemStruct:IsExpiredWithElapsed(curElapsed) then
+				continue
+			end
+			
+			accCount += itemStruct.Count
+		end
+		
+		return accCount
+	end
+
+	method table GetDeleteParamListByItemId(integer itemId, integer delCount, integer curElapsed)
+		if curElapsed == nil then
+			curElapsed = _DateTimeLogic:GetTimeElapsed()
+		end
+		
+		---@type table<ItemStruct>
+		local sortList = {}
+		
+		for guid, v in pairs(self.Items) do
+			---@type ItemStruct	
+			local itemStruct = v
+			if itemStruct.ItemId ~= itemId then continue end
+			if itemStruct.Lock then continue end
+			if itemStruct:IsExpiredWithElapsed(curElapsed) then
+				continue
+			end
+		
+			table.insert(sortList, itemStruct)
+		end
+		
+		if #sortList == 0 then
+			return nil
+		end
+		
+		local comp = _InventorySortEnum:GetSortFunc(_InventorySortEnum.EndDateMinute)
+		table.sort(sortList, comp)
+		
+		local remainCount = delCount
+		local guidCountTable = {}
+		
+		for i = 1, #sortList do
+			local itemStruct = sortList[i]
+			local itemCount = itemStruct.Count
+			
+			if remainCount <= itemCount then
+				guidCountTable[itemStruct.GUID] = remainCount
+				remainCount = 0
+				break
+			end
+			
+			guidCountTable[itemStruct.GUID] = itemCount
+			remainCount -= itemCount
+		end
+		
+		if remainCount ~= 0 then
+			return nil
+		end
+		
+		local delParamList = {}
+		for GUID, count in pairs(guidCountTable) do
+			local delParam = ItemDeleteParamStruct()
+			delParam.ItemGUID = GUID
+			delParam.ItemCount = count
+			table.insert(delParamList, delParam)
+		end
+		
+		return delParamList
+	end
+
+	@ExecSpace("ServerOnly")
+	method void CleanupExpiredItems(boolean isSendSync)
+		local userId = self.Entity.PlayerComponent.UserId
+		local curElapsed = _DateTimeLogic:GetTimeElapsed()
+		
+		local guidList = {}
+		
+		for guid, v in pairs (self.Items) do
+			---@type ItemStruct
+			local itemStruct = v
+			if not itemStruct:IsExpiredWithElapsed(curElapsed) then
+				continue
+			end
+			
+			self:Inner_DetachGearForCleanup(itemStruct)
+			
+			self.Items[guid] = nil
+			self.IsSaveDB = true
+			table.insert(guidList, guid)
+			
+			local delCount = itemStruct.Count
+			itemStruct.Count = 0
+			
+			local itemData = itemStruct:GetItemData()
+			local category = 0
+			if itemData ~= nil then
+				category = itemData.Category
+			end
+		end
+		
+		if isSendSync and #guidList ~= 0 then
+			self:SyncRemovedItemsToClient(guidList, self.Entity.PlayerComponent.UserId)
+		end
+	end
+
+	@ExecSpace("ServerOnly")
+	method void Inner_DetachGearForCleanup(ItemStruct itemStruct)
+		if not itemStruct:IsAttached() then
+			return
+		end
+		
+		local itemData = itemStruct:GetItemData()
+		if itemData == nil then
+			return
+		end
+		
+		if itemData.Category == _ItemCategoryEnum.Gear then
+			local gearData = itemStruct:GetGearData()
+			if gearData == nil then
+				return
+			end
+			
+			local gearCategory = gearData.GearCategory
+			for job, categoryGuidPairs in pairs(self.AttachedNormalGearItems) do
+				if categoryGuidPairs[gearCategory] == itemStruct.GUID then
+					categoryGuidPairs[gearCategory] = nil
+					return
+				end
+			end
+		end
+	end
+
+	@ExecSpace("Client")
+	method void SyncItemCountToClient(string guid, integer count)
+		---@type ItemStruct
+		local itemStruct = self.Items[guid]
+		if itemStruct == nil then
+			self:SendErrorCodeToClient(_ErrorCodeEnum.Item_CannotFind, nil)
+			return
+		end
+		itemStruct.Count = count
+		
+		local evt = InvenItemModifiedEvent()
+		evt.GUIDs = {guid}
+		self.Entity:SendEvent(evt)
+	end
+
+	@ExecSpace("Client")
+	method void SyncItemLockToClient(string guid, boolean lock, boolean invalidateInven)
+		---@type ItemStruct
+		local itemStruct = self.Items[guid]
+		if itemStruct == nil then
+			self:SendErrorCodeToClient(_ErrorCodeEnum.Item_CannotFind, nil)
+			return
+		end
+		itemStruct.Lock = lock
+		
+		if invalidateInven then
+			local evt = InvenItemModifiedEvent()
+			evt.GUIDs = {guid}
+			self.Entity:SendEvent(evt)
+		end
+	end
+
+	method table GetAttachedGearItemIds(integer job, integer utcElapsed)
+		if self.AttachedNormalGearItems[job] == nil then
+			return nil
+		end
+		
+		if utcElapsed == nil then
+			utcElapsed = _DateTimeLogic:GetTimeElapsed()
+		end
+		
+		local itemIds = {}
+		for gearCategory, guid in pairs(self.AttachedNormalGearItems[job]) do
+			---@type ItemStruct
+			local itemStruct = self.Items[guid]
+			if itemStruct == nil then
+				continue
+			end
+			
+			if itemStruct:IsExpiredWithElapsed(utcElapsed) then
+				continue
+			end
+			
+			table.insert(itemIds, itemStruct.ItemId)
+		end
+		
+		if #itemIds == 0 then
+			return nil
+		end
+		
+		return itemIds
+	end
+
+	@ExecSpace("Client")
+	method void SendErrorCodeToClient(integer errorCode, string message)
+		_ErrorCodeEnum:ShowErrorMsg(errorCode)
+	end
+
+	method table GetExpiredItemGUIDs()
+		local curElapsed = _DateTimeLogic:GetTimeElapsed()
+		local guidList = {}
+		for guid, v in pairs (self.Items) do
+			
+			---@type ItemStruct
+			local itemStruct = v
+			if itemStruct.EndDateMinute == 0 then
+				continue
+			end
+			
+			if not itemStruct:IsExpiredWithElapsed(curElapsed) then
+				continue
+			end
+			
+			table.insert(guidList, itemStruct.GUID)
+		end
+		
+		return guidList
+	end
+
+	@ExecSpace("Server")
+	method void RequestRemoveExpiredItems(table guids)
+		local userId = senderUserId
+		
+		for _, guid in ipairs(guids) do
+			---@type ItemStruct
+			local itemStruct = self.Items[guid]
+			if itemStruct == nil then
+				continue
+			end
+			
+			if not itemStruct:IsExpired() then
+				continue
+			end
+			
+			local param = ItemDeleteParamStruct()
+			param.ItemGUID = guid
+			param.ItemCount = itemStruct.Count
+			
+			local deleteResultStruct = ItemDeleteResultStruct()
+			if _ItemFactoryLogic:TryDeleteItem(userId, param, deleteResultStruct) ~= _ErrorCodeEnum.Success then
+				continue
+			end
+		end
+		
+		self.IsSaveDB = true
+	end
+
+	@ExecSpace("ServerOnly")
+	method table AttachNormalGears(table itemGUIDs, table errorLists, integer jobCode)
+		local successLists = {}
+		for _, guid in pairs(itemGUIDs) do
+			---@type ItemStruct
+			local itemStruct = self.Items[guid]
+			if itemStruct == nil then
+				errorLists[guid] = _ErrorCodeEnum.Item_CannotFind
+				continue
+			end
+			
+			local itemData = _ItemDataLogic:GetData(itemStruct.ItemId)
+			if itemData == nil then
+				errorLists[guid] = _ErrorCodeEnum.Item_InvalidData
+				continue
+			end
+			
+			local gearData = itemData:GetGearData()
+			if gearData == nil then
+				errorLists[guid] = _ErrorCodeEnum.Item_InvalidData
+				continue
+			end
+		
+			local itemGearStruct = itemStruct:GetGearStruct()
+			if itemGearStruct == nil then
+				errorLists[guid] = _ErrorCodeEnum.Item_InvalidGearStruct
+				continue
+			end
+			
+			if self.AttachedNormalGearItems[jobCode] == nil then
+				self.AttachedNormalGearItems[jobCode] = {}
+			end
+			
+			local gearCategory = gearData.GearCategory
+			if self.AttachedNormalGearItems[jobCode][gearCategory] ~= nil then
+				errorLists[guid] = _ErrorCodeEnum.Item_NoEmptyEquipSlot
+				continue
+			end
+			
+			self.AttachedNormalGearItems[jobCode][gearCategory] = guid
+			itemGearStruct.IsAttached = true
+			
+			table.insert(successLists, guid)
+		end
+		
+		return successLists
+	end
+
+	method boolean IsMainWeaponAttached(integer job)
+		local oneHandedWeaponGUID = self:GetNormalGearItemGUID(job, _GearCategoryEnum.OneHandedWeapon)
+		local twoHandedWeaponGUID = self:GetNormalGearItemGUID(job, _GearCategoryEnum.TwoHandedWeapon)
+		if _Util:IsNilorEmptyString(oneHandedWeaponGUID) and _Util:IsNilorEmptyString(twoHandedWeaponGUID) then
+			return false
+		end
+		
+		return true
+	end
+
+	method boolean IsSubWeaponAttached(integer job)
+		local subWeaponGUID = self:GetNormalGearItemGUID(job, _GearCategoryEnum.SubWeapon)
+		if _Util:IsNilorEmptyString(subWeaponGUID) then
+			return false
+		end
+		
+		return true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void AddItemsToNewItemSet(table guidList)
+		for i, guid in pairs(guidList) do
+			self.NewItemsSet[guid] = true
+		end
+		
+		_UserService.LocalPlayer:SendEvent(NewItemEvent())
+	end
+
+	@ExecSpace("ClientOnly")
+	method void RemoveNewItemFromList(string guid)
+		self.NewItemsSet[guid] = nil
+		_UserService.LocalPlayer:SendEvent(NewItemEvent())
+	end
+
+	@ExecSpace("ClientOnly")
+	method void RemoveAllNewItemsFromList()
+		table.clear(self.NewItemsSet)
+		_UserService.LocalPlayer:SendEvent(NewItemEvent())
+	end
+
+	@ExecSpace("ClientOnly")
+	method boolean IsNewItem(string guid)
+		if self.NewItemsSet[guid] then
+			return true
+		else
+			return false
+		end
+	end
+
+end

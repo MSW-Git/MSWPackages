@@ -1,0 +1,111 @@
+@Component
+script UIItemSlot extends Component
+
+	@Sync
+	property string ExistBackgroundRUID = "9a43d767d2e8495396eae6fcded4b19d"
+
+	property string EmptyBackgroundRUID = "004e5fc9c660a1342a055ae7157e5aeb"
+
+	property SpriteGUIRendererComponent IconBackground = nil
+
+	property SpriteGUIRendererComponent ImageGrade = nil
+
+	property SpriteGUIRendererComponent IconItem = nil
+
+	property SpriteGUIRendererComponent IconRedDot = nil
+
+	property SpriteGUIRendererComponent IconLock = nil
+
+	property SpriteGUIRendererComponent IconTime = nil
+
+	property TextComponent TextCount = nil
+
+	property Entity ImageDim = nil
+
+	property any ItemStruct = nil
+
+	property any OnItemClickedFunc = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		self.IconBackground = entity.SpriteGUIRendererComponent
+		self.ImageGrade = entity:GetChildByName("Grade").SpriteGUIRendererComponent
+		self.IconItem = entity:GetChildByName("IconItem").SpriteGUIRendererComponent
+		self.IconRedDot = entity:GetChildByName("RedDot").SpriteGUIRendererComponent
+		self.IconLock = entity:GetChildByName("IconLock").SpriteGUIRendererComponent
+		self.IconTime = entity:GetChildByName("IconTime").SpriteGUIRendererComponent
+		self.TextCount = entity:GetChildByName("Count").TextComponent
+		self.ImageDim = entity:GetChildByName("Dim")
+		
+		entity:ConnectEvent(ButtonClickEvent, function() 
+			if self.OnItemClickedFunc then
+				self.OnItemClickedFunc()
+			end 
+		end)
+		entity.ButtonComponent.Enable = false
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Set(ItemStruct itemStruct)
+		if itemStruct == nil then
+			self:Clear()
+			return
+		end
+		
+		self.ItemStruct = itemStruct
+		self.Entity.ButtonComponent.Enable = true
+		
+		self.IconBackground.ImageRUID = self.ExistBackgroundRUID
+		local itemData = itemStruct:GetItemData()
+		self.IconItem.ImageRUID = itemData.RUID
+		self.IconItem.Enable = true
+		self.IconLock.Enable = itemStruct.Lock
+		self.IconTime.Enable = itemStruct.EndDateMinute ~= 0
+		
+		if itemData.NonStackable then
+			self.TextCount.Enable = false
+		else
+			self.TextCount.Text = tostring(itemStruct.Count)
+			self.TextCount.Enable = true
+		end
+		
+		local playerInventory = _UserService.LocalPlayer.PlayerInventory
+		self.IconRedDot.Enable = playerInventory:IsNewItem(itemStruct.GUID)
+		
+		local itemGearData = itemStruct:GetGearData()
+		if itemGearData == nil then
+			self.ImageGrade.Enable = false
+			self.ImageDim.Enable = false
+			return
+		end
+		
+		local itemGearStruct = itemStruct:GetGearStruct()
+		self.ImageGrade.ImageRUID = _GearGradeEnum:GetBackgroundRUID(itemGearStruct.Grade)
+		self.ImageGrade.Enable = true
+		if itemGearStruct.IsAttached then
+			self.ImageDim.Enable = true
+		else
+			local job = playerInventory.CurrentJob
+			local jobLevel = _UserService.LocalPlayer.PlayerJob:GetJobLevel(job)
+			self.ImageDim.Enable = itemGearData:CanEquip(job, jobLevel) ~= _ErrorCodeEnum.Success
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		self.ItemStruct = nil
+		self.Entity.ButtonComponent.Enable = false
+		
+		self.IconBackground.ImageRUID = self.EmptyBackgroundRUID
+		self.ImageGrade.Enable = false
+		self.IconItem.Enable = false
+		
+		self.IconRedDot.Enable = false
+		self.IconTime.Enable = false
+		self.IconLock.Enable = false
+		self.TextCount.Enable = false
+		self.ImageDim.Enable = false
+	end
+
+end

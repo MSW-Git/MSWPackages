@@ -1,0 +1,44 @@
+@Logic
+script DataSetLogic extends Logic
+
+	method boolean IsInit()
+		if self._T.IsInit then
+			return true
+		end
+		
+		return false
+	end
+
+	method boolean Load()
+		log("Need to implement override Load Function.")
+		return false
+	end
+
+	method void Inner_Start()
+		self._T.ElapsedTime = _UtilLogic.ElapsedSeconds
+		self._T.RowCount = 0
+	end
+
+	method void Inner_Wait()
+		-- 200 row마다 elapsedTime 체크. 5초 이상 걸린 경우 wait.
+		local rowCount = self._T.RowCount + 1
+		if rowCount < 200 then
+			self._T.RowCount = rowCount
+			return
+		end
+		self._T.RowCount = 0
+		
+		local curElapsed = _UtilLogic.ElapsedSeconds
+		if curElapsed - self._T.ElapsedTime < 5 then
+			return
+		end
+		
+		self._T.ElapsedTime = curElapsed
+		wait(0.01)
+	end
+
+	method void Inner_End()
+		self._T.IsInit = true
+	end
+
+end

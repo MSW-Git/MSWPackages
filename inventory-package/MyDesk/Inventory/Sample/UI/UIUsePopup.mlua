@@ -1,0 +1,81 @@
+@Component
+script UIUsePopup extends Component
+
+	property TextComponent TextConfirm = nil
+
+	property TextComponent TextCancel = nil
+
+	property UIInventory Inventory = nil
+
+	property UIItemSlot ItemSlot = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local panel = self.Entity:GetChildByName("Panel")
+		local textTitle = panel:GetChildByName("Title").TextComponent
+		textTitle.Text = "사용"
+		
+		local itemDecoration = panel:GetChildByName("ItemDecoration")
+		local itemSlotEntity = _SpawnService:SpawnByModelId(_EntryService:GetModelIdByName("ItemSlot"), "ItemSlot", Vector3.zero, self.Entity)
+		self.ItemSlot = itemSlotEntity.UIItemSlot
+		
+		local buttonConfirm = panel:GetChildByName("ButtonConfirm")
+		buttonConfirm:ConnectEvent(ButtonClickEvent, function() self:OnConfirmButtonClicked() end)
+		self.TextConfirm = buttonConfirm.TextComponent
+		self.TextConfirm.Text = "사용"
+		
+		local buttonCancel = panel:GetChildByName("ButtonCancel")
+		buttonCancel:ConnectEvent(ButtonClickEvent, function() self:OnCancelButtonClicked() end)
+		self.TextCancel = buttonCancel.TextComponent
+		self.TextCancel.Text = "취소"
+		
+		local buttonDelete = panel:GetChildByName("ButtonDelete")
+		buttonDelete:ConnectEvent(ButtonClickEvent, function() self:OnDeleteButtonClicked() end)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Open(ItemStruct itemStruct)
+		self.ItemSlot:Set(itemStruct)
+		
+		self.Entity.Enable = true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnConfirmButtonClicked()
+		if self.Entity.Enable == false or self.ItemSlot.ItemStruct == nil then
+			return
+		end
+		
+		---@type ItemStruct
+		local itemStruct = self.ItemSlot.ItemStruct
+		local itemData = itemStruct:GetItemData()
+		
+		_UserService.LocalPlayer.PlayerInventory:RequestUseItem(itemStruct.GUID, 1)
+		
+		self:Close()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnCancelButtonClicked()
+		self:Close()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnDeleteButtonClicked()
+		if self.Entity.Enable == false or self.ItemSlot.ItemStruct == nil then
+			return
+		end
+		
+		---@type ItemStruct
+		local itemStruct = self.ItemSlot.ItemStruct
+		_UserService.LocalPlayer.PlayerInventory:RequestDiscardItem(itemStruct.GUID, 1)
+		
+		self:Close()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Close()
+		self.Entity.Enable = false
+	end
+
+end

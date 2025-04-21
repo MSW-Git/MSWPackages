@@ -1,0 +1,45 @@
+@Struct
+script ItemDeleteParamStruct
+
+	property string ItemGUID = ""
+
+	property integer ItemId = 0
+
+	property integer ItemCount = 1
+
+	method void CopyFrom(ItemDeleteParamStruct other)
+		self.ItemGUID = other.ItemGUID
+		self.ItemId = other.ItemId
+		self.ItemCount = other.ItemCount
+	end
+
+	method ItemDeleteParamStruct Clone()
+		local struct = ItemDeleteParamStruct()
+		struct:CopyFrom(self)
+		
+		return struct
+	end
+
+	method boolean IsValidData()
+		if self.ItemCount == nil or self.ItemCount <= 0 then
+			return false
+		end
+		
+		local isValidItemGUID = not _Util:IsNilorEmptyString(self.ItemGUID)
+		
+		local isValidItemId = false
+		if self.ItemId ~= nil and self.ItemId > 0 then
+			local itemData = _ItemDataLogic:GetData(self.ItemId)
+			if itemData ~= nil then
+				isValidItemId = true
+			end	
+		end
+		
+		local validCount = 0
+		if isValidItemGUID then validCount += 1 end
+		if isValidItemId then validCount += 1 end
+		
+		return validCount == 1
+	end
+
+end

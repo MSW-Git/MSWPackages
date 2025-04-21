@@ -1,0 +1,35 @@
+@Struct
+script ItemCreateResultStruct
+
+	property table PrevItemStructList = {}
+
+	property table AccSlotCountTable = {}
+
+	property table NewItemGUIDs = {}
+
+	property table AccItemCountTable = {}
+
+	property table FailInfo = {}
+
+	method void Description()
+		--[[
+			- PrevItemStructList: table<ItemStruct>
+			When adding an item, it’s necessary to check if the same item already exists.
+			This table is used for duplicate item checks. (For simulation use only)
+			
+			- AccSlotCountTable: table<Category(integer), AccCount(integer)>
+			This table is used to check if the slot count limit has been exceeded. (For simulation use only)
+			
+			- NewItemGUIDs: table<ItemGUID(string), true>
+			A table of newly created item GUIDs that were issued new GUIDs.
+			
+			- AccItemCountTable: table<ItemGUID(string), AccCount(integer)>
+			The number of items added per ItemGUID.
+			
+			- FailInfo
+			This contains messages related to failures. Even if a failure occurs, the message may be empty.
+			You can check it via FailInfo.Message.
+		]]
+	end
+
+end

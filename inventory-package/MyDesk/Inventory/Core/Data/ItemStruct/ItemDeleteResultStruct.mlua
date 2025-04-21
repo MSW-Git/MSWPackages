@@ -1,0 +1,35 @@
+@Struct
+script ItemDeleteResultStruct
+
+	property table PrevItemStructList = {}
+
+	property table AccSlotCountTable = {}
+
+	property table DeletedItems = {}
+
+	property table DeletedItemCountTable = {}
+
+	property table FailInfo = {}
+
+	method void Description()
+		--[[
+			- PrevItemStructList: table<ItemStruct>
+			When adding an item, it is necessary to check whether the same item already exists.
+			This table is used for identifying duplicate items. (Simulation only)
+			
+			- AccSlotCountTable: table<Category(integer), AccCount(integer)>
+			This table is used to check if the slot count limit has been exceeded. (Simulation only)
+			
+			- DeletedItems: table<ItemGUID(string), true>
+			A table of item GUIDs for items to be deleted.
+			
+			- DeletedItemCountTable: table<ItemGUID(string), AccCount(integer)>
+			The number of items to be deleted per ItemGUID.
+			
+			- FailInfo
+		    This contains messages related to failures. Even if a failure occurs, the message may be empty.
+		    You can check it via FailInfo.Message.
+		]]
+	end
+
+end

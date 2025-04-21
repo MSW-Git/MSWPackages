@@ -1,0 +1,144 @@
+@Logic
+script AvatarCategoryEnum extends Logic
+
+	property integer None = 0
+
+	property integer Body = 1
+
+	property integer Hair = 3
+
+	property integer Face = 4
+
+	property integer Cap = 5
+
+	property integer Cape = 6
+
+	property integer Coat = 7
+
+	property integer Glove = 8
+
+	property integer Longcoat = 9
+
+	property integer Pants = 10
+
+	property integer Shoes = 12
+
+	property integer OneHandedWeapon = 13
+
+	property integer TwoHandedWeapon = 14
+
+	property integer SubWeapon = 15
+
+	property integer FaceAccessory = 16
+
+	property integer EyeAccessory = 17
+
+	property integer EarAccessory = 18
+
+	property integer Ear = 19
+
+	property table StringToEnumTable = {}
+
+	property table EnumToStringTable = {}
+
+	property table CategoryToEnumTable = {}
+
+	method void Init()
+		local stringToEnumTable = {}
+		self.StringToEnumTable = stringToEnumTable
+		stringToEnumTable["None"] = self.None
+		stringToEnumTable["Cap"] = self.Cap
+		stringToEnumTable["Longcoat"] = self.Longcoat
+		stringToEnumTable["Body"] = self.Body
+		stringToEnumTable["Hair"] = self.Hair
+		stringToEnumTable["Face"] = self.Face
+		stringToEnumTable["Cape"] = self.Cape
+		stringToEnumTable["Coat"] = self.Coat
+		stringToEnumTable["Glove"] = self.Glove
+		stringToEnumTable["Pants"] = self.Pants
+		stringToEnumTable["Shoes"] = self.Shoes
+		stringToEnumTable["OneHandedWeapon"] = self.OneHandedWeapon
+		stringToEnumTable["TwoHandedWeapon"] = self.TwoHandedWeapon
+		stringToEnumTable["SubWeapon"] = self.SubWeapon
+		stringToEnumTable["FaceAccessory"] = self.FaceAccessory
+		stringToEnumTable["EyeAccessory"] = self.EyeAccessory
+		stringToEnumTable["EarAccessory"] = self.EarAccessory
+		stringToEnumTable["Ear"] = self.Ear
+		
+		local enumToStringTable = {}
+		self.EnumToStringTable = enumToStringTable
+		for str, enum in pairs(stringToEnumTable) do
+			enumToStringTable[enum] = str
+		end
+		
+		local categoryToEnumTable = {}
+		self.CategoryToEnumTable = categoryToEnumTable
+		categoryToEnumTable[MapleAvatarItemCategory.Invalid] = self.None
+		categoryToEnumTable[MapleAvatarItemCategory.Cap] = self.Cap
+		categoryToEnumTable[MapleAvatarItemCategory.Longcoat] = self.Longcoat
+		categoryToEnumTable[MapleAvatarItemCategory.Body] = self.Body
+		categoryToEnumTable[MapleAvatarItemCategory.Hair] = self.Hair
+		categoryToEnumTable[MapleAvatarItemCategory.Face] = self.Face
+		categoryToEnumTable[MapleAvatarItemCategory.Cape] = self.Cape
+		categoryToEnumTable[MapleAvatarItemCategory.Coat] = self.Coat
+		categoryToEnumTable[MapleAvatarItemCategory.Glove] = self.Glove
+		categoryToEnumTable[MapleAvatarItemCategory.Pants] = self.Pants
+		categoryToEnumTable[MapleAvatarItemCategory.Shoes] = self.Shoes
+		categoryToEnumTable[MapleAvatarItemCategory.OneHandedWeapon] = self.OneHandedWeapon
+		categoryToEnumTable[MapleAvatarItemCategory.TwoHandedWeapon] = self.TwoHandedWeapon
+		categoryToEnumTable[MapleAvatarItemCategory.SubWeapon] = self.SubWeapon
+		categoryToEnumTable[MapleAvatarItemCategory.FaceAccessory] = self.FaceAccessory
+		categoryToEnumTable[MapleAvatarItemCategory.EyeAccessory] = self.EyeAccessory
+		categoryToEnumTable[MapleAvatarItemCategory.EarAccessory] = self.EarAccessory
+		categoryToEnumTable[MapleAvatarItemCategory.Ear] = self.Ear
+	end
+
+	method integer ToInt(string typeStr)
+		local enum = self.StringToEnumTable[typeStr]
+		if enum == nil then
+			return self.None
+		end
+		return enum
+	end
+
+	method string ToString(integer enum)
+		local str = self.EnumToStringTable[enum]
+		if str == nil then
+			return "None"
+		end
+		return str
+	end
+
+	method table ToTable()
+		local result = {}
+		table.insert(result, self.None)
+		table.insert(result, self.Body)
+		table.insert(result, self.Hair)
+		table.insert(result, self.Face)
+		table.insert(result, self.Cap)
+		table.insert(result, self.Cape)
+		table.insert(result, self.Coat)
+		table.insert(result, self.Glove)
+		table.insert(result, self.Longcoat)
+		table.insert(result, self.Pants)
+		table.insert(result, self.Shoes)
+		table.insert(result, self.OneHandedWeapon)
+		table.insert(result, self.TwoHandedWeapon)
+		table.insert(result, self.SubWeapon)
+		table.insert(result, self.FaceAccessory)
+		table.insert(result, self.EyeAccessory)
+		table.insert(result, self.EarAccessory)
+		table.insert(result, self.Ear)
+		
+		return result
+	end
+
+	method integer CategoryToInt(any category)
+		local enum = self.CategoryToEnumTable[category]
+		if enum == nil then
+			return self.None
+		end
+		return enum
+	end
+
+end

@@ -1,0 +1,10 @@
+@Event
+script InvenItemRemovedEvent extends EventType
+
+	property table GUIDs = {}
+
+	property table ItemIds = {}
+
+	property boolean IsAttached = false
+
+end

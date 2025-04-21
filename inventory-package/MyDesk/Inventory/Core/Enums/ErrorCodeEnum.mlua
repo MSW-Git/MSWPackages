@@ -1,0 +1,246 @@
+@Logic
+script ErrorCodeEnum extends Logic
+
+	property table ErrorMsgTable = {}
+
+	property integer Success = 0
+
+	property integer System = 1
+
+	property integer Invalid = 2
+
+	property integer InvalidData = 3
+
+	property integer InvalidParam = 4
+
+	property integer InvalidRequest = 5
+
+	property integer Invalid_Component = 6
+
+	property integer Invalid_Location = 7
+
+	property integer Job_Locked = 8
+
+	property integer Cooldown = 50
+
+	property integer User_CannotFind = 100
+
+	property integer User_NotInitializedDB = 101
+
+	property integer User_Banned = 105
+
+	property integer DBLoad_WorldError = 300
+
+	property integer DBLoad_RuleViolation = 301
+
+	property integer DBLoad_Fail = 302
+
+	property integer DBLoad_Exception = 303
+
+	property integer DBLoad_PlayerJob_Fail = 311
+
+	property integer DBLoad_PlayerInventory_Fail = 314
+
+	property integer Item_CannotFind = 1000
+
+	property integer Item_InvalidData = 1001
+
+	property integer Item_InvalidCategory = 1002
+
+	property integer Item_InvalidGearStruct = 1003
+
+	property integer Item_Locked = 1004
+
+	property integer Item_Attached = 1005
+
+	property integer Item_Destroyed = 1006
+
+	property integer Item_FailToDiscard = 1008
+
+	property integer Item_Expired = 1009
+
+	property integer Item_RequireLevel = 1012
+
+	property integer Item_RequireJob = 1013
+
+	property integer Item_AlreadyAttached = 1014
+
+	property integer Item_NoItemToDetach = 1016
+
+	property integer Item_NoEmptyEquipSlot = 1017
+
+	property integer Item_InvalidCostumeGearStruct = 1018
+
+	property integer Item_CountIsZero = 1021
+
+	property integer Item_CannotDiscard = 1022
+
+	property integer Item_LackCount = 1023
+
+	property integer Item_Cooldown = 1024
+
+	property integer Item_NoUseFunction = 1025
+
+	property integer Item_NotLockable = 1026
+
+	property integer Item_NoShowUseItemButtonFunction = 1027
+
+	property integer Item_AdventureBuffGroupConflict = 1028
+
+	property integer ItemAdd_Exception = 1050
+
+	property integer ItemAdd_Overflow = 1051
+
+	property integer ItemAdd_FailToGenerateGUID = 1052
+
+	property integer ItemAdd_FailToCreateItemStruct = 1053
+
+	property integer ItemDelete_Exception = 1080
+
+	property integer Inven_LackCapacity = 1100
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local msgTable = {
+			[self.System] = "System",
+			[self.Invalid] = "Invalid",
+			[self.InvalidData] = "InvalidData",
+			[self.InvalidParam] = "InvalidParam",
+			[self.InvalidRequest] = "InvalidRequest",
+			[self.Invalid_Component] = "Invalid_Component",
+			[self.Job_Locked] = "Job_Locked",
+			[self.Cooldown] = "Cooldown",
+			[self.User_CannotFind] = "User_CannotFind",
+			[self.User_NotInitializedDB] = "User_NotInitializedDB",
+			[self.DBLoad_WorldError] = "DBLoad_WorldError",
+			[self.DBLoad_RuleViolation] = "DBLoad_RuleViolation",
+			[self.DBLoad_Fail] = "DBLoad_Fail",
+			[self.DBLoad_Exception] = "DBLoad_Exception",
+			[self.DBLoad_PlayerJob_Fail] = "DBLoad_PlayerJob_Fail",
+			[self.DBLoad_PlayerInventory_Fail] = "DBLoad_PlayerInventory_Fail",
+			[self.Item_CannotFind] = "Item_CannotFind",
+			[self.Item_InvalidData] = "Item_InvalidData",
+			[self.Item_InvalidCategory] = "Item_InvalidCategory",
+			[self.Item_InvalidGearStruct] = "Item_InvalidGearStruct",
+			[self.Item_Locked] = "Item_Locked",
+			[self.Item_Attached] = "Item_Attached",
+			[self.Item_Destroyed] = "Item_Destroyed",
+			[self.Item_FailToDiscard] = "Item_FailToDiscard",
+			[self.Item_Expired] = "Item_Expired",
+			[self.Item_RequireLevel] = "Item_RequireLevel",
+			[self.Item_RequireJob] = "Item_RequireJob",
+			[self.Item_AlreadyAttached] = "Item_AlreadyAttached",
+			[self.Item_NoItemToDetach] = "Item_NoItemToDetach",
+			[self.Item_NoEmptyEquipSlot] = "Item_NoEmptyEquipSlot",
+			[self.Item_CountIsZero] = "Item_CountIsZero",
+			[self.Item_CannotDiscard] = "Item_CannotDiscard",
+			[self.Item_LackCount] = "Item_LackCount",
+			[self.Item_Cooldown] = "Item_Cooldown",
+			[self.Item_NoUseFunction] = "Item_NoUseFunction",
+			[self.Item_NotLockable] = "Item_NotLockable",
+			[self.Item_NoShowUseItemButtonFunction] = "Item_NoShowUseItemButtonFunction",
+			[self.Item_AdventureBuffGroupConflict] = "Item_AdventureBuffGroupConflict",
+			[self.ItemAdd_Exception] = "ItemAdd_Exception",
+			[self.ItemAdd_FailToGenerateGUID] = "ItemAdd_FailToGenerateGUID",
+			[self.ItemAdd_FailToCreateItemStruct] = "ItemAdd_FailToCreateItemStruct",
+			[self.Inven_LackCapacity] = "Inven_LackCapacity",
+		}
+		self.ErrorMsgTable = msgTable
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ShowErrorMsg(integer errorCode)
+		if errorCode == self.Success then
+			return
+		end
+		
+		if errorCode == self.Cooldown then
+			return
+		end
+		
+		local msg = self.ErrorMsgTable[errorCode]
+		if msg == nil then
+			msg = string.format("ErrorCode : %d.", errorCode)
+		else
+			msg = _LocalizationService:GetText(msg)
+		end
+		
+		log_warning(msg)
+		_UIToast:ShowMessage(msg)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ShowErrorMsg_IncludeCooldownError(integer errorCode)
+		if errorCode == self.Success then
+			return
+		end
+		
+		local msg = self.ErrorMsgTable[errorCode]
+		if msg == nil then
+			msg = string.format("ErrorCode : %d.", errorCode)
+		else
+			msg = _LocalizationService:GetText(msg)
+		end
+		
+		log_warning(msg)
+		_UIToast:ShowMessage(msg)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ShowErrorMsgWithExtra(integer errorCode, string str)
+		if errorCode == self.Success then
+			return
+		end
+		
+		if errorCode == self.Cooldown then
+			return
+		end
+		
+		local msg = self.ErrorMsgTable[errorCode]
+		if msg == nil then
+			msg = string.format("ErrorCode : %d.", errorCode)
+		else
+			msg = _LocalizationService:GetText(msg)
+		end
+		
+		if not _Util:IsNilorEmptyString(str) then
+			msg = msg .. str
+		end
+		
+		log_warning(msg)
+		_UIToast:ShowMessage(msg)
+	end
+
+	@ExecSpace("ServerOnly")
+	method void ErrorLogInServer(string userId, integer errorCode, string str)
+		if errorCode == self.Success then
+			return
+		end
+		
+		if errorCode == self.Cooldown then
+			return
+		end
+		
+		local msg = string.format("%s. ErrorCode : %d.", userId, errorCode)		
+		if not _Util:IsNilorEmptyString(str) then
+			msg = msg .. str
+		end
+		
+		log_warning(msg)
+	end
+
+	@ExecSpace("ClientOnly")
+	method string GetErrorMsg(integer errorCode)
+		if errorCode == self.Success then
+			return ""
+		end
+		
+		local msg = self.ErrorMsgTable[errorCode]
+		if msg == nil then
+			return string.format("ErrorCode : %d.", errorCode)
+		else
+			return _LocalizationService:GetText(msg)
+		end
+	end
+
+end

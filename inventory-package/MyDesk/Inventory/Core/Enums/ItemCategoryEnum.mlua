@@ -1,0 +1,66 @@
+@Logic
+script ItemCategoryEnum extends Logic
+
+	property table StringToEnumTable = {}
+
+	property table EnumToUIString = {}
+
+	property table UsableFunctionsByName = {}
+
+	property integer None = 0
+
+	property integer Gear = 1
+
+	property integer Usable = 2
+
+	method void Init()
+		local stringToEnumTable = {}
+		self.StringToEnumTable = stringToEnumTable
+		stringToEnumTable["None"] = self.None
+		stringToEnumTable["Gear"] = self.Gear
+		stringToEnumTable["Usable"] = self.Usable
+		
+		local enumToUIString = {}
+		self.EnumToUIString = enumToUIString
+		enumToUIString[self.None] = "None"
+		enumToUIString[self.Gear] = "Gear"
+		enumToUIString[self.Usable] = "Usable"
+		
+		local usableFunctionsByName = {}
+		self.UsableFunctionsByName = usableFunctionsByName
+		usableFunctionsByName["Stamina"] = function(params)
+			local staminaCount = params[1]
+			log("Gain Stamina : ", math.tointeger(tonumber(staminaCount)))
+		end
+	end
+
+	method integer ToInt(string typeStr)
+		local enum = self.StringToEnumTable[typeStr]
+		if enum == nil then
+			return self.None
+		end
+		return enum
+	end
+
+	method string ToUIString(integer enum)
+		local str = self.EnumToUIString[enum]
+		if str == nil then
+			return "None"
+		end
+		return str
+	end
+
+	method table ToTable()
+		local result = {}
+		for strType, type in pairs(self.StringToEnumTable) do
+			table.insert(result, type)
+		end
+		
+		return result
+	end
+
+	method any GetUsableFunction(string functionName)
+		return self.UsableFunctionsByName[functionName]
+	end
+
+end

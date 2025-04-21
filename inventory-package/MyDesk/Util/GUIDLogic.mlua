@@ -1,0 +1,87 @@
+@Logic
+script GUIDLogic extends Logic
+
+	method string CreateGUID()
+		local _sub = string.sub
+		local _fmt = string.format
+		
+		local time_low = os.time()
+		math.randomseed( time_low )
+		
+		local time_mid = _UtilLogic:RandomIntegerRange(0, 65535)
+		
+		local time_hi = _UtilLogic:RandomIntegerRange(0, 65535 )
+		time_hi = self:padbits( self:num2bs(time_hi), 16 )
+		time_hi = _sub( time_hi, 1, 12 )
+		local time_hi_and_version = self:bs2num( time_hi .. "0100" )
+		
+		local clock_seq_hi_res = _UtilLogic:RandomIntegerRange(0,255)
+		clock_seq_hi_res = self:padbits( self:num2bs(clock_seq_hi_res), 8 )
+		clock_seq_hi_res = _sub( clock_seq_hi_res, 1, 6) .. "01"
+		
+		local clock_seq_low = _UtilLogic:RandomIntegerRange(0,255)
+		clock_seq_low = self:padbits( self:num2bs(clock_seq_low), 8 )
+		
+		local clock_seq = self:bs2num(clock_seq_hi_res .. clock_seq_low)
+		
+		local node = {}
+		node[1]= (128 + _UtilLogic:RandomIntegerRange(0,127) )
+		for i=2,6 do
+			node[i] = _UtilLogic:RandomIntegerRange(0,255)
+		end
+		
+		local guid = ""
+		guid = guid .. self:padbits(_fmt("%X",time_mid), 8)
+		for i=1,4 do
+			guid = guid .. self:padbits(_fmt("%X",node[i]), 2)
+		end
+		
+		guid = guid .. self:padbits(_fmt("%X",time_mid), 4) 
+		guid = guid .. self:padbits(_fmt("%X",time_hi_and_version), 4) 
+		guid = guid .. self:padbits(_fmt("%X",clock_seq), 4)
+		
+		for i=1,2 do
+			guid = guid .. self:padbits(_fmt("%X",node[i]), 2)
+		end
+		
+		return guid
+	end
+
+	method string num2bs(number num)
+		local _mod = math.fmod or math.mod
+		local _floor = math.floor
+		--
+		local result = ""
+		if(num == 0) then return "0" end
+		while(num  > 0) do
+			 result = _mod(num,2) .. result
+			 num = _floor(num*0.5)
+		end              
+		return result
+	end
+
+	method number bs2num(string num)
+		local _sub = string.sub
+		local index, result = 0, 0
+		if(num == "0") then return 0 end
+		for p=#num,1,-1 do
+			local this_val = _sub( num, p,p )
+			if this_val == "1" then
+				result = result + ( 2^index )
+			end
+			index=index+1
+		end
+		return result
+	end
+
+	method string padbits(string num, number bits)
+		if #num == bits then return num end
+		if #num > bits then log_warning("too many bits") end
+		local pad = bits - #num
+		for i=1,pad do
+			num = "0" .. num
+		end
+		return num
+	end
+
+end

@@ -1,0 +1,23 @@
+@Struct
+script JobBasicStatData
+
+	property integer MaxExp = 0
+
+	property integer AccumulatedExp = 0
+
+	method void Init(any dataRow)
+		---@type UserDataRow
+		local row = dataRow
+		
+		self.MaxExp = math.tointeger(self:InitCell(row:GetItem("MaxExp")))
+	end
+
+	method number InitCell(string valueString)
+		if _Util:IsNilorEmptyString(valueString) then
+			return 0
+		end
+		
+		return tonumber(valueString)
+	end
+
+end
