@@ -18,6 +18,11 @@ See the README file in each package for detailed usage information.
 | worldshop | Provides an in-game premium shop system with item sales, purchase limits, and configurable sale periods. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/worldshop-package/worldshop-package.modpackage)|
 | shop | Provides an in-game shop system with item sales, purchase limits, and configurable sale periods. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/shop-package/shop-package.modpackage)|
 | recyclescrollview | A scroll view system like GridViewComponent, optimized for smooth scrolling without flickering. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/recyclescrollview-package/recyclescrollview-package.modpackage)|
+| command | Provides an environment where you can execute the functions you have written, both in the maker and release environments. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/command-package/command-package.modpackage)|
+| dialog | Provides a dialogue UI that displays text one character at a time. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/dialog-package/dialog-package.modpackage)|
+| inventory | Provides functionality for inventory management, equipping and unequipping items, and using items. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/inventory-package/inventory-package.modpackage)|
+| key-binding | Provides functionality for input key bindings and virtual button key bindings. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/key-binding-package/key-binding-package.modpackage)|
+| maplestory-toast | Provides functionality similar to the toast feature in the game MapleStory. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/maplestory-toast-package/maplestory-toast-package.modpackage)|
 
 ## License
 
