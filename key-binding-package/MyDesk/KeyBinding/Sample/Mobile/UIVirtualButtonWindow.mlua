@@ -1,0 +1,216 @@
+@Component
+script UIVirtualButtonWindow extends Component
+
+	property table SkillBySlotEnum = {}
+
+	property table SlotIndexBySkillId = {}
+
+	property table SlotStructByEnum = {}
+
+	property number UpdateFrameAcc = 0
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		self:InitButton(self.SlotStructByEnum, _InputSlotEnum.DefaultActive, self.Entity:GetChildByName("DefaultActive"))
+		self:InitButton(self.SlotStructByEnum, _InputSlotEnum.Active1, self.Entity:GetChildByName("Active1"))
+		self:InitButton(self.SlotStructByEnum, _InputSlotEnum.Active2, self.Entity:GetChildByName("Active2"))
+		self:InitButton(self.SlotStructByEnum, _InputSlotEnum.Active3, self.Entity:GetChildByName("Active3"))
+		self:InitButton(self.SlotStructByEnum, _InputSlotEnum.Jump, self.Entity:GetChildByName("Jump"))
+	end
+
+	@ExecSpace("ClientOnly")
+	method void InitButton(table structTable, integer slotEnum, Entity btnEntity)
+		local slotStruct = UIVirtualButtonSlot()
+		slotStruct:Init(slotEnum, btnEntity)
+		structTable[slotEnum] = slotStruct
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetButtons()
+		---@type table<integer, UIVirtualButtonSlot>
+		local buttons = self.SlotStructByEnum
+		
+		local keyMap = _InputLogic.SlotEnumToKeyTable
+		
+		for slotEnum, slotStruct in pairs(buttons) do
+			self:ChangeKey(slotEnum, keyMap[slotEnum])
+		end
+		
+		if Environment:IsMobilePlatform() then
+			self:ApplyMobileOption()
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetSkillInSlot(integer slot, BaseSkill skill)
+		local skillsByIndex = self.SkillBySlotEnum
+		local slotIndexBySkillId = self.SlotIndexBySkillId
+		
+		if skill == nil then
+			---@type BaseSkill
+			local slotSkill = skillsByIndex[slot]
+			if slotSkill ~= nil then
+				local skillId = slotSkill.Id
+				slotIndexBySkillId[skillId] = nil
+			end
+			
+			self:ClearButton(slot)
+			skillsByIndex[slot] = nil
+		else
+			local skillId = skill.Id
+			
+			self:ClearButton(slot)
+			skillsByIndex[slot] = skill
+			slotIndexBySkillId[skillId] = slot
+			
+			local cool = skill:GetRemainingCooldown()
+			self:SetSkillIcon(slot, skill.IconRUID)
+			self:UpdateCooldownUI(slot)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnUpdate(number delta)
+		local accTIme = self.UpdateFrameAcc
+		accTIme += delta
+		
+		if accTIme < 0.05 then
+			self.UpdateFrameAcc = accTIme
+			return
+		end
+		self.UpdateFrameAcc = 0
+		
+		for slotEnum, skill in pairs(self.SkillBySlotEnum) do
+			self:UpdateCooldownUI(slotEnum)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void UpdateCooldownUI(integer slotEnum)
+		---@type table<integer, UIVirtualButtonSlot>
+		local buttons = self.SlotStructByEnum
+		
+		local slotStruct = buttons[slotEnum]
+		if slotStruct == nil then
+			return
+		end
+		
+		---@type BaseSkill
+		local skill = self.SkillBySlotEnum[slotEnum]
+		if skill == nil then
+			return
+		end
+		
+		slotStruct:SetIconGrayScale(skill:HasRemainingCooldown())
+		local leftTime = skill:GetRemainingCooldown()
+		local baseTime = skill:GetCooldownForUI()
+		slotStruct:SetLeftCoolTime(leftTime, baseTime)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetEnableButton(integer slotEnum, boolean enable)
+		---@type UIVirtualButtonSlot
+		local slotStruct = self.SlotStructByEnum[slotEnum]
+		if slotStruct ~= nil then
+			if enable then
+				slotStruct:Show()
+			else
+				slotStruct:Hide()
+			end
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetSkillIcon(integer buttonSlot, string ruid)
+		if buttonSlot == _InputSlotEnum.Jump then
+			return
+		end
+		
+		---@type UIVirtualButtonSlot
+		local slotStruct = self.SlotStructByEnum[buttonSlot]
+		if slotStruct then
+			slotStruct:SetSkillIcon(ruid)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ChangeKey(integer slotEnum, any keyboardKey)
+		---@type UIVirtualButtonSlot
+		local slotStruct = self.SlotStructByEnum[slotEnum]
+		if slotStruct then
+			slotStruct:ChangeKey(keyboardKey)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ClearButton(integer slotEnum)
+		---@type UIVirtualButtonSlot
+		local slotStruct = self.SlotStructByEnum[slotEnum]
+		if slotStruct ~= nil then
+			slotStruct:Clear()
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ClearAll()
+		for slotEnum, v in pairs(self.SlotStructByEnum) do
+			---@type UIVirtualButtonSlot
+			local slotStruct = v
+			slotStruct:Clear()
+		end
+		
+		table.clear(self.SkillBySlotEnum)
+		table.clear(self.SlotIndexBySkillId)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ShowSlot(integer skillId)
+		local slotIndex = self.SlotIndexBySkillId[skillId]
+		if slotIndex == nil then
+			return
+		end
+		
+		self:SetEnableButton(slotIndex, true)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void HideSlot(integer skillId)
+		local slotIndex = self.SlotIndexBySkillId[skillId]
+		if slotIndex == nil then
+			return
+		end
+		
+		self:SetEnableButton(slotIndex, false)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ApplyMobileOption()
+		local playerSetting = _UserService.LocalPlayer.PlayerSetting
+		local settingStruct = playerSetting:GetPlayerGameOptionStruct()
+		local mobileStruct = settingStruct:GetInputMobile()
+		
+		---@type table<integer, UIVirtualButtonSlot>
+		local buttons = self.SlotStructByEnum
+		for slotEnum, slotStruct in pairs(buttons) do
+			local optionStruct = mobileStruct:GetStruct(slotEnum)
+			if optionStruct == nil then
+				continue
+			end
+			
+			slotStruct:ApplyOption(optionStruct)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("Logic", "InputLogic")
+	handler HandleKeyMappingChangdEvent(KeyMappingChangdEvent event)
+		self:ChangeKey(event.SlotEnum, event.Key)
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("Logic", "InputLogic")
+	handler HandleGameOptionInputMobileChangedEvent(GameOptionInputMobileChangedEvent event)
+		self:ApplyMobileOption()
+	end
+
+end

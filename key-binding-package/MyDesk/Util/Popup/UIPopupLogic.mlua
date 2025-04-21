@@ -1,0 +1,31 @@
+@Logic
+script UIPopupLogic extends Logic
+
+	property string ParentUIPath = "/ui/PopupGroup"
+
+	property Entity Popup = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local parentUI = _EntityService:GetEntityByPath(self.ParentUIPath)
+		parentUI.Enable = true
+		local popupBack = parentUI:GetChildByName("PopupBack")
+		if popupBack then
+			popupBack.Enable = false
+		end
+		
+		self.Popup = _SpawnService:SpawnByModelId(_EntryService:GetModelIdByName("UICommonPopup"), "CommonPopup", Vector3.zero, parentUI)
+		self.Popup.Enable = false
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OpenOneButtonPopup(string titleText, string descriptionText, string confirmBtnText, any confirmCallback)
+		self.Popup.UICommonPopup:OpenOneBtn(titleText, descriptionText, confirmBtnText, confirmCallback)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OpenTwoButtonPopup(string titleText, string descriptionText, string okBtnText, string cancelBtnText, any okCallback, any cancelCallback)
+		self.Popup.UICommonPopup:OpenTwoBtn(titleText, descriptionText, okBtnText, cancelBtnText, okCallback, cancelCallback)
+	end
+
+end

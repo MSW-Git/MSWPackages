@@ -1,0 +1,80 @@
+@Struct
+script PlayerGameOptionInputPCStruct
+
+	property table KeyTable = {}
+
+	method void Initialize()
+		table.initialize(self.KeyTable, _InputLogic.DefaultKeyMap)
+	end
+
+	method void Serialize(table dbItem)
+		for inputSlotEnum, key in pairs(self.KeyTable) do
+			dbItem[tostring(inputSlotEnum)] = tostring(key)
+		end
+	end
+
+	method void Deserialize(table dbItem)
+		if dbItem == nil then
+			return
+		end
+		
+		for inputSlotEnumStr, keyStr in pairs(dbItem) do
+			local key = KeyboardKey.CastFrom(keyStr)
+			if key == nil then
+				continue
+			end
+			
+			if not _InputLogic:IsValidKeyboardKey(key) then
+				continue
+			end
+				
+			local inputSlotEnum = math.tointeger(tonumber(inputSlotEnumStr))
+			if inputSlotEnum == nil then
+				continue
+			end
+			
+			if not _InputSlotEnum:IsValidEnum(inputSlotEnum) then
+				continue
+			end
+			
+			self.KeyTable[inputSlotEnum] = key
+		end
+	end
+
+	method void Apply()
+		_InputLogic:InitKeyMapping(self)
+		
+		self:InitJoystcikKeyMapping()
+		_UserService.LocalPlayer.PlayerControllerExtend:InitKeyMapping()
+	end
+
+	method void Set(integer slotEnum, any key)
+		self.KeyTable[slotEnum] = key
+	end
+
+	method boolean IsDefault()
+		local defaultKeyMap = _InputLogic.DefaultKeyMap
+		
+		if _Util:TableLen(self.KeyTable) ~= _Util:TableLen(defaultKeyMap) then
+			return false
+		end
+		
+		for enum, key in pairs(self.KeyTable) do
+			if defaultKeyMap[enum] ~= key then
+				return false
+			end
+		end
+		
+		return true
+	end
+
+	method void InitJoystcikKeyMapping()
+		local joystickUI = _EntityService:GetEntityByPath("/ui/DefaultGroup/UIJoystick")
+		if not isvalid(joystickUI) then
+			return
+		end
+		
+		joystickUI.UIJoystick:InitJoystcikKeyMapping()
+	end
+
+end

@@ -1,0 +1,6 @@
+@Event
+script SlotDownEvent extends EventType
+
+	property integer Enum = 0
+
+end

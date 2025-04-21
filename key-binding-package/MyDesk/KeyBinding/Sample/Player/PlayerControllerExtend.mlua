@@ -1,0 +1,68 @@
+@Component
+script PlayerControllerExtend extends PlayerControllerComponent
+
+	property table BindedSlotEnum = {}
+
+	property table ValidSlotEnumList = {}
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		self.ValidSlotEnumList = {
+			_InputSlotEnum.MoveUp,
+			_InputSlotEnum.MoveDown,
+			_InputSlotEnum.MoveLeft,
+			_InputSlotEnum.MoveRight,
+			_InputSlotEnum.Jump,
+		}
+		
+		for _, enum in ipairs(self.ValidSlotEnumList) do
+			self:RemoveAllActionKeyByActionName(_InputSlotEnum:EnumToString(enum))
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void InitKeyMapping()
+		for _, enum in ipairs(self.ValidSlotEnumList) do
+			self:Inner_SetActionKey(enum)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Inner_SetActionKey(integer slotEnum)
+		if self.BindedSlotEnum[slotEnum] ~= nil then
+			return
+		end
+		self.BindedSlotEnum[slotEnum] = true
+		
+		local actionName = _InputSlotEnum:EnumToString(slotEnum)
+		self:SetActionKey(_InputLogic:GetKeyBySlotEnum(slotEnum), actionName)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Inner_RemoveActionKey(integer slotEnum)
+		if self.BindedSlotEnum[slotEnum] == nil then
+			return
+		end
+		self.BindedSlotEnum[slotEnum] = nil
+		
+		local actionName = _InputSlotEnum:EnumToString(slotEnum)
+		self:RemoveAllActionKeyByActionName(actionName)
+	end
+
+	method boolean IsBinded(integer slotEnum)
+		return self.BindedSlotEnum[slotEnum] ~= nil
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("Logic", "InputLogic")
+	handler HandleKeyMappingChangdEvent(KeyMappingChangdEvent event)
+		local SlotEnum = event.SlotEnum
+		if not self:IsBinded(SlotEnum) then
+			return
+		end
+		
+		self:Inner_RemoveActionKey(SlotEnum)
+		self:Inner_SetActionKey(SlotEnum)
+	end
+
+end

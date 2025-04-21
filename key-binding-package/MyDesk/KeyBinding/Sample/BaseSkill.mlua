@@ -1,0 +1,39 @@
+@Struct
+script BaseSkill
+
+	property integer Id = 0
+
+	property string IconRUID = ""
+
+	property number TotalCooldown = 0
+
+	property number CooldownEndTime = 0
+
+	method void SetCooldown()
+		self.CooldownEndTime = _UtilLogic.ServerElapsedSeconds + self.TotalCooldown
+	end
+
+	method number GetCooldownForUI()
+		return math.max(0.0001, self.TotalCooldown)
+	end
+
+	method number GetRemainingCooldown()
+		return math.max(0, self.CooldownEndTime - _UtilLogic.ServerElapsedSeconds)
+	end
+
+	method boolean HasRemainingCooldown()
+		return _UtilLogic.ServerElapsedSeconds < self.CooldownEndTime
+	end
+
+	method boolean TryUse()
+		if self:HasRemainingCooldown() then
+			return false
+		end
+		
+		log(string.format("Using skill Id : %d", self.Id))
+		
+		self:SetCooldown()
+		return true
+	end
+
+end

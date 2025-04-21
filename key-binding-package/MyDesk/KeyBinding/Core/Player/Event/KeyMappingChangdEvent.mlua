@@ -1,0 +1,8 @@
+@Event
+script KeyMappingChangdEvent extends EventType
+
+	property integer SlotEnum = 0
+
+	property any Key = nil
+
+end

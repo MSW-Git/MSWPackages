@@ -1,0 +1,130 @@
+@Struct
+script PlayerGameOptionInputMobileStruct
+
+	property any Jump = nil
+
+	property any DefaultActive = nil
+
+	property any Active1 = nil
+
+	property any Active2 = nil
+
+	property any Active3 = nil
+
+	method void Initialize()
+		local jumpStruct = PlayerGameOptionInputMobilePropStruct()
+		jumpStruct.X = -5
+		jumpStruct.Y = 50
+		jumpStruct.Scale = 100
+		self.Jump = jumpStruct
+		
+		local defaultActiveStruct = PlayerGameOptionInputMobilePropStruct()
+		defaultActiveStruct.X = -164
+		defaultActiveStruct.Y = 66
+		defaultActiveStruct.Scale = 100
+		self.DefaultActive = defaultActiveStruct
+		
+		local active1Struct = PlayerGameOptionInputMobilePropStruct()
+		active1Struct.X = -404
+		active1Struct.Y = 70
+		active1Struct.Scale = 100
+		self.Active1 = active1Struct
+		
+		local active2Struct = PlayerGameOptionInputMobilePropStruct()
+		active2Struct.X = -341
+		active2Struct.Y = 264.6
+		active2Struct.Scale = 100
+		self.Active2 = active2Struct
+		
+		local active3Struct = PlayerGameOptionInputMobilePropStruct()
+		active3Struct.X = -133
+		active3Struct.Y = 302
+		active3Struct.Scale = 100
+		self.Active3 = active3Struct
+	end
+
+	method void Serialize(table dbItem)
+		---@type PlayerGameOptionInputMobilePropStruct
+		local Jump = self.Jump
+		dbItem[tostring(_InputSlotEnum.Jump)] = Jump:ToStr()
+		
+		---@type PlayerGameOptionInputMobilePropStruct
+		local DefaultActive = self.DefaultActive
+		dbItem[tostring(_InputSlotEnum.DefaultActive)] = DefaultActive:ToStr()
+		
+		---@type PlayerGameOptionInputMobilePropStruct
+		local Active1 = self.Active1
+		dbItem[tostring(_InputSlotEnum.Active1)] = Active1:ToStr()
+		
+		---@type PlayerGameOptionInputMobilePropStruct
+		local Active2 = self.Active2
+		dbItem[tostring(_InputSlotEnum.Active2)] = Active2:ToStr()
+		
+		---@type PlayerGameOptionInputMobilePropStruct
+		local Active3 = self.Active3
+		dbItem[tostring(_InputSlotEnum.Active3)] = Active2:ToStr()
+		
+	end
+
+	method void Deserialize(table dbItem)
+		if dbItem == nil then
+			return
+		end
+		
+		local Jump = dbItem[tostring(_InputSlotEnum.Jump)]
+		if Jump ~= nil then
+			---@type PlayerGameOptionInputMobilePropStruct
+			local struct = self.Jump
+			struct:FromStr(Jump)
+		end
+		
+		local DefaultActive = dbItem[tostring(_InputSlotEnum.DefaultActive)]
+		if DefaultActive ~= nil then
+			---@type PlayerGameOptionInputMobilePropStruct
+			local struct = self.DefaultActive
+			struct:FromStr(DefaultActive)
+		end
+		
+		local Active1 = dbItem[tostring(_InputSlotEnum.Active1)]
+		if Active1 ~= nil then
+			---@type PlayerGameOptionInputMobilePropStruct
+			local struct = self.Active1
+			struct:FromStr(Active1)
+		end
+		
+		local Active2 = dbItem[tostring(_InputSlotEnum.Active2)]
+		if Active2 ~= nil then
+			---@type PlayerGameOptionInputMobilePropStruct
+			local struct = self.Active2
+			struct:FromStr(Active2)
+		end
+		
+		local Active3 = dbItem[tostring(_InputSlotEnum.Active3)]
+		if Active3 ~= nil then
+			---@type PlayerGameOptionInputMobilePropStruct
+			local struct = self.Active2
+			struct:FromStr(Active3)
+		end
+	end
+
+	method void Apply()
+		
+	end
+
+	method PlayerGameOptionInputMobilePropStruct GetStruct(integer slotEnum)
+		if slotEnum == _InputSlotEnum.Jump then
+			return self.Jump
+		elseif slotEnum == _InputSlotEnum.DefaultActive then
+			return self.DefaultActive
+		elseif slotEnum == _InputSlotEnum.Active1 then
+			return self.Active1
+		elseif slotEnum == _InputSlotEnum.Active2 then
+			return self.Active2
+		elseif slotEnum == _InputSlotEnum.Active3 then
+			return self.Active3
+		end
+		
+		return nil
+	end
+
+end

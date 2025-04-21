@@ -1,0 +1,4 @@
+@Event
+script GameOptionInitializedEvent extends EventType
+
+end

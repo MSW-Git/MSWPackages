@@ -1,0 +1,24 @@
+{
+  "Id": "",
+  "GameId": "",
+  "EntryKey": "material://1e7239af-8a5d-49c4-85e4-a1aa4010b627",
+  "ContentType": "x-mod/material",
+  "Content": "",
+  "Usage": 0,
+  "UsePublish": 1,
+  "UseService": 0,
+  "CoreVersion": "1.23.0.0",
+  "StudioVersion": "0.1.0.0",
+  "DynamicLoading": 0,
+  "ContentProto": {
+    "Use": "Json",
+    "Json": {
+      "name": "MaterialGray",
+      "id": "1e7239af-8a5d-49c4-85e4-a1aa4010b627",
+      "shadertype": "GrayScale",
+      "Blend": 1.0,
+      "IsUIMaterial": false,
+      "RequiresUIStencilStateChange": false
+    }
+  }
+}

@@ -1,0 +1,109 @@
+@Component
+script UIGameOptionJoystickItem extends Component
+
+	property UIGameOptionJoystickPanel Panel = nil
+
+	property Entity Select = nil
+
+	property TextComponent Text_Label = nil
+
+	property integer SlotEnum = 0
+
+	property boolean IsSelected = false
+
+	property boolean IsDragging = false
+
+	property integer TouchId = nil
+
+	property Entity Btn_Item = nil
+
+	property number OriginalHeight = 0
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		self.Btn_Item = self.Entity:GetChildByName("Btn")
+		self.OriginalHeight = self.Btn_Item.UITransformComponent.RectSize.y
+		self.Select = self.Btn_Item:GetChildByName("Select")
+		self.Text_Label = self.Btn_Item.TextComponent
+		
+		self.Btn_Item:ConnectEvent(UITouchDownEvent, function(event) self:OnUITouchDown(event) end)
+		self.Btn_Item:ConnectEvent(UITouchDragEvent, function(event) self:OnUITouchDrag(event) end)
+		self.Btn_Item:ConnectEvent(UITouchUpEvent, function(event) self:OnUITouchUp(event) end)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Init(UIGameOptionJoystickPanel panel, integer slotEnum)
+		self.Panel = panel
+		self.SlotEnum = slotEnum
+		
+		if self.Text_Label ~= nil then
+			self.Text_Label.Text = _InputSlotEnum:EnumToLabel(slotEnum)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetSelected(boolean selected)
+		self.IsSelected = selected
+		self.Select.Enable = selected
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetScale(number scale)
+		self.Btn_Item.UITransformComponent.RectSize.x = self.OriginalHeight * scale
+		self.Btn_Item.UITransformComponent.RectSize.y = self.OriginalHeight * scale
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetX(number value)
+		self.Entity.UITransformComponent.anchoredPosition.x = value
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetY(number value)
+		self.Entity.UITransformComponent.anchoredPosition.y = value
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnUITouchDown(UITouchDownEvent event)
+		if not self.Panel:TrySelect(self.SlotEnum) then
+			return
+		end
+		
+		self.TouchId = event.TouchId
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnUITouchDrag(UITouchDragEvent event)
+		if not self.IsSelected then
+			return
+		end
+		
+		if self.TouchId ~= event.TouchId then
+			return
+		end
+		
+		local TouchDelta = event.TouchDelta
+		local transformComp = self.Entity.UITransformComponent
+		local pos = transformComp.anchoredPosition
+		
+		pos.x += TouchDelta.x
+		pos.y += TouchDelta.y
+		transformComp.anchoredPosition = pos
+		
+		self.Panel:TryDrag(self.SlotEnum, pos)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnUITouchUp(UITouchUpEvent event)
+		if not self.IsSelected then
+			return
+		end
+		
+		if self.TouchId ~= event.TouchId then
+			return
+		end
+		
+		self.TouchId = nil
+	end
+
+end

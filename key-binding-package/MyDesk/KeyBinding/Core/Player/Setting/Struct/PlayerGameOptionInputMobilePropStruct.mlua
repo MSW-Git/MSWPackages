@@ -1,0 +1,33 @@
+@Struct
+script PlayerGameOptionInputMobilePropStruct
+
+	property number X = 0
+
+	property number Y = 0
+
+	property integer Scale = 0
+
+	method string ToStr()
+		return string.format("%.2f,%.2f,%d", self.X, self.Y, self.Scale)
+	end
+
+	method void FromStr(string str)
+		local strs = _UtilLogic:Split(str, ",")
+		
+		local x = strs[1]
+		if x ~= nil then
+			self.X = tonumber(x)
+		end
+		
+		local y = strs[2]
+		if y ~= nil then
+			self.Y = tonumber(y)
+		end
+		
+		local scale = strs[3]
+		if scale ~= nil then
+			self.Scale = math.tointeger(tonumber(scale))
+		end
+	end
+
+end

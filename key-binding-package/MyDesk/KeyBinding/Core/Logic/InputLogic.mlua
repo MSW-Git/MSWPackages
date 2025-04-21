@@ -1,0 +1,272 @@
+@Logic
+script InputLogic extends Logic
+
+	property boolean IsInitialized = false
+
+	property table SlotEnumToKeyTable = {}
+
+	property table KeyToSlotEnumTable = {}
+
+	property table DownAndHoldingTable = {}
+
+	property boolean Locked = false
+
+	property table LockedSlotEnumTable = {}
+
+	property table UIKeyTable = {}
+
+	property table UIFuncTable = {}
+
+	property table KeySymbolTable = {}
+
+	property table InvalidKeyTable = {}
+
+	property table SkipKeyboardKeys = {}
+
+	property table DefaultKeyMap = {}
+
+	method void OnBeginPlay()
+		local skipKeyboardKeys = {}
+		skipKeyboardKeys[KeyboardKey.Mouse0] = true
+		skipKeyboardKeys[KeyboardKey.Mouse1] = true
+		skipKeyboardKeys[KeyboardKey.Mouse2] = true
+		self.SkipKeyboardKeys = skipKeyboardKeys
+		
+		local keySymbolTable = {}
+		keySymbolTable[KeyboardKey.Return] = "Enter"
+		keySymbolTable[KeyboardKey.Escape] = "ESC"
+		keySymbolTable[KeyboardKey.Exclaim] = "!"
+		keySymbolTable[KeyboardKey.DoubleQuote] = "\""
+		keySymbolTable[KeyboardKey.Hash] = "#"
+		keySymbolTable[KeyboardKey.Dollar] = "$"
+		keySymbolTable[KeyboardKey.Percent] = "%"
+		keySymbolTable[KeyboardKey.Ampersand] = "&"
+		keySymbolTable[KeyboardKey.Quote] = "'"
+		keySymbolTable[KeyboardKey.LeftParen] = "("
+		keySymbolTable[KeyboardKey.RightParen] = ")"
+		keySymbolTable[KeyboardKey.Asterisk] = "*"
+		keySymbolTable[KeyboardKey.Plus] = "+"
+		keySymbolTable[KeyboardKey.Comma] = ","
+		keySymbolTable[KeyboardKey.Minus] = "-"
+		keySymbolTable[KeyboardKey.Period] = "."
+		keySymbolTable[KeyboardKey.Slash] = "/"
+		keySymbolTable[KeyboardKey.Alpha0] = "0"
+		keySymbolTable[KeyboardKey.Alpha1] = "1"
+		keySymbolTable[KeyboardKey.Alpha2] = "2"
+		keySymbolTable[KeyboardKey.Alpha3] = "3"
+		keySymbolTable[KeyboardKey.Alpha4] = "4"
+		keySymbolTable[KeyboardKey.Alpha5] = "5"
+		keySymbolTable[KeyboardKey.Alpha6] = "6"
+		keySymbolTable[KeyboardKey.Alpha7] = "7"
+		keySymbolTable[KeyboardKey.Alpha8] = "8"
+		keySymbolTable[KeyboardKey.Alpha9] = "9"
+		keySymbolTable[KeyboardKey.Colon] = ":"
+		keySymbolTable[KeyboardKey.Semicolon] = ";"
+		keySymbolTable[KeyboardKey.Less] = "<"
+		keySymbolTable[KeyboardKey.Equals] = "="
+		keySymbolTable[KeyboardKey.Greater] = ">"
+		keySymbolTable[KeyboardKey.Question] = "?"
+		keySymbolTable[KeyboardKey.At] = "@"
+		keySymbolTable[KeyboardKey.LeftBracket] = "["
+		keySymbolTable[KeyboardKey.Backslash] = "\\"
+		keySymbolTable[KeyboardKey.RightBracket] = "]"
+		keySymbolTable[KeyboardKey.Caret] = "^"
+		keySymbolTable[KeyboardKey.Underscore] = "_"
+		keySymbolTable[KeyboardKey.BackQuote] = "`"
+		keySymbolTable[KeyboardKey.LeftCurlyBracket] = "{"
+		keySymbolTable[KeyboardKey.Pipe] = "|"
+		keySymbolTable[KeyboardKey.RightCurlyBracket] = "}"
+		keySymbolTable[KeyboardKey.Tilde] = "~"
+		keySymbolTable[KeyboardKey.KeypadPeriod] = "Keypad ."
+		keySymbolTable[KeyboardKey.KeypadDivide] = "Keypad /"
+		keySymbolTable[KeyboardKey.KeypadMultiply] = "Keypad *"
+		keySymbolTable[KeyboardKey.KeypadMinus] = "Keypad -"
+		keySymbolTable[KeyboardKey.KeypadPlus] = "Keypad +"
+		keySymbolTable[KeyboardKey.KeypadEnter] = "Keypad Enter"
+		keySymbolTable[KeyboardKey.KeypadEquals] = "Keypad ="
+		keySymbolTable[KeyboardKey.UpArrow] = "↑"
+		keySymbolTable[KeyboardKey.DownArrow] = "↓"
+		keySymbolTable[KeyboardKey.RightArrow] = "→"
+		keySymbolTable[KeyboardKey.LeftArrow] = "←"
+		self.KeySymbolTable = keySymbolTable
+		
+		local invalidKeyTable = {}
+		invalidKeyTable[KeyboardKey.Mouse0] = true
+		invalidKeyTable[KeyboardKey.Mouse1] = true
+		invalidKeyTable[KeyboardKey.Mouse2] = true
+		invalidKeyTable[KeyboardKey.Slash] = true
+		invalidKeyTable[KeyboardKey.Return] = true
+		invalidKeyTable[KeyboardKey.KeypadEnter] = true
+		invalidKeyTable[KeyboardKey.LeftWindows] = true
+		invalidKeyTable[KeyboardKey.RightWindows] = true
+		invalidKeyTable[KeyboardKey.CapsLock] = true
+		invalidKeyTable[KeyboardKey.Numlock] = true
+		invalidKeyTable[KeyboardKey.ScrollLock] = true
+		invalidKeyTable[KeyboardKey.Print] = true
+		invalidKeyTable[KeyboardKey.SysReq] = true
+		self.InvalidKeyTable = invalidKeyTable
+		
+		self.IsInitialized = true
+	end
+
+	@ExecSpace("ClientOnly")
+	method integer GetSlotEnumByKey(any key)
+		return self.KeyToSlotEnumTable[key]
+	end
+
+	@ExecSpace("ClientOnly")
+	method any GetKeyBySlotEnum(integer slotEnum)
+		return self.SlotEnumToKeyTable[slotEnum]
+	end
+
+	method boolean IsValidKeyboardKey(any key)
+		if self.InvalidKeyTable[key] == nil then
+			return true
+		end
+		
+		return false
+	end
+
+	@ExecSpace("ClientOnly")
+	method void InitKeyMapping(PlayerGameOptionInputPCStruct struct)
+		table.clear(self.SlotEnumToKeyTable)
+		table.clear(self.KeyToSlotEnumTable)
+		
+		---@type table<integer, KeyboardKey>
+		local keyTable = struct.KeyTable
+		
+		table.initialize(self.SlotEnumToKeyTable, keyTable)
+		for slotEnum, key in pairs(self.SlotEnumToKeyTable) do
+			self.KeyToSlotEnumTable[key] = slotEnum
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void RegisterDownAndHolding(integer slotEnum)
+		self.DownAndHoldingTable[slotEnum] = true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ResetDownAndHolding(integer slotEnum)
+		self.DownAndHoldingTable[slotEnum] = false
+	end
+
+	@ExecSpace("ClientOnly")
+	method string GetSymbol(any key)
+		if key == nil or key == KeyboardKey.None then
+			return ""
+		end
+		
+		local str = self.KeySymbolTable[key]
+		if str ~= nil then
+			return str
+		end
+		
+		return tostring(key)
+	end
+
+	@ExecSpace("ClientOnly")
+	method boolean TryChangeKeyMap(integer slotEnum, any key)
+		if not self:IsValidKeyboardKey(key) then
+			return false
+		end
+		
+		local keyToSlotEnumTable = self.KeyToSlotEnumTable
+		local slotEnumToKeyTable = self.SlotEnumToKeyTable
+		
+		local anotherSlotEnum = keyToSlotEnumTable[key]
+		if slotEnum == anotherSlotEnum then
+			return true
+		end
+		
+		local playerSetting = _UserService.LocalPlayer.PlayerSetting
+		playerSetting.IsDirtyGameOption = true
+		
+		local settingStruct = playerSetting:GetPlayerGameOptionStruct()
+		local inputStruct = settingStruct:GetInputPC()
+		
+		local oldKey = slotEnumToKeyTable[slotEnum]
+		
+		if anotherSlotEnum ~= nil then
+			_InputService:SendEvent(KeyUpEvent(oldKey))
+			_InputService:SendEvent(KeyUpEvent(key))
+			
+			inputStruct:Set(anotherSlotEnum, oldKey)
+			slotEnumToKeyTable[anotherSlotEnum] = oldKey
+			keyToSlotEnumTable[oldKey] = anotherSlotEnum
+			
+			inputStruct:Set(slotEnum, key)
+			slotEnumToKeyTable[slotEnum] = key
+			keyToSlotEnumTable[key] = slotEnum
+			
+			local evt1 = KeyMappingChangdEvent()
+			evt1.SlotEnum = anotherSlotEnum
+			evt1.Key = oldKey
+			self:SendEvent(evt1)
+			
+			local evt2 = KeyMappingChangdEvent()
+			evt2.SlotEnum = slotEnum
+			evt2.Key = key
+			self:SendEvent(evt2)
+		else
+			_InputService:SendEvent(KeyUpEvent(oldKey))
+			
+			keyToSlotEnumTable[oldKey] = nil
+			
+			inputStruct:Set(slotEnum, key)
+			slotEnumToKeyTable[slotEnum] = key
+			keyToSlotEnumTable[key] = slotEnum
+			
+			local evt = KeyMappingChangdEvent()
+			evt.SlotEnum = slotEnum
+			evt.Key = key
+			self:SendEvent(evt)
+		end
+		
+		return true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ResetKeyMap()
+		local playerSetting = _UserService.LocalPlayer.PlayerSetting
+		playerSetting.IsDirtyGameOption = true
+		
+		for slotEnum, key in pairs(self.DefaultKeyMap) do
+			self:TryChangeKeyMap(slotEnum, key)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnKeyDown(any key)
+		if not self.IsInitialized then
+			return
+		end
+		
+		local skipKeyboardKeys = self.SkipKeyboardKeys
+		if skipKeyboardKeys[key] then
+			return
+		end
+		
+		local slotEnum = self:GetSlotEnumByKey(key)
+		if slotEnum == nil then
+			return
+		end
+		
+		if self.Locked or self.LockedSlotEnumTable[slotEnum] then
+			return
+		end
+		
+		self:RegisterDownAndHolding(slotEnum)
+		
+		local slotDownEvent = SlotDownEvent()
+		slotDownEvent.Enum = slotEnum
+		self:SendEvent(slotDownEvent)
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("Service", "InputService")
+	handler HandleKeyDownEvent(KeyDownEvent event)
+		self:OnKeyDown(event.key)
+	end
+
+end

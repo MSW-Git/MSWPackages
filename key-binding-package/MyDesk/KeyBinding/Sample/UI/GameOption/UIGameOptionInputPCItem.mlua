@@ -1,0 +1,102 @@
+@Component
+script UIGameOptionInputPCItem extends Component
+
+	property UIGameOptionInputPanel Panel = nil
+
+	property integer SlotEnum = 0
+
+	property TextComponent Text_Name = nil
+
+	property Entity Btn_Key = nil
+
+	property TextComponent Text_Key = nil
+
+	property any KeyDownEventHandler = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		
+		self.Text_Name = entity:GetChildByName("Text_Name").TextComponent
+		self.Btn_Key = entity:GetChildByName("Btn_Key")
+		self.Text_Key = self.Btn_Key:GetChildByName("Text_Key").TextComponent
+		
+		self.Btn_Key:ConnectEvent(ButtonClickEvent, function() self:OnClick() end)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Init(UIGameOptionInputPanel panel, integer slotEnum)
+		self.Panel = panel
+		self.SlotEnum = slotEnum
+		self.Text_Name.Text = _InputSlotEnum:EnumToLabel(slotEnum)
+		
+		local key = _InputLogic:GetKeyBySlotEnum(slotEnum)
+		if key == nil or key == KeyboardKey.None then
+			self.Text_Key.Text = ""
+		else
+			self.Text_Key.Text = _InputLogic:GetSymbol(key)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClick()
+		if not self.Panel:TryLock(self.SlotEnum) then
+			return
+		end
+		
+		self:SetText_Wait()
+		self.KeyDownEventHandler = _InputService:ConnectEvent(KeyDownEvent, function(event) self:OnKeyDown(event) end)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnKeyDown(KeyDownEvent evt)
+		local key = evt.key
+		
+		if key == KeyboardKey.Escape or	key == KeyboardKey.Mouse0 or
+			key == KeyboardKey.Mouse1 or key == KeyboardKey.Mouse2 then
+			self:Invalidate()
+			_InputService:DisconnectEvent(KeyDownEvent, self.KeyDownEventHandler)
+			self.Panel:UnLock()
+			return
+		end
+		
+		if self.SlotEnum == _InputLogic:GetSlotEnumByKey(key) then
+			self:Invalidate()
+			_InputService:DisconnectEvent(KeyDownEvent, self.KeyDownEventHandler)
+			self.Panel:UnLock()
+		end
+		
+		if not _InputLogic:TryChangeKeyMap(self.SlotEnum, key) then
+			self:SetText_Error()
+			return
+		end
+		
+		_InputService:DisconnectEvent(KeyDownEvent, self.KeyDownEventHandler)
+		self.Panel:UnLock()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetText_Wait()
+		self.Btn_Key.SpriteGUIRendererComponent.Color = Color.FromHexCode("#c8c8c8")
+		self.Text_Key.Text = "Please input the key to be changed."
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetText_Error()
+		self.Text_Key.FontColor = Color.FromHexCode("#e23a00")
+		self.Text_Key.Text = "This key cannot be assigned."
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetText_Key(any key)
+		self.Btn_Key.SpriteGUIRendererComponent.Color = Color.FromHexCode("#FFFFFF")
+		self.Text_Key.FontColor = Color.FromHexCode("#757474")
+		self.Text_Key.Text = _InputLogic:GetSymbol(key)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Invalidate()
+		self:SetText_Key(_InputLogic:GetKeyBySlotEnum(self.SlotEnum))
+	end
+
+end

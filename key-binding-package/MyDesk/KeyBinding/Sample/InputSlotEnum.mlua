@@ -1,0 +1,79 @@
+@Logic
+script InputSlotEnum extends Logic
+
+	property boolean IsInit = false
+
+	property table EnumToStringTable = {}
+
+	property table EnumToLabelTable = {}
+
+	property integer DefaultActive = 1
+
+	property integer Active1 = 2
+
+	property integer Active2 = 3
+
+	property integer Active3 = 4
+
+	property integer Jump = 10
+
+	property integer MoveUp = 31
+
+	property integer MoveLeft = 32
+
+	property integer MoveDown = 33
+
+	property integer MoveRight = 34
+
+	method void OnBeginPlay()
+		self:Init()
+	end
+
+	method void Init()
+		if self.IsInit then
+			return
+		end
+		self.IsInit = true
+		
+		local enumToStringTable = {}
+		self.EnumToStringTable = enumToStringTable
+		enumToStringTable[self.DefaultActive] = "DefaultActive"
+		enumToStringTable[self.Active1] = "Active1"
+		enumToStringTable[self.Active2] = "Active2"
+		enumToStringTable[self.Active3] = "Active3"
+		enumToStringTable[self.Jump] = "Jump"
+		enumToStringTable[self.MoveUp] = "MoveUp"
+		enumToStringTable[self.MoveLeft] = "MoveLeft"
+		enumToStringTable[self.MoveDown] = "MoveDown"
+		enumToStringTable[self.MoveRight] = "MoveRight"
+		
+		local enumToLabelTable = {}
+		self.EnumToLabelTable = enumToLabelTable
+		enumToLabelTable[self.DefaultActive] = "Active"
+		enumToLabelTable[self.Active1] = "Active1"
+		enumToLabelTable[self.Active2] = "Active2"
+		enumToLabelTable[self.Active3] = "Active3"
+		enumToLabelTable[self.Jump] = "Jump"
+		enumToLabelTable[self.MoveUp] = "Up"
+		enumToLabelTable[self.MoveLeft] = "Left"
+		enumToLabelTable[self.MoveDown] = "Down"
+		enumToLabelTable[self.MoveRight] = "Right"
+	end
+
+	method string EnumToString(integer slotEnum)
+		return self.EnumToStringTable[slotEnum]
+	end
+
+	method boolean IsValidEnum(integer enum)
+		if self.EnumToStringTable[enum] == nil then
+			return false
+		end
+		
+		return true
+	end
+
+	method string EnumToLabel(integer slotEnum)
+		return self.EnumToLabelTable[slotEnum]
+	end
+
+end

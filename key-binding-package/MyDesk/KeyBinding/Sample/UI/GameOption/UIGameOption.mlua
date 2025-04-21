@@ -1,0 +1,51 @@
+@Component
+script UIGameOption extends Component
+
+	property Entity InputOptionPanel = nil
+
+	property Entity VirtualButtonPanel = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local panel = self.Entity:GetChildByName("Panel")
+		
+		self.InputOptionPanel = panel:GetChildByName("InputOptionPanel")
+		self.InputOptionPanel.UIGameOptionInputPanel.Root = self
+		self.InputOptionPanel.UIGameOptionInputPanel:Init()
+		
+		self.VirtualButtonPanel = self.Entity:GetChildByName("VirtualButtonOptionPanel")
+		self.VirtualButtonPanel.UIGameOptionJoystickPanel:Init()
+		
+		local btnClose = panel:GetChildByName("Btn_Close")
+		btnClose:ConnectEvent(ButtonClickEvent, function() self:Shut() end)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Open()
+		self.Entity.Enable = true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OpenJoystickOptionPanel()
+		self.VirtualButtonPanel.UIGameOptionJoystickPanel:Open()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Close()
+		self.Entity.Enable = false
+		_UserService.LocalPlayer.PlayerSetting:SaveGameOptionFromClient()
+	end
+
+	@ExecSpace("ClientOnly")
+	method boolean Shut()
+		if self.InputOptionPanel then
+			if self.InputOptionPanel.UIGameOptionInputPanel:IsLock() then
+				return true
+			end
+		end
+		
+		self:Close()
+		return true
+	end
+
+end

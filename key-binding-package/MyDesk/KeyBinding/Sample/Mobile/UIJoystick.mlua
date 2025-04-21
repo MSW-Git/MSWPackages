@@ -1,0 +1,14 @@
+@Component
+script UIJoystick extends Component
+
+	@ExecSpace("ClientOnly")
+	method void InitJoystcikKeyMapping()
+		local joystickComp = self.Entity.JoystickComponent
+		
+		joystickComp.UpArrow = _InputLogic:GetKeyBySlotEnum(_InputSlotEnum.MoveUp)
+		joystickComp.DownArrow = _InputLogic:GetKeyBySlotEnum(_InputSlotEnum.MoveDown)
+		joystickComp.LeftArrow = _InputLogic:GetKeyBySlotEnum(_InputSlotEnum.MoveLeft)
+		joystickComp.RightArrow = _InputLogic:GetKeyBySlotEnum(_InputSlotEnum.MoveRight)
+	end
+
+end

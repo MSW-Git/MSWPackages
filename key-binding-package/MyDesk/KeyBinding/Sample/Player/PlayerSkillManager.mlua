@@ -1,0 +1,69 @@
+@Component
+script PlayerSkillManager extends Component
+
+	property table SkillBySlotEnum = {}
+
+	@ExecSpace("ClientOnly")
+	method boolean TryLearn(integer slotEnum, BaseSkill skill)
+		if isvalid(_SampleLogic.VirtualButtonWindow) == false then
+			return false
+		end
+		
+		self.SkillBySlotEnum[slotEnum] = skill
+		_SampleLogic.VirtualButtonWindow:SetSkillInSlot(slotEnum, skill)
+		return true
+	end
+
+	@ExecSpace("ClientOnly")
+	method boolean TryUseSkill(integer slotEnum)
+		---@type BaseSkill
+		local skill = self.SkillBySlotEnum[slotEnum]
+		if skill == nil then
+			return false
+		end
+		
+		return skill:TryUse()
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("Logic", "InputLogic")
+	handler HandleSlotDownEvent(SlotDownEvent event)
+		-- Parameters
+		 local Enum = event.Enum
+		---------------------------------------------------------
+		
+		self:TryUseSkill(Enum)
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("Self")
+	handler HandleGameOptionInitializedEvent(GameOptionInitializedEvent event)
+		_SampleLogic.VirtualButtonWindow:SetButtons()
+		
+		local defaultSkill = BaseSkill()
+		defaultSkill.Id = 10
+		defaultSkill.IconRUID = "a19629eacf934ccbb47ca33d4fd1db77"
+		defaultSkill.TotalCooldown = 1
+		
+		local skill1 = BaseSkill()
+		skill1.Id = 11
+		skill1.IconRUID = "a19629eacf934ccbb47ca33d4fd1db77"
+		skill1.TotalCooldown = 2
+		
+		local skill2 = BaseSkill()
+		skill2.Id = 12
+		skill2.IconRUID = "a19629eacf934ccbb47ca33d4fd1db77"
+		skill2.TotalCooldown = 3
+		
+		local skill3 = BaseSkill()
+		skill3.Id = 13
+		skill3.IconRUID = "a19629eacf934ccbb47ca33d4fd1db77"
+		skill3.TotalCooldown = 4
+		
+		self:TryLearn(_InputSlotEnum.DefaultActive, defaultSkill)
+		self:TryLearn(_InputSlotEnum.Active1, skill1)
+		self:TryLearn(_InputSlotEnum.Active2, skill2)
+		self:TryLearn(_InputSlotEnum.Active3, skill3)
+	end
+
+end

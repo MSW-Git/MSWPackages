@@ -1,0 +1,261 @@
+@Component
+script UIGameOptionJoystickPanel extends Component
+
+	property Entity Btn_Exit = nil
+
+	property Entity Btn_Reset = nil
+
+	property TextComponent Text_Value = nil
+
+	property table ItemTable = {}
+
+	property SliderComponent Slider = nil
+
+	property integer SelectedEnum = nil
+
+	property Component NewValue1 = nil
+
+	@ExecSpace("ClientOnly")
+	method void Init()
+		local entity = self.Entity
+		
+		local option = entity:GetChildByName("Option")
+		local buttonGroup = option:GetChildByName("ButtonGroup")
+		self.Btn_Reset = buttonGroup:GetChildByName("Btn_Reset")
+		self.Btn_Reset:ConnectEvent(ButtonClickEvent, function() self:OnClick_Reset() end)
+		
+		self.Btn_Exit = buttonGroup:GetChildByName("Btn_Exit")
+		self.Btn_Exit:ConnectEvent(ButtonClickEvent, function() self:OnClick_Exit() end)
+		
+		local buttonScaleSetting = option:GetChildByName("ButtonScaleSetting")
+		self.Text_Value = buttonScaleSetting:GetChildByName("Text_Value").TextComponent
+		self.Slider = buttonScaleSetting:GetChildByName("Slider_BG"):GetChildByName("Slider").SliderComponent
+		self.Slider.UseIntegerValue = true
+		self.Slider.MaxValue = 200
+		self.Slider.MinValue = 50
+		self.Slider.Entity:ConnectEvent(SliderValueChangedEvent, function(event) self:OnSliderValueChanged(event) end)
+		
+		local window = entity:GetChildByName("Window")
+		self.ItemTable[_InputSlotEnum.DefaultActive] = window:GetChildByName("DefaultActive").UIGameOptionJoystickItem
+		self.ItemTable[_InputSlotEnum.Active1] = window:GetChildByName("Active1").UIGameOptionJoystickItem
+		self.ItemTable[_InputSlotEnum.Active2] = window:GetChildByName("Active2").UIGameOptionJoystickItem
+		self.ItemTable[_InputSlotEnum.Active3] = window:GetChildByName("Active3").UIGameOptionJoystickItem
+		self.ItemTable[_InputSlotEnum.Jump] = window:GetChildByName("Jump").UIGameOptionJoystickItem
+		
+		for enum, v in pairs(self.ItemTable) do
+			---@type UIGameOptionJoystickItem
+			local item = v
+			item:Init(self, enum)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Open()
+		if not Environment:IsMobilePlatform() then
+			return
+		end
+		
+		---@type table<integer, UIGameOptionJoystickItem>
+		local itemTable = self.ItemTable
+		for enum, item in pairs(itemTable) do
+			local x = self:GetOptionX(enum)
+			if x ~= nil then
+				item:SetX(x)
+			end
+			
+			local y = self:GetOptionY(enum)
+			if y ~= nil then
+				item:SetY(y)
+			end
+			
+			local scale = self:GetOptionScale(enum)
+			if scale ~= nil then
+				item:SetScale(scale / 100)
+			end
+		end
+		
+		self:TrySelect(nil)
+		self:TrySelect(_InputSlotEnum.Jump)
+		self.Entity.Enable = true
+	end
+
+	@ExecSpace("ClientOnly")
+	method boolean TrySelect(integer slotEnum)
+		if self.SelectedEnum == slotEnum then
+			return true
+		end
+		
+		local prevItem = self:GetItem(self.SelectedEnum)
+		if prevItem ~= nil then
+			prevItem:SetSelected(false)
+		end
+		
+		self.SelectedEnum = nil
+		if slotEnum == nil then
+			return true
+		end
+		
+		local item = self:GetItem(slotEnum)
+		if item == nil then
+			return false
+		end
+		
+		self.Slider.Value = self:GetOptionScale(slotEnum)
+		
+		self.SelectedEnum = slotEnum
+		item:SetSelected(true)
+		
+		return true
+	end
+
+	@ExecSpace("ClientOnly")
+	method UIGameOptionJoystickItem GetItem(integer enum)
+		return self.ItemTable[enum]
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnSliderValueChanged(SliderValueChangedEvent evt)
+		local value = evt.Value
+		self.Text_Value.Text = string.format("%d%%", value)
+		
+		if self.SelectedEnum == 0 then
+			return
+		end
+		
+		local item = self:GetItem(self.SelectedEnum)
+		if item == nil then
+			return
+		end
+		
+		item:SetScale(value / 100)
+		self:SetOptionScale(self.SelectedEnum, value)
+	end
+
+	@ExecSpace("ClientOnly")
+	method PlayerGameOptionInputMobilePropStruct GetOptionItemStruct(integer slotEnum, boolean setDirty)
+		local playerSetting = _UserService.LocalPlayer.PlayerSetting
+		if setDirty then
+			playerSetting.IsDirtyGameOption = true
+		end
+		
+		local settingStruct = playerSetting:GetPlayerGameOptionStruct()
+		local mobileStruct = settingStruct:GetInputMobile()
+		return  mobileStruct:GetStruct(slotEnum)
+	end
+
+	@ExecSpace("ClientOnly")
+	method number GetOptionX(integer slotEnum)
+		local itemStruct =  self:GetOptionItemStruct(slotEnum, false)
+		if itemStruct == nil then
+			return nil
+		end
+		
+		return itemStruct.X
+	end
+
+	@ExecSpace("ClientOnly")
+	method number GetOptionY(integer slotEnum)
+		local itemStruct =  self:GetOptionItemStruct(slotEnum, false)
+		if itemStruct == nil then
+			return nil
+		end
+		
+		return itemStruct.Y
+	end
+
+	@ExecSpace("ClientOnly")
+	method integer GetOptionScale(integer slotEnum)
+		local itemStruct =  self:GetOptionItemStruct(slotEnum, false)
+		if itemStruct == nil then
+			return nil
+		end
+		
+		return itemStruct.Scale
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetOptionX(integer slotEnum, number value)
+		local itemStruct =  self:GetOptionItemStruct(slotEnum, true)
+		if itemStruct == nil then
+			return
+		end
+		
+		itemStruct.X = value
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetOptionY(integer slotEnum, number value)
+		local itemStruct =  self:GetOptionItemStruct(slotEnum, true)
+		if itemStruct == nil then
+			return
+		end
+		
+		itemStruct.Y = value
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetOptionScale(integer slotEnum, integer scale)
+		local itemStruct =  self:GetOptionItemStruct(slotEnum, true)
+		if itemStruct == nil then
+			return
+		end
+		
+		itemStruct.Scale = scale
+	end
+
+	@ExecSpace("ClientOnly")
+	method void TryDrag(integer slotEnum, Vector2 pos)
+		self:SetOptionX(slotEnum, pos.x)
+		self:SetOptionY(slotEnum, pos.y)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClick_Reset()
+		local okFunc = function()
+			self:Reset()
+		end
+		
+		_UIPopupLogic:OpenTwoButtonPopup("Notification", "Would you like to <color=#ec8557>reset</color> the settings?", "Ok", "Cancel", okFunc, nil)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClick_Exit()
+		local evt = GameOptionInputMobileChangedEvent()
+		_InputLogic:SendEvent(evt)
+		
+		self.Entity.Enable = false
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Reset()
+		local playerSetting = _UserService.LocalPlayer.PlayerSetting
+		playerSetting.IsDirtyGameOption = true
+		
+		local settingStruct = playerSetting:GetPlayerGameOptionStruct()
+		local mobileStruct = settingStruct:GetInputMobile()
+		mobileStruct:Initialize()
+		
+		---@type table<integer, UIGameOptionJoystickItem>
+		local itemTable = self.ItemTable
+		for enum, item in pairs(itemTable) do
+			local x = self:GetOptionX(enum)
+			if x ~= nil then
+				item:SetX(x)
+			end
+			
+			local y = self:GetOptionY(enum)
+			if y ~= nil then
+				item:SetY(y)
+			end
+			
+			local scale = self:GetOptionScale(enum)
+			if scale ~= nil then
+				item:SetScale(scale / 100)
+			end
+		end
+		
+		self:TrySelect(nil)
+		self:TrySelect(_InputSlotEnum.Jump)
+	end
+
+end

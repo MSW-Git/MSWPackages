@@ -1,0 +1,139 @@
+@Component
+script UIGameOptionInputPanel extends Component
+
+	property Entity KeySetting = nil
+
+	property Entity Item = nil
+
+	property Entity Btn_Reset = nil
+
+	property Entity Block = nil
+
+	property table SlotEnumToItemTable = {}
+
+	property integer LockedSlotEnum = nil
+
+	property Entity Btn_MobileSetting = nil
+
+	property UIGameOption Root = nil
+
+	@ExecSpace("ClientOnly")
+	method void Init()
+		if Environment:IsMobilePlatform() then
+			local layout_Mobile = self.Entity:GetChildByName("Mobile")
+			local btn_MobileSetting = layout_Mobile:GetChildByName("Btn_Setting")
+			btn_MobileSetting:ConnectEvent(ButtonClickEvent, function(event) self:OnClick_MobileSetting() end)
+			self.Btn_MobileSetting = btn_MobileSetting
+			
+			layout_Mobile.Enable = true
+			return
+		end
+		
+		local layout_PC = self.Entity:GetChildByName("PC")
+		
+		self.KeySetting = layout_PC:GetChildByName("CombatKeySetting")
+		self.Item = layout_PC:GetChildByName("Item")
+		self.Item.Enable = false
+		
+		self.Btn_Reset = layout_PC:GetChildByName("Btn_Group"):GetChildByName("Btn_Reset")
+		self.Btn_Reset:ConnectEvent(ButtonClickEvent, function(event) self:OnClick_Reset() end)
+		self.Block = layout_PC:GetChildByName("Block")
+		
+		local combatSlotEnums = {
+			_InputSlotEnum.MoveUp,
+			_InputSlotEnum.MoveLeft,
+			_InputSlotEnum.MoveDown,
+			_InputSlotEnum.MoveRight,
+			_InputSlotEnum.Jump,
+			_InputSlotEnum.DefaultActive,
+			_InputSlotEnum.Active1,
+			_InputSlotEnum.Active2,
+			_InputSlotEnum.Active3,
+		}
+		
+		for i = 1, #combatSlotEnums do
+			self:AddItem(combatSlotEnums[i], self.KeySetting)
+		end
+		
+		layout_PC.Enable = true
+	end
+
+	@ExecSpace("ClientOnly")
+	method Entity GetItem(integer slotEnum)
+		return self.SlotEnumToItemTable[slotEnum]
+	end
+
+	@ExecSpace("ClientOnly")
+	method boolean TryLock(integer slotEnum)
+		if Environment:IsMobilePlatform() then
+			return false
+		end
+		
+		if self.LockedSlotEnum then
+			log_error(string.format("Already locked: %s", _InputSlotEnum:EnumToString(slotEnum)))
+			return false
+		end
+		
+		self.LockedSlotEnum = slotEnum
+		self.Block.Enable = true
+		return true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void UnLock()
+		self.LockedSlotEnum = nil
+		self.Block.Enable = false
+	end
+
+	@ExecSpace("ClientOnly")
+	method boolean IsLock()
+		return self.LockedSlotEnum ~= nil
+	end
+
+	@ExecSpace("ClientOnly")
+	method void AddItem(integer slotEnum, Entity parent)
+		local item = _SpawnService:SpawnByEntity(self.Item, "Item", Vector3.zero, parent)
+		item.UIGameOptionInputPCItem:Init(self, slotEnum)
+		item.Enable = true
+		self.SlotEnumToItemTable[slotEnum] = item
+	end
+
+	@ExecSpace("ClientOnly")
+	method void InvalidateResetBtn()
+		local gameOptionStruct = _UserService.LocalPlayer.PlayerSetting:GetPlayerGameOptionStruct()
+		local inputPC = gameOptionStruct:GetInputPC()
+		local isDefault = inputPC:IsDefault()
+		self.Btn_Reset.ButtonComponent.Enable = not isDefault
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClick_Reset()
+		local okFunc = function()
+			_InputLogic:ResetKeyMap()
+		end
+		
+		_UIPopupLogic:OpenTwoButtonPopup("Notification", "Would you like to <color=#ec8557>reset</color> the settings?", "Ok", "Cancel", okFunc, nil)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnKeyMappingChanged(integer slotEnum, any key)
+		local item = self:GetItem(slotEnum)
+		if item ~= nil then
+			item.UIGameOptionInputPCItem:Invalidate()
+		end
+		
+		self:InvalidateResetBtn()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClick_MobileSetting()
+		self.Root:OpenJoystickOptionPanel()
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("Logic", "InputLogic")
+	handler HandleKeyMappingChangdEvent(KeyMappingChangdEvent event)
+		self:OnKeyMappingChanged(event.SlotEnum, event.Key)
+	end
+
+end

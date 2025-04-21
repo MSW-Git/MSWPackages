@@ -1,0 +1,138 @@
+@Component
+script PlayerSetting extends Component
+
+	property string DataStorageKey = "PlayerSetting"
+
+	property any GameOptionStruct = nil
+
+	property boolean IsSaveDB = false
+
+	property boolean IsDirtyGameOption = false
+
+	@ExecSpace("ServerOnly")
+	method void LoadFromDB(table loadKeys)
+		table.insert(loadKeys, self.DataStorageKey)
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean OnLoadedDataFromDB(table loadedData)
+		local gameOptionStruct = PlayerGameOptionStruct()
+		gameOptionStruct:Initialize()
+		self.GameOptionStruct = gameOptionStruct
+		
+		---@type DataStorageItem
+		local storageData = loadedData[self.DataStorageKey]
+		if storageData ~= nil and (_Util:IsNilorEmptyString(storageData.Value) == false) then
+			local dbItem = _HttpService:JSONDecode(storageData.Value)
+			if dbItem ~= nil then
+				local gameOptionItem = dbItem["GameOption"]
+				if gameOptionItem ~= nil then
+					if not gameOptionStruct:Deserialize(gameOptionItem) then
+						log_warning("PlayerGameOptionStruct Deserialize Error.")
+					end
+				end
+			end
+		end
+		
+		local gameOptionStr = self:SerializeGameOption()
+		self:SyncInitGameOption(gameOptionStr, self.Entity.PlayerComponent.UserId)
+		
+		return true
+	end
+
+	@ExecSpace("Client")
+	method void SyncInitGameOption(string gameOptionStr)
+		self:DeserializeGameOption(gameOptionStr)
+		self:Apply()
+		self.Entity:SendEvent(GameOptionInitializedEvent())
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Apply()
+		local gameOptionStruct = self:GetPlayerGameOptionStruct()
+		gameOptionStruct:Apply()
+	end
+
+	@ExecSpace("ServerOnly")
+	method void SaveToDB(table saveData)
+		if self.IsSaveDB == false then
+			return
+		end
+		
+		local dbItem = {}
+		
+		local gameOptionItem = {}
+		local gameOptionStruct = self:GetPlayerGameOptionStruct()
+		if gameOptionStruct ~= nil then
+			if gameOptionStruct:Serialize(gameOptionItem) then
+				dbItem["GameOption"] = gameOptionItem
+			end
+		end
+		
+		local dbString = ""
+		if not _Util:IsNilorEmptyTable(dbItem) then
+			dbString = _HttpService:JSONEncode(dbItem)
+		end
+		
+		saveData[self.DataStorageKey] = dbString
+	end
+
+	method PlayerGameOptionStruct GetPlayerGameOptionStruct()
+		return self.GameOptionStruct
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SaveGameOptionFromClient()
+		if not self.IsDirtyGameOption then
+			return
+		end
+		
+		local gameOptionStr = self:SerializeGameOption()
+		if _Util:IsNilorEmptyString(gameOptionStr) then
+			return
+		end
+		
+		self:RequestSaveGameOption(gameOptionStr)
+		self.IsDirtyGameOption = false
+	end
+
+	@ExecSpace("Server")
+	method void RequestSaveGameOption(string gameOptionStr)
+		self:DeserializeGameOption(gameOptionStr)
+		self.IsSaveDB = true
+	end
+
+	method string SerializeGameOption()
+		local dbItem = {}
+		local gameOptionStruct = self:GetPlayerGameOptionStruct()
+		if not gameOptionStruct:Serialize(dbItem) then
+			log_error("PlayerGameOptionStruct Serialize Error.")
+			return nil
+		end
+		
+		if _Util:IsNilorEmptyTable(dbItem) then
+			log_error("PlayerGameOptionStruct Serialize Error.")
+			return nil
+		end
+		
+		return _HttpService:JSONEncode(dbItem)
+	end
+
+	method void DeserializeGameOption(string gameOptionStr)
+		---@type PlayerGameOptionStruct
+		local gameOptionStruct = self.GameOptionStruct
+		if gameOptionStruct == nil then
+			gameOptionStruct = PlayerGameOptionStruct()
+			self.GameOptionStruct = gameOptionStruct
+		end
+		gameOptionStruct:Initialize()
+		
+		if not _Util:IsNilorEmptyString(gameOptionStr) then
+			local dbItem = _HttpService:JSONDecode(gameOptionStr)
+			if not gameOptionStruct:Deserialize(dbItem) then
+				log_warning("PlayerGameOptionStruct Deserialize Error.")
+			end
+		end
+	end
+
+end

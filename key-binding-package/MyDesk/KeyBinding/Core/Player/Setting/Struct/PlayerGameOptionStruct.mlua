@@ -1,0 +1,72 @@
+@Struct
+script PlayerGameOptionStruct
+
+	property any InputPC = nil
+
+	property any InputMobile = nil
+
+	method void Initialize()
+		local InputPC = PlayerGameOptionInputPCStruct()
+		InputPC:Initialize()
+		self.InputPC = InputPC
+		
+		local InputMobile = PlayerGameOptionInputMobileStruct()
+		InputMobile:Initialize()
+		self.InputMobile = InputMobile
+	end
+
+	method boolean Serialize(table dbItem)
+		local InputPC = self:GetInputPC()
+		local inputPCDBItem = {}
+		InputPC:Serialize(inputPCDBItem)
+		if not _Util:IsNilorEmptyTable(inputPCDBItem) then
+			dbItem["InputPC"] = inputPCDBItem 
+		end
+		
+		local InputMobile = self:GetInputMobile()
+		local inputMobileDBItem = {}
+		InputMobile:Serialize(inputMobileDBItem)
+		if not _Util:IsNilorEmptyTable(inputMobileDBItem) then
+			dbItem["InputMobile"] = inputMobileDBItem
+		end
+		
+		return true
+	end
+
+	method boolean Deserialize(table dbItem)
+		if dbItem == nil then
+			return false
+		end
+		
+		local InputPC = self:GetInputPC()
+		local inputPCDBItem = dbItem["InputPC"]
+		if inputPCDBItem ~= nil then
+			InputPC:Deserialize(inputPCDBItem)
+		end
+		
+		local InputMobile = self:GetInputMobile()
+		local inputMobileDBItem = dbItem["InputMobile"]
+		if inputMobileDBItem ~= nil then
+			InputMobile:Deserialize(inputMobileDBItem)
+		end
+		
+		return true
+	end
+
+	method PlayerGameOptionInputPCStruct GetInputPC()
+		return self.InputPC
+	end
+
+	method PlayerGameOptionInputMobileStruct GetInputMobile()
+		return self.InputMobile
+	end
+
+	method void Apply()
+		local InputPC = self:GetInputPC()
+		InputPC:Apply()
+		
+		local InputMobile = self:GetInputMobile()
+		InputMobile:Apply()
+	end
+
+end

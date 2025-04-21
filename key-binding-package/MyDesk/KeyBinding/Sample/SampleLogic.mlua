@@ -1,0 +1,110 @@
+@Logic
+script SampleLogic extends Logic
+
+	property Entity GameOption = nil
+
+	property string ParentUIPath = "/ui/DefaultGroup"
+
+	property UIVirtualButtonWindow VirtualButtonWindow = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local keyTable = {}
+		keyTable[_InputSlotEnum.MoveUp] = KeyboardKey.UpArrow
+		keyTable[_InputSlotEnum.MoveDown] = KeyboardKey.DownArrow
+		keyTable[_InputSlotEnum.MoveLeft] = KeyboardKey.LeftArrow
+		keyTable[_InputSlotEnum.MoveRight] = KeyboardKey.RightArrow
+		keyTable[_InputSlotEnum.Jump] = KeyboardKey.LeftAlt
+		keyTable[_InputSlotEnum.DefaultActive] = KeyboardKey.Z
+		keyTable[_InputSlotEnum.Active1] = KeyboardKey.A
+		keyTable[_InputSlotEnum.Active2] = KeyboardKey.S
+		keyTable[_InputSlotEnum.Active3] = KeyboardKey.D
+		_InputLogic.DefaultKeyMap = keyTable
+		
+		local defaultGroup = _EntityService:GetEntityByPath("/ui/DefaultGroup")
+		
+		local defaultButtonAttack = defaultGroup:GetChildByName("Button_Attack")
+		if defaultButtonAttack then
+			defaultButtonAttack.Enable = false
+		end
+		local defaultButtonJump = defaultGroup:GetChildByName("Button_Jump")
+		if defaultButtonJump then
+			defaultButtonJump.Enable = false
+		end
+		
+		local defaultJoystick = defaultGroup:GetChildByName("UIJoystick")
+		defaultJoystick:AddComponent(UIJoystick)
+		
+		self:CreateVirtualButtonWindow()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void CreateVirtualButtonWindow()
+		local virtualButtonWindowParent = _EntityService:GetEntityByPath(self.ParentUIPath)
+		local virtualButtonWindowEntity = _SpawnService:SpawnByModelId(_EntryService:GetModelIdByName("UIVirtualButtonWindow"), "VirtualButtonWindow", Vector3.zero, virtualButtonWindowParent)
+		virtualButtonWindowEntity.UITransformComponent.anchoredPosition = Vector2.zero
+		self.VirtualButtonWindow = virtualButtonWindowEntity.UIVirtualButtonWindow
+	end
+
+	@ExecSpace("ServerOnly")
+	@EventSender("Service", "UserService")
+	handler HandleUserEnterEvent(UserEnterEvent event)
+		--------------- Native Event Sender Info ----------------
+		-- Sender: UserService
+		-- Space: Server
+		---------------------------------------------------------
+		
+		-- Parameters
+		-- local ProfileCode = event.ProfileCode
+		 local UserId = event.UserId
+		---------------------------------------------------------
+		
+		local user = _UserService:GetUserEntityByUserId(UserId)
+		if user == nil then
+			return
+		end
+		
+		local playerState = user.StateComponent
+		playerState:RemoveState("MOVE")
+		playerState:RemoveState("JUMP")
+		playerState:RemoveState("CLIMB")
+		playerState:RemoveState("LADDER")
+		playerState:RemoveState("CROUCH")
+		playerState:RemoveState("FALL")
+		playerState:RemoveState("ATTACK")
+		playerState:RemoveState("ATTACK_WAIT")
+		playerState:RemoveState("SIT")
+		user:RemoveComponent(PlayerControllerComponent)
+		
+		user:AddComponent(PlayerControllerExtend)
+		user:AddComponent(PlayerSkillManager)
+		user:AddComponent(PlayerSetting)
+		user:AddComponent(PlayerDBManager)
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("Service", "InputService")
+	handler HandleKeyDownEvent(KeyDownEvent event)
+		--------------- Native Event Sender Info ----------------
+		-- Sender: InputService
+		-- Space: Client
+		---------------------------------------------------------
+		
+		-- Parameters
+		 local key = event.key
+		---------------------------------------------------------
+		
+		if key == KeyboardKey.P then
+			if isvalid(self.GameOption) == false then
+				local parentUI = _EntityService:GetEntityByPath(self.ParentUIPath)
+				self.GameOption = _SpawnService:SpawnByModelId(_EntryService:GetModelIdByName("UIGameOption"), "GameOption", Vector3.zero, parentUI)
+			end
+			self.GameOption.UIGameOption:Open()
+		elseif key == KeyboardKey.Escape then
+			if isvalid(self.GameOption) then
+				self.GameOption.UIGameOption:Shut()
+			end
+		end
+	end
+
+end

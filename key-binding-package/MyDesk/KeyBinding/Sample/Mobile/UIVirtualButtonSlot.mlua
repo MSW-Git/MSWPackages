@@ -1,0 +1,172 @@
+@Struct
+script UIVirtualButtonSlot
+
+	property integer SlotEnum = 0
+
+	property Entity Entity = nil
+
+	property Entity PlusImage = nil
+
+	property Entity IconEntity = nil
+
+	property SpriteGUIRendererComponent IconGUIComp = nil
+
+	property SpriteGUIRendererComponent CooldownGUIComp = nil
+
+	property TextComponent CooldownText = nil
+
+	property Entity KeyBG = nil
+
+	property Entity Btn = nil
+
+	method void Init(integer slotEnum, Entity entity)
+		self.Entity = entity
+		self.SlotEnum = slotEnum
+		
+		self.Btn = entity:GetChildByName("Btn")
+		self._T.Btn_Height = entity.UITransformComponent.RectSize.y
+		
+		local plusEnt = entity:GetChildByName("PlusImage")
+		if plusEnt then
+			self._T.PlusImage_Height = plusEnt.UITransformComponent.RectSize.y
+		end
+		self.PlusImage = plusEnt
+		
+		local iconEnt = entity:GetChildByName("Icon")
+		if iconEnt then
+			self._T.IconEntity_Height = iconEnt.UITransformComponent.RectSize.y
+			self.IconEntity = iconEnt
+			self.IconEntity.Enable = (plusEnt == nil)
+		end
+		
+		local iconGUIComp = iconEnt.SpriteGUIRendererComponent
+		self.IconGUIComp = iconGUIComp
+		
+		if slotEnum ~= _InputSlotEnum.Jump then
+			iconGUIComp.ImageRUID = ""
+			iconGUIComp.MaterialId = ""
+		end
+		
+		local cooldownEntity = entity:GetChildByName("CooldownGauge")
+		if cooldownEntity then
+			self.CooldownGUIComp = cooldownEntity.SpriteGUIRendererComponent
+			self.CooldownGUIComp.FillAmount = 0
+			self._T.CooldownGauge_Height = cooldownEntity.UITransformComponent.RectSize.y
+		end
+		
+		local coolTxtEnt = entity:GetChildByName("CooldownText")
+		if coolTxtEnt then
+			self.CooldownText = coolTxtEnt.TextComponent
+			self.CooldownText.Text = ""
+		end
+		
+		self.KeyBG = entity:GetChildByName("KeyBG")
+		if Environment:IsMobilePlatform() then
+			self.KeyBG.Enable = false
+		end
+	end
+
+	method void SetSkillIcon(string ruid)
+		local iconEntity = self.IconEntity
+		if _Util:IsNilorEmptyString(ruid) then
+			iconEntity.Enable = false
+			return
+		end
+		
+		iconEntity.SpriteGUIRendererComponent.ImageRUID = ruid
+		iconEntity.Enable = true
+		self.Entity.Enable = true
+	end
+
+	method void SetLeftCoolTime(number leftTime, number baseTime)
+		local coolTimeGUIComp = self.CooldownGUIComp
+		if coolTimeGUIComp ~= nil then
+			coolTimeGUIComp.FillAmount = leftTime / baseTime
+		end
+		
+		local coolTxtEnt = self.CooldownText
+		if coolTxtEnt == nil then
+			return
+		end
+		
+		local leftText = nil
+		if leftTime >= 10 then
+			leftText = tostring(math.ceil(leftTime))
+		elseif leftTime > 0 then
+			leftText = tostring(math.ceil(leftTime*10)/10)
+		else
+			leftText = ""
+		end
+		
+		if self._T.Text == leftText then
+			return
+		end
+		
+		self._T.Text = leftText
+		coolTxtEnt.Text = leftText
+	end
+
+	method void SetIconGrayScale(boolean isGray)
+		if isGray then
+			self.IconGUIComp.MaterialId = "material://1e7239af-8a5d-49c4-85e4-a1aa4010b627"
+		else
+			self.IconGUIComp.MaterialId = ""
+		end
+	end
+
+	method void Clear()
+		local slotEnum = self.SlotEnum
+		if slotEnum ~= _InputSlotEnum.Jump then
+			self:SetSkillIcon(nil)
+		end
+		
+		self:SetLeftCoolTime(0, 1)
+		self:SetIconGrayScale(false)
+	end
+
+	method void ChangeKey(any keyboardKey)
+		self.Btn.ButtonComponent.KeyCode = keyboardKey
+		local text = _InputLogic:GetSymbol(keyboardKey)
+		
+		if self.KeyBG then
+			local keyEnt = self.KeyBG:GetChildByName("Name")
+			keyEnt.TextComponent.Text = text
+		end
+	end
+
+	method void Show()
+		self.Entity.Enable = true
+	end
+
+	method void Hide()
+		self.Entity.Enable = false
+	end
+
+	method void ApplyOption(PlayerGameOptionInputMobilePropStruct optionStruct)
+		self.Entity.UITransformComponent.anchoredPosition.x = optionStruct.X
+		self.Entity.UITransformComponent.anchoredPosition.y = optionStruct.Y
+		
+		local scale = optionStruct.Scale / 100
+		
+		if self.Btn then
+			self.Btn.UITransformComponent.RectSize.x = self._T.Btn_Height * scale
+			self.Btn.UITransformComponent.RectSize.y = self._T.Btn_Height * scale
+		end
+		
+		if self.PlusImage then
+			self.PlusImage.UITransformComponent.RectSize.x = self._T.PlusImage_Height * scale
+			self.PlusImage.UITransformComponent.RectSize.y = self._T.PlusImage_Height * scale
+		end
+		
+		if self.IconEntity then
+			self.IconEntity.UITransformComponent.RectSize.x = self._T.IconEntity_Height * scale
+			self.IconEntity.UITransformComponent.RectSize.y = self._T.IconEntity_Height * scale
+		end
+		
+		if self.CooldownGUIComp then
+			self.CooldownGUIComp.Entity.UITransformComponent.RectSize.x = self._T.CooldownGauge_Height * scale
+			self.CooldownGUIComp.Entity.UITransformComponent.RectSize.y = self._T.CooldownGauge_Height * scale
+		end
+	end
+
+end
