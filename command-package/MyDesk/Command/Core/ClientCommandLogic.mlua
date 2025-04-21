@@ -1,0 +1,40 @@
+@Logic
+script ClientCommandLogic extends Logic
+
+	method table GetAllActions()
+		local temp = {}
+		
+		temp["test"] = self:GetTestActions()
+		
+		return temp
+	end
+
+	method table GetTestActions()
+		local actions = {
+			["desc"] = "Description for 'test' command",
+			["hello"] = {
+				["desc"] = "Description for 'test hello' command.",
+				["func"] = function()
+		            log("test hello")
+				end,
+				["num"] = {
+					["desc"] = "Description for 'test hello num' command.",
+					["func"] = function(count)
+			            for i = 1, count do
+							log("test hello")
+						end
+					end,
+				},
+				["string"] = {
+					["desc"] = "Description for 'test hello string' command.",
+					["func"] = function(word)
+						log("test hello " .. word)
+					end,
+				}
+			},
+		}
+		
+		return actions
+	end
+
+end

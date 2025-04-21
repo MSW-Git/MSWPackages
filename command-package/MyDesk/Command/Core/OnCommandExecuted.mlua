@@ -1,0 +1,6 @@
+@Event
+script OnCommandExecuted extends EventType
+
+	property string Command = ""
+
+end

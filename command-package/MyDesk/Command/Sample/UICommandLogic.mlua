@@ -1,0 +1,444 @@
+@Logic
+script UICommandLogic extends Logic
+
+	property string UIPath = "/ui/DefaultGroup"
+
+	property Vector3 UIPosition = Vector3(0,250,0)
+
+	property Entity UIRoot = nil
+
+	property TextComponent UICommandHintText = nil
+
+	property TextComponent UICommandText = nil
+
+	property TextInputComponent UICommandTextInput = nil
+
+	property Color ColorOnExecutable = Color(0.25,0.72,1,0.86)
+
+	property string CandidateSavedText = ""
+
+	property table CandidateTexts = {}
+
+	property Entity CandidateGridViewEntity = nil
+
+	property GridViewComponent CandidateGridView = nil
+
+	property table UnifiedCommands = {}
+
+	property table Candidates = {}
+
+	property integer CandidateStartIndex = 1
+
+	property table ExecutedCommands = {}
+
+	property integer ExecutedCommandsFocusingIndex = 0
+
+	@ExecSpace("ClientOnly")
+	method void Initialize()
+		_CommandLogic:InitalizeClient()
+		self.UnifiedCommands = {}
+		
+		local addNestedCommandsFunction = nil
+		addNestedCommandsFunction = function(exist, adding)
+			for existName, existAction in pairs(exist) do
+			    if adding[existName] == nil then
+			        continue
+			    end
+			    
+			    if type(exist[existName]) == "table" then
+			        addNestedCommandsFunction(exist[existName], adding[existName])
+			    end
+			end
+			
+			for addingName, addingActions in pairs(adding) do
+			    if exist[addingName] then
+			        continue
+			    end
+			    
+			    exist[addingName] = addingActions
+			end
+		end
+		addNestedCommandsFunction(self.UnifiedCommands, _CommandLogic.ServerCommands)
+		addNestedCommandsFunction(self.UnifiedCommands, _CommandLogic.ClientCommands)
+		
+		self.Candidates = {}
+		self.CandidateStartIndex = 1
+		self.ExecutedCommands = {}
+		
+		self:InitUI()
+		if Environment:IsMobilePlatform() then
+			self:MakeMobileUI()
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void InitUI()
+		local uiGroupEntity = _EntityService:GetEntityByPath(self.UIPath)
+		
+		self.UIRoot = _SpawnService:SpawnByModelId(_EntryService:GetModelIdByName("UICommand"), "UICommand", Vector3.zero, uiGroupEntity)
+		self.UIRoot.UITransformComponent.Position = self.UIPosition
+		self.UIRoot.Enable = false
+		
+		self:InitUICommand()
+		self:InitUICommandCandidates()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void InitUICommand()
+		local inputAreaEntity = self.UIRoot:GetChildByName("InputArea")
+		
+		local textHintEntity = inputAreaEntity:GetChildByName("TextHint")
+		self.UICommandHintText = textHintEntity.TextComponent
+		
+		local textInputEntity = inputAreaEntity:GetChildByName("TextInput")
+		self.UICommandText = textInputEntity.TextComponent
+		self.UICommandTextInput = textInputEntity.TextInputComponent
+		textInputEntity:ConnectEvent(TextInputValueChangeEvent, function(event) self:OnTextInputValueChange(event) end)
+		textInputEntity:ConnectEvent(TextInputSubmitEvent, function(event) self:OnTextInputSubmit(event) end)
+		
+		local executeButton = inputAreaEntity:GetChildByName("ExecuteButton")
+		executeButton:ConnectEvent(ButtonClickEvent, function()
+			if self.UIRoot.Enable == false then
+				return
+			end
+			
+			_CommandLogic:ExecuteCommandBySpace(self.UICommandTextInput.Text)
+			self:HideUI()
+		end)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnTextInputValueChange(TextInputValueChangeEvent event)
+		local text = event.text
+		
+		if _UtilLogic:Contains(text, "[") then
+			self.UICommandTextInput.Text = _UtilLogic:Remove(text, "[")
+			self:SetPreviousCommand()
+			return
+		elseif _UtilLogic:Contains(text, "]") then
+			self.UICommandTextInput.Text = _UtilLogic:Remove(text, "]")
+		    self:SetFollowingCommand()
+		    return
+		end
+		
+		if _UtilLogic:Contains(text, "	") then
+			local newText = _UtilLogic:Remove(text, "	")
+		    self.UICommandTextInput.Text = newText
+		    self:AutoComplete(newText)
+		end
+		
+		self:ResetCommandCandidates(text)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnTextInputSubmit(TextInputSubmitEvent event)
+		local text = event.Text
+		
+		if text == "" then
+			self:HideUI()
+			return
+		end
+		
+		local inputCommands = _UtilLogic:Split(text, "\n")
+		for i, inputCommand in ipairs(inputCommands) do
+			_CommandLogic:ExecuteCommandBySpace(inputCommand)
+		end
+		
+		self:HideUI()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void InitUICommandCandidates()
+		table.clear(self.CandidateTexts)
+		
+		self.CandidateGridViewEntity = self.UIRoot:GetChildByName("CandidateGridView")
+		self.CandidateGridView = self.CandidateGridViewEntity.GridViewComponent
+		self.CandidateGridView.ItemEntity = self.UIRoot:GetChildByName("CandidateGridViewItem")
+		self.CandidateGridView.OnRefresh = function(itemIndex, itemEntity) self:OnCandidateGridViewItemRefresh(itemIndex+1, itemEntity) end
+		self.CandidateGridView.OnClear = function(itemIndex, itemEntity) self:OnCandidateGridViewItemClear(itemIndex+1, itemEntity) end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnCandidateGridViewItemRefresh(integer itemIndex, Entity itemEntity)
+		itemEntity.UICommandCandidateItem:Set(itemIndex, self.CandidateTexts[itemIndex])
+		itemEntity.Enable = true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnCandidateGridViewItemClear(integer itemIndex, Entity itemEntity)
+		itemEntity.Enable = false
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnCandidateClicked(integer index)
+		if self.UICommandTextInput.Text == "" then
+			self.UICommandTextInput.Text =  string.format("%s", self.Candidates[index]["actionName"])
+		else
+			self.UICommandTextInput.Text =  string.format("%s %s", self.UICommandTextInput.Text, self.Candidates[index]["actionName"])
+		end
+		
+		self:ResetCommandCandidates(self.UICommandTextInput.Text)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void MakeMobileUI()
+		local uiGroupEntity = _EntityService:GetEntityByPath(self.UIPath)
+		
+		local mainButton = _SpawnService:SpawnByModelId("model://uibutton", "Command", Vector3.zero, uiGroupEntity)
+		local mainButtonUI = mainButton.UITransformComponent
+		mainButtonUI.AlignmentOption = AlignmentType.TopCenter
+		mainButtonUI.Pivot = Vector2(0.5, 1)
+		mainButtonUI.anchoredPosition = Vector2(0, 0)
+		---@type TextComponent
+		local mainText = mainButton:AddComponent(TextComponent)
+		mainText.Text = "Command"
+		mainText.FontColor = Color.white
+		
+		local prevCommandButton = _SpawnService:SpawnByModelId("model://uibutton", "Command", Vector3.zero, mainButton)
+		local prevCommandButtonUI = prevCommandButton.UITransformComponent
+		prevCommandButtonUI.AlignmentOption = AlignmentType.Center
+		prevCommandButtonUI.Pivot = Vector2(0.5, 0.5)
+		prevCommandButtonUI.anchoredPosition = Vector2(-400, 0)
+		---@type TextComponent
+		local prevText = prevCommandButton:AddComponent(TextComponent)
+		prevText.Text = "Prev Command"
+		prevText.FontColor = Color.white
+		prevCommandButton:ConnectEvent(ButtonClickEvent, function()
+			self:SetPreviousCommand()
+		end)
+		
+		local postCommandButton = _SpawnService:SpawnByModelId("model://uibutton", "Command", Vector3.zero, mainButton)
+		local postCommandButtonUI = postCommandButton.UITransformComponent
+		postCommandButtonUI.AlignmentOption = AlignmentType.Center
+		prevCommandButtonUI.Pivot = Vector2(0.5, 0.5)
+		postCommandButtonUI.anchoredPosition = Vector2(-200, 0)
+		---@type TextComponent
+		local postText = postCommandButton:AddComponent(TextComponent)
+		postText.Text = "Post Command"
+		postText.FontColor = Color.white
+		postCommandButton:ConnectEvent(ButtonClickEvent, function()
+			self:SetFollowingCommand()
+		end)
+		
+		mainButton:ConnectEvent(ButtonClickEvent, function()
+			if self.UIRoot.Enable then
+				self:HideUI()
+				prevCommandButton.Enable = false
+				postCommandButton.Enable = false
+			else
+				self:RequestShowUI()
+				prevCommandButton.Enable = true
+				postCommandButton.Enable = true
+			end
+		end)
+		
+		prevCommandButton:AttachTo(self.UIRoot)
+		postCommandButton:AttachTo(self.UIRoot)
+	end
+
+	@ExecSpace("Server")
+	method void RequestShowUI()
+		if _AdminLogic:IsAdmin(senderUserId) == false then
+			return
+		end
+		
+		self:ShowUI(senderUserId)
+	end
+
+	@ExecSpace("Client")
+	method void ShowUI()
+		if self.UIRoot == nil then
+			self:Initialize()
+		end
+		
+		self.UIRoot.Enable = true
+		
+		self.UICommandHintText.Text = ""
+		self.UICommandText.Text = ""
+		self.UICommandTextInput:ActivateInputField()
+		
+		self.ExecutedCommandsFocusingIndex = #self.ExecutedCommands + 1
+		
+		self:ResetCommandCandidates("")
+	end
+
+	@ExecSpace("ClientOnly")
+	method void HideUI()
+		if self.UIRoot == nil or self.UIRoot.Enable == false then
+			return
+		end
+		
+		self.UICommandTextInput.Text = ""
+		self.UICommandHintText.Text = ""
+		
+		self.UIRoot.Enable = false
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetPreviousCommand()
+		if #self.ExecutedCommands == 0 or self.ExecutedCommandsFocusingIndex == 1 then
+			return
+		end
+		
+		self.ExecutedCommandsFocusingIndex -= 1
+		self.UICommandTextInput.Text = self.ExecutedCommands[self.ExecutedCommandsFocusingIndex]
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetFollowingCommand()
+		if #self.ExecutedCommands == 0 or #self.ExecutedCommands == self.ExecutedCommandsFocusingIndex then
+			return
+		end
+		
+		self.ExecutedCommandsFocusingIndex += 1
+		self.UICommandTextInput.Text = self.ExecutedCommands[self.ExecutedCommandsFocusingIndex]
+	end
+
+	@ExecSpace("ClientOnly")
+	method boolean AutoComplete(string inputText)
+		self:ResetCommandCandidates(inputText)
+		
+		if #self.Candidates == 0 then
+			return false
+		end
+		
+		local text = self.CandidateSavedText .. self.Candidates[1]["actionName"]
+		self.UICommandTextInput.Text = text
+		
+		return true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void StoreToExecutedCommand(string commandText)
+		if self.ExecutedCommands[#self.ExecutedCommands] == commandText then
+			return
+		end
+		
+		table.insert(self.ExecutedCommands, commandText)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ResetCommandCandidates(string inputText)
+		self.CandidateSavedText = ""
+		self.UICommandText.FontColor = Color.black
+		self.UICommandHintText.Text = ""
+		
+		local keywordList = _UtilLogic:Split(inputText, " ")
+		local command = self.UnifiedCommands
+		local keyword = nil
+		local keywordIndex = 1
+		
+		while keywordIndex <= #keywordList do
+		    keyword = keywordList[keywordIndex]
+		    local nextCommand = command[keyword]
+		
+		    if nextCommand ~= nil then
+				self.CandidateSavedText ..= keyword .. " "
+				command = nextCommand
+				keywordIndex += 1
+				continue
+			end
+			
+			local numFromKeyword = tonumber(keywordList[keywordIndex])
+			if numFromKeyword ~= nil then
+				nextCommand = command["num"]
+				
+				if nextCommand ~= nil then
+					self.CandidateSavedText ..= keyword .. " "
+					command = nextCommand
+					keywordIndex += 1
+					continue
+				end
+			end
+			
+			if command["string"] ~= nil then
+				nextCommand = command["string"]
+				if nextCommand ~= nil then
+					self.CandidateSavedText ..= keyword .. " "
+					command = nextCommand
+					keywordIndex += 1
+					continue
+				end
+			end
+			
+			break
+		end
+		
+		if keywordIndex - 1 == #keywordList then
+			-- Show child actions
+			local childs = {}
+			for actionName, actions in pairs(command) do
+				if actionName == "func" then
+					self.UICommandText.FontColor = self.ColorOnExecutable
+					continue
+				elseif actionName == "desc" then
+					self.UICommandHintText.Text = self.CandidateSavedText .. " :" .. actions
+					continue
+				end
+			    childs[#childs + 1] = {["actionName"]=actionName, ["desc"]=actions["desc"]}
+			end
+			
+			self.Candidates = childs
+			self.CandidateStartIndex = 1
+			self:ShowCommandCandidates()
+		else
+			-- Show candidate actions
+			local candidates = {}
+			for actionName, actions in pairs(command) do
+				if actionName == "func" or actionName == "desc" or actionName == "num" or actionName == "string" then
+					continue
+				end
+			    if _UtilLogic:Contains(actionName, keyword) then
+			        candidates[#candidates + 1] = {["actionName"]=actionName, ["desc"]=actions["desc"]}
+			    end
+			end
+			
+			self.Candidates = candidates
+			self.CandidateStartIndex = 1
+			self:ShowCommandCandidates()
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ShowCommandCandidates()
+		table.sort(self.Candidates, function(a, b)
+		    return math.tointeger(string.compare(a["actionName"], b["actionName"])) < 0
+		end)
+		
+		table.clear(self.CandidateTexts)
+		local candidates = self.Candidates
+		for i = 1, #candidates do
+			local candidateIndex = self.CandidateStartIndex + i - 1
+			local candidateText = candidates[candidateIndex]["actionName"]
+			if candidates[candidateIndex]["desc"] ~= nil then
+				candidateText ..= " :"..candidates[candidateIndex]["desc"]
+			end
+			
+			table.insert(self.CandidateTexts, candidateText)
+		end
+		
+		self.CandidateGridView.TotalCount = #candidates
+		self.CandidateGridView:Refresh()
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("Service", "InputService")
+	handler HandleKeyDownEvent(KeyDownEvent event)
+		local key = event.key
+		if key == KeyboardKey.Backslash then
+			self:RequestShowUI()
+		elseif key == KeyboardKey.Escape then
+			self:HideUI()
+		end
+	end
+
+	@EventSender("Logic", "CommandLogic")
+	handler HandleOnCommandExecuted(OnCommandExecuted event)
+		-- Parameters
+		 local Command = event.Command
+		---------------------------------------------------------
+		
+		self:StoreToExecutedCommand(Command)
+	end
+
+end

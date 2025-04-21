@@ -1,0 +1,33 @@
+@Logic
+script ServerCommandLogic extends Logic
+
+	method table GetAllActions()
+		local temp = {}
+		
+		temp["test"] = self:GetTestActions()
+		
+		return temp
+	end
+
+	method table GetTestActions()
+		local actions = {
+			["server"] = {
+				["desc"] = "Description for 'test server' command",
+				["func"] = function(userId)				
+					log(string.format("Execute test server by %s", userId))
+				end,
+				["num"] = {
+					["desc"] = "Description for 'test server num' command",
+					["func"] = function(count, userId)
+						for i = 1, count do
+							log(string.format("Execute test server num by %s", userId))
+						end
+					end
+				}
+		    },
+		}
+		
+		return actions
+	end
+
+end

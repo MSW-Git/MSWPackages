@@ -1,0 +1,27 @@
+@Component
+script UICommandCandidateItem extends Component
+
+	property integer GridViewIndex = 0
+
+	@ExecSpace("ClientOnly")
+	method void Set(integer index, string text)
+		self.GridViewIndex = index
+		self.Entity.TextComponent.Text = text
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("Self")
+	handler HandleButtonClickEvent(ButtonClickEvent event)
+		--------------- Native Event Sender Info ----------------
+		-- Sender: ButtonComponent
+		-- Space: Client
+		---------------------------------------------------------
+		
+		-- Parameters
+		 local Entity = event.Entity
+		---------------------------------------------------------
+		
+		_UICommandLogic:OnCandidateClicked(self.GridViewIndex)
+	end
+
+end

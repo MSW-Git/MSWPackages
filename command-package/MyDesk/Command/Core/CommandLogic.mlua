@@ -1,0 +1,128 @@
+@Logic
+script CommandLogic extends Logic
+
+	property table ServerCommands = {}
+
+	property table ClientCommands = {}
+
+	@ExecSpace("ServerOnly")
+	method void OnBeginPlay()
+		self.ServerCommands = _ServerCommandLogic:GetAllActions()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void InitalizeClient()
+		self.ServerCommands = _ServerCommandLogic:GetAllActions()
+		self.ClientCommands = _ClientCommandLogic:GetAllActions()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ExecuteCommandBySpace(string commandText)
+		if self:TryExecuteInClient(commandText) then
+			self:OnCommandExecute(commandText)
+		else
+			self:TryExecuteInServer(commandText)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method boolean TryExecuteInClient(string commandText)
+		local commandData = self:GetCommandData(commandText, self.ClientCommands)
+		if commandData == nil then
+			return
+		end
+		
+		local info = commandData[1]
+		local func = commandData[2]
+		local params = commandData[3]
+		
+		func(table.unpack(params))
+		
+		return true
+	end
+
+	@ExecSpace("Server")
+	method void TryExecuteInServer(string commandText)
+		if _AdminLogic:IsAdmin(senderUserId) == false then
+			return
+		end
+		
+		local commandData = self:GetCommandData(commandText, self.ServerCommands)
+		if commandData == nil then
+			return
+		end
+		
+		local info = commandData[1]
+		local func = commandData[2]
+		local params = commandData[3]
+		
+		if #params == 0 then
+			func(senderUserId)
+		else
+			func(table.unpack(params), senderUserId)
+		end
+		
+		self:OnCommandExecute(commandText, senderUserId)
+	end
+
+	method table GetCommandData(string commandText, table command)
+		if commandText == nil or commandText == "" then
+			return nil
+		end
+		
+		local keywordList = _UtilLogic:Split(commandText, " ")
+		
+		local keyword = nil
+		local keywordIndex = 1
+		
+		local parameters = {}
+		
+		while keywordIndex <= #keywordList do
+			keyword = keywordList[keywordIndex]
+			
+			if command[keyword] ~= nil then
+				command = command[keyword]
+				keywordIndex += 1
+				continue
+			end
+		
+			local numFromKeyword = tonumber(keywordList[keywordIndex])
+			if numFromKeyword ~= nil then
+				command = command["num"]
+		
+				table.insert(parameters, numFromKeyword)
+				if command == nil then
+					break
+				end
+				keywordIndex += 1
+				continue
+			end
+		
+			if command["string"] ~= nil then 
+				command = command["string"]
+				table.insert(parameters, keywordList[keywordIndex])
+				keywordIndex += 1
+				continue
+			end
+			
+			command = nil
+			break
+		end
+		
+		if command ~= nil and command["func"] ~= nil then
+			local info = {}
+			info["execSpace"] = command["execSpace"]
+			return {info, command["func"], parameters}
+		end
+		
+		return nil
+	end
+
+	@ExecSpace("Client")
+	method void OnCommandExecute(string commandText)
+		local event = OnCommandExecuted()
+		event.Command = commandText
+		self:SendEvent(event)
+	end
+
+end

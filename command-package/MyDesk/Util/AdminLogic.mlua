@@ -1,0 +1,13 @@
+@Logic
+script AdminLogic extends Logic
+
+	@ExecSpace("ServerOnly")
+	method boolean IsAdmin(string userId)
+		--[[
+		You need to add a condition to filter whether the user is an administrator.
+		]]
+		
+		return true
+	end
+
+end
