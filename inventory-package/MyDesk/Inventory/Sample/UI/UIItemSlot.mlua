@@ -1,7 +1,6 @@
 @Component
 script UIItemSlot extends Component
 
-	@Sync
 	property string ExistBackgroundRUID = "9a43d767d2e8495396eae6fcded4b19d"
 
 	property string EmptyBackgroundRUID = "004e5fc9c660a1342a055ae7157e5aeb"
