@@ -5,12 +5,12 @@ script PlayerSkillManager extends Component
 
 	@ExecSpace("ClientOnly")
 	method boolean TryLearn(integer slotEnum, BaseSkill skill)
-		if isvalid(_SampleLogic.VirtualButtonWindow) == false then
+		if isvalid(_KeyBindingSampleLogic.VirtualButtonWindow) == false then
 			return false
 		end
 		
 		self.SkillBySlotEnum[slotEnum] = skill
-		_SampleLogic.VirtualButtonWindow:SetSkillInSlot(slotEnum, skill)
+		_KeyBindingSampleLogic.VirtualButtonWindow:SetSkillInSlot(slotEnum, skill)
 		return true
 	end
 
@@ -38,7 +38,7 @@ script PlayerSkillManager extends Component
 	@ExecSpace("ClientOnly")
 	@EventSender("Self")
 	handler HandleGameOptionInitializedEvent(GameOptionInitializedEvent event)
-		_SampleLogic.VirtualButtonWindow:SetButtons()
+		_KeyBindingSampleLogic.VirtualButtonWindow:SetButtons()
 		
 		local defaultSkill = BaseSkill()
 		defaultSkill.Id = 10

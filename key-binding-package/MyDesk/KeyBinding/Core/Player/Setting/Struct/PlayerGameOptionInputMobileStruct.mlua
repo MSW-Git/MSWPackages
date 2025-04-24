@@ -62,7 +62,7 @@ script PlayerGameOptionInputMobileStruct
 		
 		---@type PlayerGameOptionInputMobilePropStruct
 		local Active3 = self.Active3
-		dbItem[tostring(_InputSlotEnum.Active3)] = Active2:ToStr()
+		dbItem[tostring(_InputSlotEnum.Active3)] = Active3:ToStr()
 		
 	end
 
@@ -102,7 +102,7 @@ script PlayerGameOptionInputMobileStruct
 		local Active3 = dbItem[tostring(_InputSlotEnum.Active3)]
 		if Active3 ~= nil then
 			---@type PlayerGameOptionInputMobilePropStruct
-			local struct = self.Active2
+			local struct = self.Active3
 			struct:FromStr(Active3)
 		end
 	end

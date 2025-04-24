@@ -1,5 +1,5 @@
 @Logic
-script SampleLogic extends Logic
+script KeyBindingSampleLogic extends Logic
 
 	property Entity GameOption = nil
 
