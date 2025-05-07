@@ -23,6 +23,7 @@ See the README file in each package for detailed usage information.
 | inventory | Provides functionality for inventory management, equipping and unequipping items, and using items. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/inventory-package/inventory-package.modpackage)|
 | key-binding | Provides functionality for input key bindings and virtual button key bindings. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/key-binding-package/key-binding-package.modpackage)|
 | maplestory-toast | Provides functionality similar to the toast feature in the game MapleStory. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/maplestory-toast-package/maplestory-toast-package.modpackage)|
+| ranking-advanced | Provides ranking(Advanced) feature to creators. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/ranking-advanced-package/ranking-advanced-package.modpackage)|
 
 ## License
 
