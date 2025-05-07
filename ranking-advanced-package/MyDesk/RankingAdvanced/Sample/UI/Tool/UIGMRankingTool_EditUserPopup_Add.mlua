@@ -1,0 +1,57 @@
+@Component
+script UIGMRankingTool_EditUserPopup_Add extends Component
+
+	property UIGMRankingTool Parent = nil
+
+	property TextComponent Text_Id = nil
+
+	property TextComponent Text_CycleIndex = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		local panel = entity:GetChildByName("Panel")
+		
+		local scroll = panel:GetChildByName("Scroll")
+		self.Text_Id = scroll:GetChildByName("Text_Id").TextComponent
+		self.Text_CycleIndex = scroll:GetChildByName("Text_CycleIndex").TextComponent
+		
+		local btn_ok = panel:GetChildByName("Btn_OK")
+		btn_ok:ConnectEvent(ButtonClickEvent, self.OnClickBtn_OK)
+		
+		local btn_cancel = panel:GetChildByName("Btn_Cancel")
+		btn_cancel:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Close)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Open()
+		self.Entity.Enable = true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_OK()
+		local id = math.tointeger(tonumber(self.Text_Id.Text))
+		if id == nil or id == 0 then
+			log_error("The id is not valid.")
+			return
+		end
+		
+		local cycleIndex = math.tointeger(tonumber(self.Text_CycleIndex.Text))
+		if cycleIndex == nil or cycleIndex <= 0 then
+			log_error("The cycleIndex is not valid.")
+			return
+		end
+		
+		if not self.Parent.Page_EditUser.UIGMRankingTool_EditUser:AddEditData(id, cycleIndex) then
+			return
+		end
+		
+		self.Entity.Enable = false
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Close()
+		self.Entity.Enable = false
+	end
+
+end

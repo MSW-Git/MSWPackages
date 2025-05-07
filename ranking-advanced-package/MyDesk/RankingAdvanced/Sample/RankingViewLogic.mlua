@@ -1,0 +1,264 @@
+@Logic
+script RankingViewLogic extends Logic
+
+	@ExecSpace("Server")
+	method void RequestDataList(integer id, integer cycleIndex, integer pageNo, integer pageSize)
+		-- Requesting the current ranking data.
+		local snapshot = _RankingDataStorageLogic:GetRankingSnapshot(id)
+		if snapshot == nil then
+			self:ResponseDataList(id, cycleIndex, pageNo, pageSize, {}, senderUserId)
+			return
+		end
+		
+		---@type RankingConfigData
+		local configData = snapshot.ConfigData
+		local curCycleIndex = configData:GetCycleIndex(_DateTimeLogic:GetTimeElapsed())
+		
+		if cycleIndex ~= curCycleIndex then
+			-- Also update the client's user data.
+			self:ProcessDataListWithUserData(senderUserId, id, pageNo, pageSize)
+			return
+		end
+		
+		if curCycleIndex ~= snapshot.CycleIndex then
+			self:ResponseDataList(id, curCycleIndex, 1, pageSize, {}, senderUserId)
+			return
+		end
+		
+		local validPageNo = snapshot:GetValidPageNo(pageNo, pageSize)
+		local dataList = snapshot:GetRankingDataList(validPageNo, pageSize)
+		self:ResponseDataList(id, cycleIndex, validPageNo, pageSize, dataList, senderUserId)
+	end
+
+	@ExecSpace("Client")
+	method void ResponseDataList(integer id, integer cycleIndex, integer pageNo, integer pageSize, table dataList)
+		local entity = _RankingSampleUILogic:GetUI()
+		if entity == nil then
+			return
+		end
+		
+		entity.UIRanking:SetRanking(id, cycleIndex, pageNo, pageSize, dataList)
+	end
+
+	@ExecSpace("Server")
+	method void RequestDataListWithUserData(integer id, integer pageNo, integer pageSize)
+		-- Requesting the current ranking data and sernder's user data.
+		self:ProcessDataListWithUserData(senderUserId, id, pageNo, pageSize)
+	end
+
+	@ExecSpace("ServerOnly")
+	method void ProcessDataListWithUserData(string userId, integer id, integer pageNo, integer pageSize)
+		local userEntity = _UserService:GetUserEntityByUserId(userId)
+		if not isvalid(userEntity) then
+			return
+		end
+		
+		if not userEntity.PlayerDBManager.IsLoadSuccess then
+			return
+		end
+		
+		local snapshot = _RankingDataStorageLogic:GetRankingSnapshot(id)
+		if snapshot == nil then
+			self:ResponseDataListWithUserData(id, 0, pageNo, pageSize, {}, nil, nil, userId)
+			return
+		end
+		
+		---@type RankingConfigData
+		local configData = snapshot.ConfigData
+		local cycleIndex = configData:GetCycleIndex(_DateTimeLogic:GetTimeElapsed())
+		local myUserData = userEntity.PlayerRanking:GetUserData(id, cycleIndex)
+		
+		if cycleIndex ~= snapshot.CycleIndex then
+			self:ResponseDataListWithUserData(id, cycleIndex, 1, pageSize, {}, nil, myUserData, userId)
+			return
+		end
+		
+		local validPageNo = snapshot:GetValidPageNo(pageNo, pageSize)
+		local dataList = snapshot:GetRankingDataList(validPageNo, pageSize)
+		local myData = snapshot:GetRankingDataByProfileCode(userEntity.PlayerComponent.ProfileCode)
+		
+		self:ResponseDataListWithUserData(id, cycleIndex, validPageNo, pageSize, dataList, myData, myUserData, userId)
+	end
+
+	@ExecSpace("Client")
+	method void ResponseDataListWithUserData(integer id, integer cycleIndex, integer pageNo, integer pageSize, table dataList, RankingData myData, UserRankingData myUserData)
+		local entity = _RankingSampleUILogic:GetUI()
+		if entity == nil then
+			return
+		end
+		
+		entity.UIRanking:SetRankingAndMyData(id, cycleIndex, pageNo, pageSize, dataList, myData, myUserData)
+	end
+
+	@ExecSpace("Server")
+	method void RequestPastRecord(integer id)
+		-- Requesting my previous ranking information. The rank cannot be determined.
+		local userEntity = _UserService:GetUserEntityByUserId(senderUserId)
+		if not isvalid(userEntity) then
+			return
+		end
+		
+		if not userEntity.PlayerDBManager.IsLoadSuccess then
+			return
+		end
+		
+		local configData = _RankingConfigDataSetLogic:GetData(id)
+		if configData == nil then
+			return
+		end
+		
+		local curElapsed = _DateTimeLogic:GetTimeElapsed()
+		local curCycleIndex = configData:GetCycleIndex(curElapsed)
+		local cycleIndex = curCycleIndex - 1
+		
+		local comp = userEntity.PlayerRanking
+		local userData = comp:GetUserData(id, cycleIndex)
+		if userData == nil then
+			userData = UserRankingData()
+			userData:Init(id, cycleIndex)
+			
+			self:ResponsePastRecord(userData, senderUserId)
+			return
+		end
+		
+		self:ResponsePastRecord(userData, senderUserId)
+		if not configData.HasReward then
+			return
+		end
+		
+		comp:GrantReward(id, cycleIndex)
+	end
+
+	@ExecSpace("Client")
+	method void ResponsePastRecord(UserRankingData userData)
+		local entity = _RankingSampleUILogic:ActiveUI()
+		if entity == nil then
+			return
+		end
+		
+		entity.UIRanking:ShowPastRecord(userData)
+	end
+
+	@ExecSpace("Server")
+	method void RequestRegisterRanking(integer id, integer score, string extra, boolean force)
+		-- A request to register the ranking is made.
+		local userEntity = _UserService:GetUserEntityByUserId(senderUserId)
+		if not isvalid(userEntity) then
+			return
+		end
+		
+		if not userEntity.PlayerDBManager.IsLoadSuccess then
+			return
+		end
+		
+		local configData = _RankingConfigDataSetLogic:GetData(id)
+		if configData == nil then
+			log_error(string.format("Cannot find configData. Id : %d", id))
+			return
+		end
+		
+		local curElapsed = _DateTimeLogic:GetTimeElapsed()
+		local cycleIndex = configData:GetCycleIndex(curElapsed)
+		
+		local tag = userEntity.PlayerComponent.Nickname
+		userEntity.PlayerRanking:SetScoreAndWait(id, cycleIndex, score, tag, extra, force)
+	end
+
+	@ExecSpace("Server")
+	method void RequestForceUpdate(integer id)
+		-- A request is made to force update the SharedMemory.
+		if not _AdminLogic:IsAdmin(senderUserId) then
+			return
+		end
+		
+		_RankingDataStorageLogic:TryForceUpdateSharedMemory(id)
+	end
+
+	method void CalculateRanks(integer rankingMode, table rankingDataList)
+		if rankingMode == _RankingModeEnum.Index then
+			self:CalculateRanks_Index(rankingDataList)
+		elseif rankingMode == _RankingModeEnum.Rank then
+			self:CalculateRanks_Rank(rankingDataList)
+		elseif rankingMode == _RankingModeEnum.DenseRank then
+			self:CalculateRanks_DenseRank(rankingDataList)
+		else
+			self:CalculateRanks_Index(rankingDataList)
+		end
+	end
+
+	method void CalculateRanks_Index(table rankingDataList)
+		-- Ranks are assigned based on the order of the data, starting from 1 and incrementing by 1 for each subsequent entry.
+		---@type table<RankingData>
+		local dataList = rankingDataList
+		if #dataList == 0 then
+			return
+		end
+		
+		for i = 1, #dataList do
+			---@type RankingData
+			local data = dataList[i]
+			data.Rank = i
+		end
+	end
+
+	method void CalculateRanks_Rank(table rankingDataList)
+		-- Similar to Index, but in the case of ties (two players having the same score), they are assigned the same rank.
+		-- The next rank is then skipped, meaning there are gaps between ranks.
+		---@type table<RankingData>
+		local dataList = rankingDataList
+		if #dataList == 0 then
+			return
+		end
+		
+		---@type RankingData
+		local firstRankData = dataList[1]
+		local prevRank = 1
+		local prevScore = firstRankData.Score
+		
+		for i = 1, #dataList do
+			---@type RankingData
+			local data = dataList[i]
+			local score = data.Score
+			
+			if prevScore == score then
+				data.Rank = prevRank
+				continue
+			end
+			
+			prevRank = i
+			data.Rank = prevRank
+			prevScore = score
+		end
+	end
+
+	method void CalculateRanks_DenseRank(table rankingDataList)
+		-- Like Rank, but there are no gaps in the ranks, even if there are ties.
+		-- Players who tie are given the same rank, but the next rank will continue from the next position without skipping any numbers.
+		---@type table<RankingData>
+		local dataList = rankingDataList
+		if #dataList == 0 then
+			return
+		end
+		
+		---@type RankingData
+		local firstRankData = dataList[1]
+		local prevRank = 1
+		local prevScore = firstRankData.Score
+		
+		for i = 1, #dataList do
+			---@type RankingData
+			local data = dataList[i]
+			local score = data.Score
+			
+			if prevScore == score then
+				data.Rank = prevRank
+				continue
+			end
+			
+			prevRank += 1
+			data.Rank = prevRank
+			prevScore = score
+		end
+	end
+
+end

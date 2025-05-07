@@ -1,0 +1,3 @@
+﻿Id,Key,Name,CycleEnum,ViewCount,RefreshIntervalMinutes,HasReward,RankModeEnum,MaxUserDataCount,ReleaseBaseTime,Disable
+1,Ranking1,Ranking_1,Week,100,30,1,Rank,,2025-01-01,
+2,Ranking2,Ranking_2,,100,60,,Index,,2025-01-01,

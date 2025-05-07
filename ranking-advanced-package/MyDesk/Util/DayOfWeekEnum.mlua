@@ -1,0 +1,22 @@
+@Logic
+script DayOfWeekEnum extends Logic
+
+	property table NumberTable = {}
+
+	method void Init()
+		local NumberTable = self.NumberTable
+		
+		NumberTable[DayOfWeekType.Sunday] = 0
+		NumberTable[DayOfWeekType.Monday] = 1
+		NumberTable[DayOfWeekType.Tuesday] = 2
+		NumberTable[DayOfWeekType.Wednesday] = 3
+		NumberTable[DayOfWeekType.Thursday] = 4
+		NumberTable[DayOfWeekType.Friday] = 5
+		NumberTable[DayOfWeekType.Saturday] = 6
+	end
+
+	method integer ToInteger(any dayOfWeek)
+		return self.NumberTable[dayOfWeek]
+	end
+
+end

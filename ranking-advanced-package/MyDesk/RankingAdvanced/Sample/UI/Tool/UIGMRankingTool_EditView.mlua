@@ -1,0 +1,102 @@
+@Component
+script UIGMRankingTool_EditView extends Component
+
+	property UIGMRankingTool Parent = nil
+
+	property TextComponent Text_Name = nil
+
+	property TextComponent Text_Score = nil
+
+	property TextComponent Text_Tag = nil
+
+	property TextComponent Text_Id = nil
+
+	property TextComponent Text_CycleIndex = nil
+
+	property TextComponent Text_ProfileCode = nil
+
+	property integer Id = 0
+
+	property integer CycleIndex = 0
+
+	property any Data = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		
+		self.Text_Name = entity:GetChildByName("Text_Name").TextComponent
+		
+		local item = entity:GetChildByName("Item")
+		self.Text_Score = item:GetChildByName("Text_Score").TextComponent
+		self.Text_Tag = item:GetChildByName("Text_Tag").TextComponent
+		
+		local btn_edit = item:GetChildByName("Btn_Edit")
+		btn_edit:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Edit)
+		
+		local scroll_bottom = entity:GetChildByName("Scroll_Bottom")
+		
+		self.Text_Id = scroll_bottom:GetChildByName("Text_Id").TextComponent
+		self.Text_CycleIndex = scroll_bottom:GetChildByName("Text_CycleIndex").TextComponent
+		self.Text_ProfileCode = scroll_bottom:GetChildByName("Text_ProfileCode").TextComponent
+		
+		local btn_query = entity:GetChildByName("Btn_Query")
+		btn_query:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Query)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Apply(integer id, integer cycleIndex, RankingData data)
+		self.Id = id
+		self.CycleIndex = cycleIndex
+		self.Data = data
+		
+		self.Text_Name.Text = string.format("Id : %d | CycleIndex : %d | ProfileCode : %s", id, cycleIndex, data.ProfileCode)
+		self.Text_Score.Text = tostring(data.Score)
+		self.Text_Tag.Text = tostring(data.Tag)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Query()
+		local id = math.tointeger(tonumber(self.Text_Id.Text))
+		if id == nil or id == 0 then
+			log_error("The id is not valid.")
+			return
+		end
+		
+		local cycleIndex = math.tointeger(tonumber(self.Text_CycleIndex.Text))
+		if cycleIndex == nil or cycleIndex <= 0 then
+			log_error("The cycleIndex is not valid.")
+			return
+		end
+		
+		local profileCode = self.Text_ProfileCode.Text
+		if _Util:IsNilorEmptyString(profileCode) then
+			log_error("The profileCode is not valid.")
+			return
+		end
+		
+		_GMRankingToolLogic:RequestRankingData(id, cycleIndex, profileCode)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Edit(ButtonClickEvent evt)
+		local id = self.Id
+		if id == nil or id == 0 then
+			return
+		end
+		
+		local cycleIndex = self.CycleIndex
+		if cycleIndex == nil or cycleIndex <= 0 then
+			return
+		end
+		
+		---@type RankingData
+		local rankingData = self.Data
+		if rankingData == nil then
+			return
+		end
+		
+		self.Parent:OpenPopup_EditView(id, cycleIndex, rankingData)
+	end
+
+end

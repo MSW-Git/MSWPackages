@@ -1,0 +1,92 @@
+@Component
+script UIGMRankingTool_View extends Component
+
+	property UIGMRankingTool Parent = nil
+
+	property TextComponent Text_Name = nil
+
+	property GridViewComponent GridViewComp = nil
+
+	property Entity Item = nil
+
+	property table GridViewDataTable = {}
+
+	property TextComponent Text_Id = nil
+
+	property TextComponent Text_CycleIndex = nil
+
+	property TextComponent Text_ViewCount = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		
+		self.Text_Name = entity:GetChildByName("Text_Name").TextComponent
+		
+		local item = entity:GetChildByName("Item")
+		item.Enable = false
+		self.Item = item
+		
+		local gridViewComp = entity:GetChildByName("GridView").GridViewComponent
+		gridViewComp.ItemEntity = item
+		gridViewComp.OnRefresh = self.OnRefresh
+		gridViewComp.OnClear = self.OnClear
+		self.GridViewComp = gridViewComp
+		
+		local scroll_bottom = entity:GetChildByName("Scroll_Bottom")
+		
+		self.Text_Id = scroll_bottom:GetChildByName("Text_Id").TextComponent
+		self.Text_CycleIndex = scroll_bottom:GetChildByName("Text_CycleIndex").TextComponent
+		self.Text_ViewCount = scroll_bottom:GetChildByName("Text_ViewCount").TextComponent
+		
+		local btn_query = entity:GetChildByName("Btn_Query")
+		btn_query:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Query)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Apply(integer id, integer cycleIndex, table userDataTable)
+		table.initialize(self.GridViewDataTable, userDataTable)
+		
+		local count = #self.GridViewDataTable
+		self.Text_Name.Text = string.format("Id : %d | CycleIndex : %d | ItemCount : %d", id, cycleIndex, count)
+		
+		self.GridViewComp.TotalCount = count
+		self.GridViewComp:Refresh(true, true)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnRefresh(integer index, Entity entity)
+		index += 1
+		local s = self.GridViewDataTable[index]
+		entity.UIGMRankingTool_ViewItem:Set(s)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClear(integer index, Entity entity)
+		entity.UIGMRankingTool_ViewItem:Clear()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Query()
+		local id = math.tointeger(tonumber(self.Text_Id.Text))
+		if id == nil or id == 0 then
+			log_error("The id is not valid.")
+			return
+		end
+		
+		local cycleIndex = math.tointeger(tonumber(self.Text_CycleIndex.Text))
+		if cycleIndex == nil or cycleIndex <= 0 then
+			log_error("The cycleIndex is not valid.")
+			return
+		end
+		
+		local viewCount = math.tointeger(tonumber(self.Text_ViewCount.Text))
+		if viewCount == nil or viewCount <= 0 then
+			log_error("The viewCount is not valid.")
+			return
+		end
+		
+		_GMRankingToolLogic:RequestRankingDataList(id, cycleIndex, viewCount)
+	end
+
+end

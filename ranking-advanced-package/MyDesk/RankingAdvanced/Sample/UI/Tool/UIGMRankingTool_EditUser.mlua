@@ -1,0 +1,248 @@
+@Component
+script UIGMRankingTool_EditUser extends Component
+
+	property UIGMRankingTool Parent = nil
+
+	property GridViewComponent GridViewComp = nil
+
+	property Entity Item = nil
+
+	property table GridViewDataTable = {}
+
+	property any SortFunc = nil
+
+	property integer TimeOffset = 0
+
+	property table OriginalUserDataTable = {}
+
+	property table EditUserDataTable = {}
+
+	property TextComponent Text_Name = nil
+
+	property TextComponent Text_ProfileCode = nil
+
+	property string ProfileCode = ""
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		
+		self.Text_Name = entity:GetChildByName("Text_Name").TextComponent
+		
+		local btn_add = entity:GetChildByName("Btn_Add")
+		btn_add:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Add)
+		
+		local item = entity:GetChildByName("Item")
+		self.Item = item
+		
+		local gridViewComp = entity:GetChildByName("GridView").GridViewComponent
+		gridViewComp.ItemEntity = item
+		gridViewComp.OnRefresh = self.OnRefresh
+		gridViewComp.OnClear = self.OnClear
+		gridViewComp.Entity:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Edit)
+		self.GridViewComp = gridViewComp
+		
+		local scroll_bottom = entity:GetChildByName("Scroll_Bottom")
+		
+		self.Text_ProfileCode = scroll_bottom:GetChildByName("Text_ProfileCode").TextComponent
+		
+		local btn_query = scroll_bottom:GetChildByName("Btn_Query")
+		btn_query:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Query)
+		
+		local btn_revert = entity:GetChildByName("Btn_Revert")
+		btn_revert:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Revert)
+		
+		local btn_save = entity:GetChildByName("Btn_Save")
+		btn_save:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Save)
+		
+		---@param a UserRankingData
+		---@param b UserRankingData
+		local function sortFunc(a, b)
+			if a.Id ~= b.Id then
+				return a.Id < b.Id	
+			end
+			return a.CycleIndex < b.CycleIndex
+		end
+		self.SortFunc = sortFunc
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Apply(string profileCode, table userDataTable)
+		self.ProfileCode = profileCode
+		self.Text_Name.Text = string.format("ProfileCode : %s", profileCode)
+		
+		table.initialize(self.OriginalUserDataTable, userDataTable)
+		self:InitDataTable()
+		self:Invalidate(true)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void InitDataTable()
+		local gridViewDataTable = self.GridViewDataTable
+		table.clear(gridViewDataTable)
+		
+		---@type table<integer, table<integer, UserRankingData>>
+		local editUserDataTable = self.EditUserDataTable
+		table.clear(editUserDataTable)
+		
+		for id, v in pairs(self.OriginalUserDataTable) do
+			for cycleIndex, userData in pairs(v) do
+				local editUserData = UserRankingData()
+				editUserData:CopyFrom(userData)
+				
+				
+				local innerTable = editUserDataTable[id]
+				if innerTable == nil then
+					innerTable = {}
+					editUserDataTable[id] = innerTable
+				end
+				
+				innerTable[cycleIndex] = editUserData
+				table.insert(gridViewDataTable, editUserData)		
+			end
+		end
+		
+		table.sort(gridViewDataTable, self.SortFunc)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Invalidate(boolean resetPos)
+		self.TimeOffset = self.Parent.TimeOffset
+		self.GridViewComp.TotalCount = #self.GridViewDataTable
+		self.GridViewComp:Refresh(resetPos, true)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnRefresh(integer index, Entity entity)
+		index += 1
+		local s = self.GridViewDataTable[index]
+		entity.UIGMRankingTool_EditUserItem:Set(s, self.TimeOffset)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClear(integer index, Entity entity)
+		entity.UIGMRankingTool_EditUserItem:Clear()
+	end
+
+	@ExecSpace("ClientOnly")
+	method boolean AddEditData(integer id, integer cycleIndex)
+		local profileCode = self.ProfileCode
+		if _Util:IsNilorEmptyString(profileCode) then
+			return
+		end
+		
+		---@type table<integer, table<integer, UserRankingData>>
+		local editUserDataTable = self.EditUserDataTable
+		if editUserDataTable[id] ~= nil and editUserDataTable[id][cycleIndex] ~= nil then
+			log_error("Data with the same ID and cycle index already exists.")
+			return false
+		end
+		
+		local userData = UserRankingData()
+		userData:Init(id, cycleIndex)
+		
+		local innerTable = editUserDataTable[id]
+		if innerTable == nil then
+			innerTable = {}
+			editUserDataTable[id] = innerTable
+		end
+		innerTable[cycleIndex] = userData
+		
+		local gridViewDataTable = self.GridViewDataTable
+		table.insert(gridViewDataTable, userData)
+		table.sort(gridViewDataTable, self.SortFunc)
+		
+		self:Invalidate(false)
+		return true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void DeleteEditData(UserRankingData editData)
+		local profileCode = self.ProfileCode
+		if _Util:IsNilorEmptyString(profileCode) then
+			return
+		end
+		
+		local id = editData.Id
+		local cycleIndex = editData.CycleIndex
+		
+		---@type table<integer, table<integer, UserRankingData>>
+		local editUserDataTable = self.EditUserDataTable
+		if editUserDataTable[id] ~= nil then
+			editUserDataTable[id][cycleIndex] = nil
+		end
+		
+		local index = nil
+		---@type table<UserRankingData>
+		local gridViewDataTable = self.GridViewDataTable
+		for i = 1, #gridViewDataTable do
+			local data = gridViewDataTable[i]
+			if data.Id == id and data.CycleIndex == cycleIndex then
+				index = i
+				break
+			end
+		end
+		
+		if index ~= nil then
+			table.remove(gridViewDataTable, index)
+			self:Invalidate(false)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Add()
+		local profileCode = self.ProfileCode
+		if _Util:IsNilorEmptyString(profileCode) then
+			return
+		end
+		
+		self.Parent:OpenPopup_EditUser_Add()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Edit(ButtonClickEvent evt)
+		local profileCode = self.ProfileCode
+		if _Util:IsNilorEmptyString(profileCode) then
+			return
+		end
+		
+		---@type UserRankingData
+		local editUserData = evt.Entity.UIGMRankingTool_EditUserItem.EditUserData
+		if editUserData == nil then
+			return
+		end
+		
+		local id = editUserData.Id
+		local cycleIndex = editUserData.CycleIndex
+		local originalUserData = self.OriginalUserDataTable[id][cycleIndex]
+		
+		self.Parent:OpenPopup_EditUser(originalUserData, editUserData)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Query()
+		local profileCode = self.Text_ProfileCode.Text
+		if _Util:IsNilorEmptyString(profileCode) then
+			return
+		end
+		
+		_GMRankingToolLogic:RequestUserData(profileCode)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Revert()
+		self:InitDataTable()
+		self:Invalidate(false)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Save()
+		local profileCode = self.ProfileCode
+		if _Util:IsNilorEmptyString(profileCode) then
+			return
+		end
+		
+		_GMRankingToolLogic:RequestEditUserData(profileCode, self.EditUserDataTable)
+	end
+
+end

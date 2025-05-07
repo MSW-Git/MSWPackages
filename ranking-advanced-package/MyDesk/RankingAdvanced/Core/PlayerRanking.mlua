@@ -1,0 +1,270 @@
+@Component
+script PlayerRanking extends Component
+
+	property table UserDataTable = {}
+
+	property boolean IsSaveDB = false
+
+	@ExecSpace("ServerOnly")
+	method boolean SaveToDB(table saveData)
+		if not self.IsSaveDB then
+			return true
+		end
+		
+		---@type table<integer, table<integer, UserRankingData>>
+		local userDataTable = self.UserDataTable
+		local deserTable = {}
+		
+		for id, innerTable in pairs(userDataTable) do
+			for cycleIndex, userData in pairs(innerTable) do
+				local item = userData:Serialize()
+				if item == nil then
+					continue
+				end
+				
+				deserTable[#deserTable + 1] = item
+			end
+		end
+		
+		local sds = ""
+		if #deserTable ~= 0 then
+			sds = _HttpService:JSONEncode(deserTable)
+		end
+		
+		saveData[_RankingDataStorageLogic.UserDSName] = sds
+		return true
+	end
+
+	@ExecSpace("ServerOnly")
+	method void LoadFromDB(table loadKeys)
+		table.insert(loadKeys, _RankingDataStorageLogic.UserDSName)
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean OnLoadedDataFromDB(table loadedData)
+		local userId = self.Entity.PlayerComponent.UserId
+		
+		---@type DataStorageItem
+		local sds = loadedData[_RankingDataStorageLogic.UserDSName]
+		local sdsValue = sds.Value
+		
+		---@type table<integer, table<UserRankingData>>
+		local userDataListById = {}
+		
+		if not _Util:IsNilorEmptyString(sdsValue) then
+			local deserTable = _HttpService:JSONDecode(sdsValue)
+			if deserTable ~= nil then
+				for i = 1, #deserTable do
+					local userData = UserRankingData()
+					if not userData:Deserialize(deserTable[i]) then
+						return false
+					end
+					
+					local id = userData.Id
+					if id == nil then
+						continue
+					end
+					
+					local dataList = userDataListById[id]
+					if dataList == nil then
+						dataList = {}
+						userDataListById[id] = dataList
+					end
+					
+					dataList[#dataList + 1] = userData
+				end
+			end
+		end
+		
+		---@type table<integer, table<integer, UserRankingData>>
+		local userDataTable = self.UserDataTable
+		
+		local cycleIndexById = {}
+		
+		local sortFunc = _RankingDataStorageLogic.UserDataSortFuncByCycleIndex
+		local curElapsed = _DateTimeLogic:GetTimeElapsed()
+		
+		for id, dataList in pairs(userDataListById) do
+			local config = _RankingConfigDataSetLogic:GetData(id)
+			if config == nil then
+				-- Ambiguous data will be retained.
+				for i = 1, #dataList do
+					local s = dataList[i]
+					local cycleIndex = s.CycleIndex
+					
+					local innerTable = userDataTable[id]
+					if innerTable == nil then
+						innerTable = {}
+						userDataTable[id] = innerTable
+					end
+					
+					innerTable[cycleIndex] = s
+				end
+				
+				continue
+			end
+			
+			table.sort(dataList, sortFunc)
+			
+			local curCycleIndex = cycleIndexById[id]
+			if curCycleIndex == nil then
+				curCycleIndex = config:GetCycleIndex(curElapsed)
+				cycleIndexById[id] = curCycleIndex
+			end
+			
+			local count = 0
+			local maxCount = config.MaxUserDataCount
+			
+			for i = 1, #dataList do
+				local s = dataList[i]
+				local cycleIndex = s.CycleIndex
+					
+				-- Exclude future ranking data that would be impossible without cheats.
+				if cycleIndex > curCycleIndex then
+					continue
+				end
+				
+				local innerTable = userDataTable[id]
+				if innerTable == nil then
+					innerTable = {}
+					userDataTable[id] = innerTable
+				end
+				
+				innerTable[cycleIndex] = s
+				count += 1
+				
+				if maxCount <= count then
+					break
+				end
+			end
+		end
+		
+		return true
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean PostOnLoadedDataFromDB()
+		return true
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean SetScoreAndWait(integer id, integer cycleIndex, integer score, string tag, string extra, boolean force)
+		-- This function is used to register rankings.
+		if not self.Entity.PlayerDBManager.IsLoadSuccess then
+			return false
+		end
+		
+		if id == nil or id == 0 then
+			log_error("The id is nil or 0")
+			return false
+		end
+		
+		if cycleIndex == nil or cycleIndex < 1 then
+			log_error(string.format("The cycleIndex must be greater than 0. Id : %d", id))
+			return false
+		end
+		
+		if score == nil or score < 1 then
+			log_error(string.format("The score must be greater than 0. Id : %d", id))
+			return false
+		end
+		
+		local configData = _RankingConfigDataSetLogic:GetData(id)
+		if configData == nil then
+			log_error(string.format("The configData is nil. Id : %d", id))
+			return false
+		end
+		
+		local maxTagLen = _RankingDataStorageLogic.MaxTagLen
+		local tagLen = tag and string.len(tag) or 0
+		if maxTagLen < tagLen  then
+			log_error(string.format("The tag length must be less than or equal to %d. Id : %d, Tag : %s", maxTagLen, id, tag))
+			return false
+		end
+		
+		if string.find(tag, _RankingDataStorageLogic.SharedMemSeperator) then
+			log_error(string.format("The tag Contains SharedMemSeperator(%s). Id : %d, Tag : %s", _RankingDataStorageLogic.SharedMemSeperator, id, tag))
+			return false
+		end
+		
+		local userData = self:GetOrCreateUserData(id, cycleIndex)
+		if not force then
+			if userData ~= nil and score <= userData.Score then
+				log(string.format("Score not high enough to update ranking. Id : %d, Score : %d, HighScore : %d", id, score, userData.Score))
+				return false
+			end
+		end
+		
+		local curElapsed = _DateTimeLogic:GetTimeElapsed()
+		userData:SetValue(score, curElapsed, extra)
+		self.IsSaveDB = true
+		
+		local profileCode = self.Entity.PlayerComponent.ProfileCode
+		log(string.format("Score updated. ProfileCode : %s, Id : %d, CycleIndex : %d, Score : %d", profileCode, id, cycleIndex, score))
+		
+		return _RankingDataStorageLogic:SetScoreAndWait(id, cycleIndex, profileCode, score, tag)
+	end
+
+	@ExecSpace("ServerOnly")
+	method UserRankingData GetUserData(integer id, integer cycleIndex)
+		---@type table<integer, table<integer, UserRankingData>>
+		local userDataTable = self.UserDataTable
+		local innerTable = userDataTable[id]
+		if innerTable == nil then
+			return nil
+		end
+		
+		return innerTable[cycleIndex]
+	end
+
+	@ExecSpace("ServerOnly")
+	method UserRankingData GetOrCreateUserData(integer id, integer cycleIndex)
+		local userData = self:GetUserData(id, cycleIndex)
+		if userData ~= nil then
+			return userData
+		end
+		
+		userData = UserRankingData()
+		userData:Init(id, cycleIndex)
+		
+		---@type table<integer, table<integer, UserRankingData>>
+		local userDataTable = self.UserDataTable
+		local innerTable = userDataTable[id]
+		if innerTable == nil then
+			innerTable = {}
+			userDataTable[id] = innerTable
+		end
+		
+		innerTable[cycleIndex] = userData
+		
+		return userData
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean GrantReward(integer id, integer cycleIndex)
+		-- This function is used to distribute ranking rewards.
+		-- Rewards are given only if the player has not received ranking rewards previously.
+		if not self.Entity.PlayerDBManager.IsLoadSuccess then
+			return false
+		end
+		
+		local userData = self:GetUserData(id, cycleIndex)
+		if userData == nil then
+			return false
+		end
+		
+		local profileCode = self.Entity.PlayerComponent.UserId
+		if userData.RewardTime ~= 0 then
+			log(string.format("Reward already claimed. ProfileCode : %s, Id : %d, CycleIndex : %d", profileCode, id, cycleIndex))
+			return false
+		end
+		
+		-- TODO : Give Reward
+		log(string.format("Give Reward Item. ProfileCode : %s, Id : %d, CycleIndex : %d", profileCode, id, cycleIndex))
+		
+		userData.RewardTime = _DateTimeLogic:GetTimeElapsed()
+		self.IsSaveDB = true
+		return true
+	end
+
+end

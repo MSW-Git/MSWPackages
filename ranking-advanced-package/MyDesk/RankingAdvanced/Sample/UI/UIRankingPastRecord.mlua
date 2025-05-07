@@ -1,0 +1,51 @@
+@Component
+script UIRankingPastRecord extends Component
+
+	property TextComponent Text_Name = nil
+
+	property Entity Item = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		entity:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Exit)
+		
+		local panel = entity:GetChildByName("Panel")
+		local panel_content = panel:GetChildByName("Panel_Content")
+		
+		local panel_top = panel_content:GetChildByName("Panel_Top")
+		self.Text_Name = panel_top:GetChildByName("Text_Name").TextComponent
+		
+		self.Item = panel_content:GetChildByName("Item")
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnSpawn()
+		self:Clear()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetData(UserRankingData userData)
+		local id = userData.Id
+		local cycleIndex = userData.CycleIndex
+		
+		local configData = _RankingConfigDataSetLogic:GetData(id)
+		self.Text_Name.Text = string.format("%s(CycleIndex : %d)", configData.Name, cycleIndex)
+		
+		self.Item.UIRankingItem:SetMyData(nil, userData)
+		self.Entity.Enable = true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		self.Text_Name.Text = "Name(CycleIndex)"
+		self.Item.UIRankingItem:Clear()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Exit()
+		self.Entity.Enable = false
+		self:Clear()
+	end
+
+end

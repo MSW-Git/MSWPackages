@@ -1,0 +1,76 @@
+@Component
+script UIGMRankingTool_EditUserItem extends Component
+
+	property TextComponent Id = nil
+
+	property TextComponent CycleIndex = nil
+
+	property TextComponent Score = nil
+
+	property TextComponent UpdateTime = nil
+
+	property TextComponent RewardTime = nil
+
+	property TextComponent Extra = nil
+
+	property any EditUserData = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		self.Id = entity:GetChildByName("Text_Id").TextComponent
+		self.CycleIndex = entity:GetChildByName("Text_CycleIndex").TextComponent
+		self.Score = entity:GetChildByName("Text_Score").TextComponent
+		self.UpdateTime = entity:GetChildByName("Text_UpdateTime").TextComponent
+		self.RewardTime = entity:GetChildByName("Text_RewardTime").TextComponent
+		self.Extra = entity:GetChildByName("Text_Extra").TextComponent
+		
+		local btn_edit = entity:GetChildByName("Btn_Edit")
+		btn_edit:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Edit)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Set(UserRankingData s, integer timeOffset)
+		self.EditUserData = s
+		
+		self.Id.Text = tostring(s.Id)
+		self.CycleIndex.Text = tostring(s.CycleIndex)
+		self.Score.Text = tostring(s.Score)
+		
+		local hourElapsed = 60 * 60 * 1000
+		local offsetElapsed = timeOffset * hourElapsed
+		
+		if s.UpdateTime == 0 then
+			self.UpdateTime.Text = "0"
+		else
+			self.UpdateTime.Text = DateTime(s.UpdateTime + offsetElapsed):ToFormattedString("yyyy-MM-dd HH:mm:ss")	
+		end
+		
+		if s.RewardTime == 0 then
+			self.RewardTime.Text = "0"
+		else
+			self.RewardTime.Text = DateTime(s.RewardTime + offsetElapsed):ToFormattedString("yyyy-MM-dd HH:mm:ss")
+		end
+		
+		self.Extra.Text = tostring(s.Extra)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		self.EditUserData = nil
+		
+		self.Id.Text = ""
+		self.CycleIndex.Text = ""
+		self.Score.Text = ""
+		self.UpdateTime.Text = ""
+		self.RewardTime.Text = ""
+		self.Extra.Text = ""
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Edit()
+		local evt = ButtonClickEvent(self.Entity)
+		self.Entity.Parent:SendEvent(evt)
+	end
+
+end

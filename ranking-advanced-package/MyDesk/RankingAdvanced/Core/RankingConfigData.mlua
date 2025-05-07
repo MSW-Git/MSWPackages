@@ -1,0 +1,131 @@
+@Struct
+script RankingConfigData
+
+	property integer Id = 0
+
+	property string Key = ""
+
+	property string Name = ""
+
+	property integer CycleEnum = 0
+
+	property integer ViewCount = 0
+
+	property integer RefreshIntervalMinutes = 0
+
+	property boolean HasReward = false
+
+	property integer RankModeEnum = 0
+
+	property integer MaxUserDataCount = 0
+
+	property integer ReleaseBaseTime = 0
+
+	method boolean Load(any dataRow)
+		---@type UserDataRow
+		local row = dataRow
+		
+		local id = math.tointeger(tonumber(row:GetItem("Id")))
+		if id == nil or id == 0 then
+			log_error("Id is nil.")
+			return false
+		end
+		self.Id = id
+		
+		local key = row:GetItem("Key")
+		if _Util:IsNilorEmptyString(key) then
+			log_error("Key is nil.")
+			return false
+		end
+		
+		if string.len(key) > 30 then
+			log_error(string.format("The length of the dataStorage name must be 30 bytes or less. Id : %d, Key : %s", id, key))
+			return false
+		end
+		self.Key = key
+		
+		self.Name = row:GetItem("Name")
+		
+		self.CycleEnum = _CycleEnum:ToEnum(row:GetItem("CycleEnum"))
+		
+		local viewCount = math.tointeger(tonumber(row:GetItem("ViewCount")))
+		if viewCount == nil or viewCount <= 0 then
+			log_error(string.format("The viewCount is nil or 0. Id : %d", id))
+			return false
+		end
+		
+		if viewCount > 1000 then
+			log_error(string.format("The viewCount must be 1000 or less. Id : %d", id))
+			return false
+		end
+		self.ViewCount = viewCount
+		
+		local refreshIntervalMinutes = math.tointeger(tonumber(row:GetItem("RefreshIntervalMinutes")))
+		if refreshIntervalMinutes == nil or refreshIntervalMinutes <= 0 then
+			log_error(string.format("The refreshIntervalMinutes is nil or 0. Id : %d", id))
+			return false
+		end
+		
+		if refreshIntervalMinutes < 30 then
+			log_error(string.format("The refreshIntervalMinutes must be greater than or equal to 30. Id : %d", id))
+			return false
+		end
+		self.RefreshIntervalMinutes = refreshIntervalMinutes
+		
+		local hasReward = not _Util:IsNilorEmptyString(row:GetItem("HasReward"))
+		if hasReward and self.CycleEnum == _CycleEnum.None then
+			log_error(string.format("Rewards can only be distributed for rankings that are configured with a CycleEnum. Id : %d", id))
+			return false
+		end
+		self.HasReward = hasReward
+		
+		local rankModeEnum = _RankingModeEnum:ToEnum(row:GetItem("RankModeEnum"))
+		if rankModeEnum == _RankingModeEnum.None then
+			rankModeEnum = _RankingModeEnum.Index
+		end
+		self.RankModeEnum = rankModeEnum
+		
+		local maxUserDataCount = math.tointeger(tonumber(row:GetItem("MaxUserDataCount")))
+		if maxUserDataCount == nil then
+			maxUserDataCount = 2
+		elseif maxUserDataCount < 2 then
+			log_error(string.format("The maxUserDataCount must be greater than 1. Id : %d", id))
+			return false
+		end
+		
+		self.MaxUserDataCount = maxUserDataCount
+		return true
+	end
+
+	method integer GetCycleIndex(integer curElapsed)
+		local releaseBaseTime = self.ReleaseBaseTime
+		if releaseBaseTime == nil or releaseBaseTime == 0 then
+			return 1
+		end
+		
+		if curElapsed < releaseBaseTime then
+			return 1
+		end
+		
+		local cycleEnum = self.CycleEnum
+		
+		if cycleEnum == _CycleEnum.Day then
+			local elapsedDay = 86400000
+			return (curElapsed - releaseBaseTime) // elapsedDay + 1
+		elseif cycleEnum == _CycleEnum.Week then
+			local elapsedDay = 86400000
+			return (curElapsed - releaseBaseTime) // (elapsedDay * 7) + 1
+		elseif cycleEnum == _CycleEnum.Month then
+			local baseDateTime = DateTime(releaseBaseTime)
+			local curDateTime = DateTime(curElapsed)
+			return (curDateTime.Year - baseDateTime.Year) * 12 + curDateTime.Month - baseDateTime.Month + 1
+		elseif cycleEnum == _CycleEnum.Year then
+			local baseDateTime = DateTime(releaseBaseTime)
+			local curDateTime = DateTime(curElapsed)
+			return curDateTime.Year - baseDateTime.Year + 1
+		end
+		
+		return 1
+	end
+
+end

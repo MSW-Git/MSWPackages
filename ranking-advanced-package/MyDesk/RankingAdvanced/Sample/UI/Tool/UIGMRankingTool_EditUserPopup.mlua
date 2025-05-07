@@ -1,0 +1,207 @@
+@Component
+script UIGMRankingTool_EditUserPopup extends Component
+
+	property UIGMRankingTool Parent = nil
+
+	property TextComponent Id = nil
+
+	property TextComponent CycleIndex = nil
+
+	property TextComponent Score = nil
+
+	property TextComponent UpdateTime = nil
+
+	property TextComponent RewardTime = nil
+
+	property TextComponent Extra = nil
+
+	property any OriginalData = nil
+
+	property any EditData = nil
+
+	property integer TimeOffset = 0
+
+	property any GetElapsedFunc = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		local panel = entity:GetChildByName("Panel")
+		local btn_exit = panel:GetChildByName("Title"):GetChildByName("Btn_Exit")
+		btn_exit:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Close)
+		
+		local item = panel:GetChildByName("item")
+		self.Id = item:GetChildByName("Text_Id").TextComponent
+		self.CycleIndex = item:GetChildByName("Text_CycleIndex").TextComponent
+		self.Score = item:GetChildByName("Text_Score").TextComponent
+		self.UpdateTime = item:GetChildByName("Text_UpdateTime").TextComponent
+		self.RewardTime = item:GetChildByName("Text_RewardTime").TextComponent
+		self.Extra = item:GetChildByName("Text_Extra").TextComponent
+		
+		local scroll_action = panel:GetChildByName("Scroll_Action")
+		local btn_revertEdits = scroll_action:GetChildByName("Btn_RevertEdits")
+		btn_revertEdits:ConnectEvent(ButtonClickEvent, self.OnClickBtn_RevertEdits)
+		
+		local btn_resetToOriginal = scroll_action:GetChildByName("Btn_ResetToOriginal")
+		btn_resetToOriginal:ConnectEvent(ButtonClickEvent, self.OnClickBtn_ResetToOriginal)
+		
+		local btn_delete = scroll_action:GetChildByName("Btn_Delete")
+		btn_delete:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Delete)
+		
+		local btn_ok = panel:GetChildByName("Btn_OK")
+		btn_ok:ConnectEvent(ButtonClickEvent, self.OnClickBtn_OK)
+		
+		local btn_cancel = panel:GetChildByName("Btn_Cancel")
+		btn_cancel:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Close)
+		
+		local function getElapsedFunc(dateTimeStr)
+			return DateTime(dateTimeStr).Elapsed
+		end
+		self.GetElapsedFunc = getElapsedFunc
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Open(UserRankingData originalUserData, UserRankingData editUserData, integer timeOffset)
+		self.OriginalData = originalUserData
+		self.EditData = editUserData
+		self.TimeOffset = timeOffset
+		
+		self:Set(editUserData)
+		self.Entity.Enable = true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Set(UserRankingData s)
+		self.Id.Text = tostring(s.Id)
+		self.CycleIndex.Text = tostring(s.CycleIndex)
+		self.Score.Text = tostring(s.Score)
+		
+		local hourElapsed = 60 * 60 * 1000
+		local offsetElapsed = self.TimeOffset * hourElapsed
+		
+		if s.UpdateTime == 0 then
+			self.UpdateTime.Text = "0"
+		else
+			self.UpdateTime.Text = DateTime(s.UpdateTime + offsetElapsed):ToFormattedString("yyyy-MM-dd HH:mm:ss")	
+		end
+		
+		if s.RewardTime == 0 then
+			self.RewardTime.Text = "0"
+		else
+			self.RewardTime.Text = DateTime(s.RewardTime + offsetElapsed):ToFormattedString("yyyy-MM-dd HH:mm:ss")
+		end
+		
+		self.Extra.Text = tostring(s.Extra)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		self.Id.Text = ""
+		self.CycleIndex.Text = ""
+		self.Score.Text = ""
+		self.UpdateTime.Text = ""
+		self.RewardTime.Text = ""
+		self.Extra.Text = ""
+	end
+
+	@ExecSpace("ClientOnly")
+	method UserRankingData GetDataFromTextInput()
+		---@type UserRankingData
+		local editData = self.EditData
+		
+		local data = UserRankingData()
+		data:Init(editData.Id, editData.CycleIndex)
+		
+		local score = math.tointeger(tonumber(self.Score.Text))
+		if score == nil or score < 0 then
+			log_error("The score is not valid.")
+			return nil
+		end
+		data.Score = score
+		
+		local hourElapsed = 60 * 60 * 1000
+		local offsetElapsed = self.TimeOffset * hourElapsed
+		
+		local updateTimeText = self.UpdateTime.Text
+		if updateTimeText == "0" then
+			data.UpdateTime = 0
+		else
+			local success, result = pcall(self.GetElapsedFunc, updateTimeText)
+			if not success then
+				log_error("The updateTime is not valid.")	
+				return nil
+			end
+			data.UpdateTime = result - offsetElapsed
+		end
+		
+		local rewardTimeText = self.RewardTime.Text
+		if rewardTimeText == "0" then
+			data.RewardTime = 0
+		else
+			local success, result = pcall(self.GetElapsedFunc, rewardTimeText)
+			if not success then
+				log_error("RewardTime is not valid.")	
+				return nil
+			end
+			data.RewardTime = result - offsetElapsed
+		end
+		
+		data.Extra = self.Extra.Text
+		
+		return data
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_RevertEdits()
+		---@type UserRankingData
+		local editData = self.EditData
+		
+		self:Set(editData)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_ResetToOriginal()
+		---@type UserRankingData
+		local originalData = self.OriginalData
+		if originalData == nil then
+			self:OnClickBtn_Delete()
+			return
+		end
+		
+		self:Set(originalData)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Delete()
+		---@type UserRankingData
+		local editData = self.EditData
+		self.Parent.Page_EditUser.UIGMRankingTool_EditUser:DeleteEditData(editData)
+		
+		self:Clear()
+		self.Entity.Enable = false
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_OK()
+		local s = self:GetDataFromTextInput()
+		if s == nil then
+			return
+		end
+		
+		---@type UserRankingData
+		local editData = self.EditData
+		editData:CopyFrom(s)
+		
+		self.Parent.Page_EditUser.UIGMRankingTool_EditUser:Invalidate(false)
+		
+		self:Clear()
+		self.Entity.Enable = false
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Close()
+		self:Clear()
+		self.Entity.Enable = false
+	end
+
+end

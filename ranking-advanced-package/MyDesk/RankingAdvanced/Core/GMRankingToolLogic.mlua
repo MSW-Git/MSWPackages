@@ -1,0 +1,288 @@
+@Logic
+script GMRankingToolLogic extends Logic
+
+	property integer MaxViewCount = 1000
+
+	@ExecSpace("Server")
+	method void RequestRankingDataList(integer id, integer cycleIndex, integer viewCount)
+		if not _AdminLogic:IsAdmin(senderUserId) then
+			return
+		end
+		
+		---@type SortableDataStorage
+		local sortDS = _RankingDataStorageLogic:GetSortableDS(id, cycleIndex)
+		if sortDS == nil then
+			log_error(string.format("GetSortableDS Failed. Id : %d", id))
+			return
+		end
+		
+		local errorCode, pages = sortDS:GetSortedAndWait(SortDirection.Descending, 1, math.maxinteger)
+		if errorCode ~= 0 then
+			log_error(string.format("GetSortedAndWait Error. ErrorCode : %d, Id : %d", errorCode, id))
+			return
+		end
+		
+		if viewCount > self.MaxViewCount then
+			log_error(string.format("The view count must be less than or equal to %d.", self.MaxViewCount))
+			return
+		end
+		
+		local rankingDataList = {}
+		
+		while true do
+			local items = pages:GetCurrentPageDatas()
+			for _, item in pairs(items) do
+				local value = item.Value
+				if value <= 0 then
+					break
+				end
+				
+				local listCount = #rankingDataList
+				if viewCount <= listCount then
+					break			
+				end
+				
+				local s = RankingData()
+				local keyInfo = item.KeyInfo
+				s.ProfileCode = keyInfo.Key
+				s.Score = value
+				s.Tag = keyInfo.Tag
+				
+				rankingDataList[listCount + 1] = s
+			end
+			
+			if pages.IsLastPage == true then
+				break
+			end
+			
+			pages:MoveToNextPageAndWait()
+		end
+		
+		self:ResponseRankingDataList(id, cycleIndex, rankingDataList, senderUserId)
+	end
+
+	@ExecSpace("Client")
+	method void ResponseRankingDataList(integer id, integer cycleIndex, table rankingDataList)
+		---@type RankingConfigData
+		local configData = _RankingConfigDataSetLogic:GetData(id)
+		local rankingMode = configData.RankModeEnum
+		
+		_RankingViewLogic:CalculateRanks(rankingMode, rankingDataList)
+		
+		local ui = _RankingSampleUILogic:GetToolUI()
+		if not isvalid(ui) then
+			return
+		end
+		
+		local page_view = ui.UIGMRankingTool.Page_View
+		page_view.UIGMRankingTool_View:Apply(id, cycleIndex, rankingDataList)
+	end
+
+	@ExecSpace("Server")
+	method void RequestRankingData(integer id, integer cycleIndex, string profileCode)
+		if not _AdminLogic:IsAdmin(senderUserId) then
+			return
+		end
+		
+		---@type SortableDataStorage
+		local sortDS = _RankingDataStorageLogic:GetSortableDS(id, cycleIndex)
+		if sortDS == nil then
+			log_error(string.format("GetSortableDS Failed. Id : %d", id))
+			return
+		end
+		
+		local errorCode, itemPages = sortDS:BatchGetAndWait({profileCode})
+		if errorCode ~= 0 then
+			log_error(string.format("GetSortedAndWait Error. ErrorCode : %d, Id : %d", errorCode, id))
+			return
+		end
+		
+		local data = RankingData()
+		data.ProfileCode = profileCode
+		
+		local items = itemPages:GetCurrentPageDatas()
+		if #items ~= 0 then
+			local item = items[1]
+			local score = math.tointeger(tonumber(item.Value))
+			data.Score = score or 0
+			data.Tag = item.KeyInfo.Tag
+		end
+		
+		self:ResponseRankingData(id, cycleIndex, profileCode, data)
+	end
+
+	@ExecSpace("Client")
+	method void ResponseRankingData(integer id, integer cycleIndex, string profileCode, RankingData rankingData)
+		local ui = _RankingSampleUILogic:GetToolUI()
+		if not isvalid(ui) then
+			return
+		end
+		
+		local page_editView = ui.UIGMRankingTool.Page_EditView
+		page_editView.UIGMRankingTool_EditView:Apply(id, cycleIndex, rankingData)
+	end
+
+	@ExecSpace("Server")
+	method void RequestEditRankingData(integer id, integer cycleIndex, RankingData rankingData)
+		if not _AdminLogic:IsAdmin(senderUserId) then
+			return
+		end
+		
+		if id == nil or id == 0 then
+			log_error("The id is invalid.")
+			return
+		end
+		
+		if cycleIndex == nil or cycleIndex <= 0 then
+			log_error("The cycleIndex is invalid.")
+			return
+		end
+		
+		local profileCode = rankingData.ProfileCode
+		if _Util:IsNilorEmptyString(profileCode) then
+			log_error("The profileCode is invalid.")
+			return
+		end
+		
+		---@type SortableDataStorage
+		local ds = _RankingDataStorageLogic:GetSortableDS(id, cycleIndex)
+		if ds == nil then
+			log_error(string.format("GetSortableDS Failed. Id : %d", id))
+			return
+		end
+		
+		local keyInfo = DataStorageKeyInfo(profileCode, nil, rankingData.Tag)
+		local errorCode = ds:SetByInfoAndWait(keyInfo, rankingData.Score)
+		self:ResponseEditRankingData(id, cycleIndex, rankingData, errorCode, senderUserId)
+	end
+
+	@ExecSpace("Client")
+	method void ResponseEditRankingData(integer id, integer cycleIndex, RankingData rankingData, integer errorCode)
+		if errorCode ~= 0 then
+			log_error(string.format("SetByInfoAndWait Error. ErrorCode : %d, Id : %d, CycleIndex : %d", errorCode, id, cycleIndex))
+			return
+		end
+		
+		log(string.format("RequestEditRankingData Success. Id : %d, CycleIndex : %d, ProfileCode : %s, Score : %d, Tag : %s",
+			id, cycleIndex, rankingData.ProfileCode, rankingData.Score, rankingData.Tag))
+	end
+
+	@ExecSpace("Server")
+	method void RequestUserData(string profileCode)
+		if not _AdminLogic:IsAdmin(senderUserId) then
+			return
+		end
+		
+		local userDataTable = self:GetUserDataTable(profileCode)
+		if userDataTable == nil then
+			log_error(string.format("RequestUserData Error. ProfileCode : %s", profileCode))
+			return
+		end
+		
+		self:ResponseUserData(profileCode, userDataTable, senderUserId)
+	end
+
+	@ExecSpace("Client")
+	method void ResponseUserData(string profileCode, table userDataTable)
+		local ui = _RankingSampleUILogic:GetToolUI()
+		if not isvalid(ui) then
+			return
+		end
+		
+		local page_editUser = ui.UIGMRankingTool.Page_EditUser
+		page_editUser.UIGMRankingTool_EditUser:Apply(profileCode, userDataTable)
+	end
+
+	@ExecSpace("Server")
+	method void RequestEditUserData(string profileCode, table userDataTable)
+		if not _AdminLogic:IsAdmin(senderUserId) then
+			return
+		end
+		
+		if not self:SaveUserDataAndWait(profileCode, userDataTable) then
+			log_error("RequestEditUserData Failed. ProfileCode : " .. profileCode)
+			return
+		end
+		
+		log("RequestEditUserData Success. ProfileCode : " .. profileCode)
+	end
+
+	@ExecSpace("ServerOnly")
+	method table GetUserDataTable(string profileCode)
+		local deserTable = self:GetDeserTable(profileCode)
+		if deserTable == nil then
+			return nil
+		end
+		
+		---@type table<integer, table<integer, UserRankingData>>
+		local userDataTable = {}
+		
+		for i = 1, #deserTable do
+			local userData = UserRankingData()
+			if not userData:Deserialize(deserTable[i]) then
+				return nil
+			end
+			
+			local id = userData.Id
+			local cycleIndex = userData.CycleIndex
+			
+			local innerTable = userDataTable[id]
+			if innerTable == nil then
+				innerTable = {}
+				userDataTable[id] = innerTable
+			end
+			
+			innerTable[cycleIndex] = userData
+		end
+		
+		return userDataTable
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean SaveUserDataAndWait(string profileCode, table userDataTable)
+		local deserTable = {}
+		
+		for id, innerTable in pairs(userDataTable) do
+			---@type UserRankingData
+			for cycleIndex, userData in pairs(innerTable) do
+				local item = userData:Serialize()
+				if item == nil then
+					continue
+				end
+				
+				deserTable[#deserTable + 1] = item
+			end
+		end
+		
+		local sds = ""
+		if not _Util:IsNilorEmptyTable(deserTable) then
+			sds = _HttpService:JSONEncode(deserTable)
+		end
+		
+		local ds = _DataStorageService:GetUserDataStorage(profileCode)
+		local errorCode = ds:SetAndWait(_RankingDataStorageLogic.UserDSName, sds)
+		if errorCode ~= 0 then
+			log_error(string.format("SaveUserDataTable Error. ErrorCode : %d, ProfileCode : %s", errorCode, profileCode))
+			return false
+		end
+		
+		return true
+	end
+
+	@ExecSpace("ServerOnly")
+	method table GetDeserTable(string profileCode)
+		local ds = _DataStorageService:GetUserDataStorage(profileCode)
+		local errorCode, sdsValue = ds:GetAndWait(_RankingDataStorageLogic.UserDSName)
+		if errorCode ~= 0 then
+			log_error(string.format("GetDeserTable Error. ErrorCode : %d, ProfileCode : %s", errorCode, profileCode))
+			return nil
+		end
+		
+		if _Util:IsNilorEmptyString(sdsValue) then
+			return {}
+		end
+		
+		return _HttpService:JSONDecode(sdsValue)
+	end
+
+end

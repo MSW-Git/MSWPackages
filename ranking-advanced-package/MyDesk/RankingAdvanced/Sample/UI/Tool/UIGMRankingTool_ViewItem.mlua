@@ -1,0 +1,37 @@
+@Component
+script UIGMRankingTool_ViewItem extends Component
+
+	property TextComponent Rank = nil
+
+	property TextComponent ProfileCode = nil
+
+	property TextComponent Tag = nil
+
+	property TextComponent Score = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		self.Rank = entity:GetChildByName("Text_Rank").TextComponent
+		self.ProfileCode = entity:GetChildByName("Text_ProfileCode").TextComponent
+		self.Score = entity:GetChildByName("Text_Score").TextComponent
+		self.Tag = entity:GetChildByName("Text_Tag").TextComponent
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Set(RankingData s)
+		self.Rank.Text = tostring(s.Rank)
+		self.ProfileCode.Text = tostring(s.ProfileCode)
+		self.Score.Text = tostring(s.Score)
+		self.Tag.Text = tostring(s.Tag)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		self.Rank.Text = ""
+		self.ProfileCode.Text = ""
+		self.Score.Text = ""
+		self.Tag.Text = ""
+	end
+
+end

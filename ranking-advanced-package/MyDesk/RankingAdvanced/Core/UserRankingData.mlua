@@ -1,0 +1,93 @@
+@Struct
+script UserRankingData
+
+	property integer Id = 0
+
+	property integer CycleIndex = 0
+
+	property integer Score = 0
+
+	property integer UpdateTime = 0
+
+	property integer RewardTime = 0
+
+	property string Extra = ""
+
+	method void Init(integer id, integer cycleIndex)
+		self.Id = id
+		self.CycleIndex = cycleIndex
+	end
+
+	method void CopyFrom(UserRankingData other)
+		self.Id = other.Id
+		self.CycleIndex = other.CycleIndex
+		self.Score = other.Score
+		self.UpdateTime = other.UpdateTime
+		self.RewardTime = other.RewardTime
+		self.Extra = other.Extra
+	end
+
+	method table Serialize()
+		local result = {}
+		
+		result["ID"] = self.Id
+		result["CI"] = self.CycleIndex
+		result["SC"] = self.Score
+		result["UT"] = self.UpdateTime
+		result["RT"] = self.RewardTime
+		
+		local etc = self.Extra
+		if not _Util:IsNilorEmptyString(etc) then
+			result["EX"] = etc
+		end
+		
+		return result
+	end
+
+	method boolean Deserialize(table deserTable)
+		local id = deserTable["ID"]
+		if id == nil then
+			return false
+		end
+		self.Id = id
+		
+		local cycleIndex = deserTable["CI"]
+		if cycleIndex == nil then
+			return false
+		end
+		self.CycleIndex = cycleIndex
+		
+		local score = deserTable["SC"]
+		if score == nil then
+			return false
+		end
+		self.Score = score
+		
+		local updateTime = deserTable["UT"]
+		if updateTime == nil then
+			return false
+		end
+		self.UpdateTime = updateTime
+		
+		local rewardTime = deserTable["RT"]
+		if rewardTime ~= 0 then
+			self.RewardTime = rewardTime
+		end
+		
+		local extra = deserTable["EX"]
+		if extra ~= nil then
+			self.Extra = extra
+		end
+		
+		return true
+	end
+
+	method boolean SetValue(integer score, integer updateTime, string extra)
+		self.Score = score
+		self.UpdateTime = updateTime
+		self.Extra = extra
+		
+		return true
+	end
+
+end

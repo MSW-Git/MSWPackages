@@ -1,0 +1,163 @@
+@Struct
+script RankingSnapshotData
+
+	property integer Id = 0
+
+	property any ConfigData = nil
+
+	property integer NextUpdateTime = 0
+
+	property boolean HadTimeMismatch = false
+
+	property integer CycleIndex = 0
+
+	property integer ExpiredTime = 0
+
+	property table RankingDataList = {}
+
+	property table RankingDataByProfileCode = {}
+
+	method void SetData(integer cycleIndex, integer expiredTime, table dataList)
+		self.CycleIndex = cycleIndex
+		self.ExpiredTime = expiredTime
+		table.initialize(self.RankingDataList, dataList)
+		
+		local byProfileCode = self.RankingDataByProfileCode
+		table.clear(byProfileCode)
+		
+		for i = 1, #dataList do
+			---@type RankingData
+			local data = dataList[i]
+			byProfileCode[data.ProfileCode] = data
+		end
+		
+		---@type RankingConfigData
+		local configData = self.ConfigData
+		local rankingMode = configData.RankModeEnum
+		
+		_RankingViewLogic:CalculateRanks(rankingMode, dataList)
+	end
+
+	method void SetNextUpdateTime(integer nextUpdateTime, boolean hadTimeMismatch)
+		self.NextUpdateTime = nextUpdateTime
+		self.HadTimeMismatch = hadTimeMismatch
+	end
+
+	method string ToSharedValue()
+		local t = {}
+		t[1] = tostring(self.CycleIndex)
+		t[2] = tostring(self.ExpiredTime)
+		
+		---@type table<RankingData>
+		local rankingDataList = self.RankingDataList
+		for i = 1, #rankingDataList do
+			local s = rankingDataList[i]
+			
+			local len = #t
+			t[len + 1] = s.ProfileCode
+			local scoreStr = _Base64Logic:DecimalToBase64(s.Score)
+			if scoreStr == nil then
+				scoreStr = _Base64Logic:DecimalToBase64(0)
+			end
+			t[len + 2] = scoreStr
+			t[len + 3] = s.Tag
+		end
+		 
+		return table.concat(t, _RankingDataStorageLogic.SharedMemSeperator)
+	end
+
+	method boolean FromSharedValue(string str)
+		if _Util:IsNilorEmptyString(str) then
+			return false
+		end
+		
+		local t = _UtilLogic:Split(str, _RankingDataStorageLogic.SharedMemSeperator)
+		
+		local cycleIndex = math.tointeger(tonumber(t[1]))
+		if cycleIndex == nil then
+			return false
+		end
+		
+		local expiredTime = math.tointeger(tonumber(t[2]))
+		if expiredTime == nil then
+			return false
+		end
+		
+		---@type table<RankingData>
+		local rankingDataList = {}
+		
+		for i = 3, #t, 3 do
+			local s = RankingData()
+			s.ProfileCode = t[i]
+			
+			local score = _Base64Logic:Base64ToDecimal(t[i + 1])
+			if score == nil then
+				log_error("")
+				score = 0
+			end
+			s.Score = score
+			
+			s.Tag = t[i + 2]
+			
+			rankingDataList[#rankingDataList + 1] = s
+		end
+		
+		self:SetData(cycleIndex, expiredTime, rankingDataList)
+		return true
+	end
+
+	method void DeferToNextInterval(integer curElapsed)
+		self.NextUpdateTime = self:GetNextUpdateTime(curElapsed)
+		self.HadTimeMismatch = false
+	end
+
+	method void DeferToNextMinute(integer curElapsed, boolean hadTimeMismatch)
+		self.NextUpdateTime = curElapsed + 60000
+		self.HadTimeMismatch = hadTimeMismatch
+	end
+
+	method integer GetNextUpdateTime(integer curElapsed)
+		---@type RankingConfigData
+		local configData = self.ConfigData
+		return curElapsed + configData.RefreshIntervalMinutes * 60000
+	end
+
+	method RankingData GetRankingDataByProfileCode(string profileCode)
+		return self.RankingDataByProfileCode[profileCode]
+	end
+
+	method table GetRankingDataList(integer pageNo, integer pageSize)
+		local list = {}
+		local dataList = self.RankingDataList
+		
+		local startIndex = (pageNo - 1) * pageSize + 1
+		local endIndex = math.min(startIndex + pageSize - 1, #dataList)
+		if endIndex < startIndex then
+			return list
+		end
+		
+		for i = startIndex, endIndex do
+			list[#list + 1] = dataList[i]
+		end
+		return list
+	end
+
+	method integer GetValidPageNo(integer pageNo, integer pageSize)
+		if pageNo < 1 then
+			return 1
+		end
+		
+		local count = #self.RankingDataList
+		if count == 0 then
+			return 1
+		end
+		
+		local max = (count - 1) // pageSize + 1
+		if max < pageNo then
+			return max
+		end
+		
+		return pageNo
+	end
+
+end

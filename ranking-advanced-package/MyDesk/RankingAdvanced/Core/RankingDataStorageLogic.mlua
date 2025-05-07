@@ -1,0 +1,374 @@
+@Logic
+script RankingDataStorageLogic extends Logic
+
+	property string UserDSName = "Ranking"
+
+	property string GlobalDSName = "Ranking"
+
+	property string SortableDSNamePrefix = "Ranking"
+
+	property string SharedMemName = "Ranking"
+
+	property string SharedMemSeperator = "|"
+
+	property integer MaxTagLen = 55
+
+	property any UserDataSortFuncByCycleIndex = nil
+
+	property any SharedMem = nil
+
+	property any GlobalDS = nil
+
+	property table DataTable = {}
+
+	property integer TimerId = 0
+
+	property boolean IsInit = false
+
+	@ExecSpace("ServerOnly")
+	method void InitAndWait()
+		-- In the InstanceRoom, the ranking list is not updated.
+		-- However, it is possible to register ranking records.
+		if _RoomService:IsInstanceRoom() then
+			return
+		end
+		
+		---@type table<integer, RankingSnapshotData>
+		local dataTable = self.DataTable
+		
+		local configDataTable = _RankingConfigDataSetLogic.DataTable
+		for id, configData in pairs(configDataTable) do
+			local data = RankingSnapshotData()
+			data.Id = id
+			data.ConfigData = configData
+			
+			dataTable[id] = data
+		end
+		
+		---@param a UserRankingData
+		---@param b UserRankingData
+		local function sortFunc(a, b)
+		    return a.CycleIndex < b.CycleIndex
+		end
+		self.UserDataSortFuncByCycleIndex = sortFunc
+		
+		self:UpdateSnapshots()
+		self.IsInit = true
+		
+		self.TimerId = _TimerService:SetTimerRepeat(self.UpdateSnapshots, 60)
+	end
+
+	@ExecSpace("ServerOnly")
+	method void UpdateSnapshots()
+		---@type WorldInstanceSharedMemory
+		local mem = self:GetSharedMem()
+		if mem == nil then
+			return
+		end
+		
+		local curElapsed = _DateTimeLogic:GetTimeElapsed()
+		
+		---@type table<integer, RankingSnapshotData>
+		local dataTable = self.DataTable
+		for id, snapshot in pairs(dataTable) do
+			if curElapsed < snapshot.NextUpdateTime then
+				continue
+			end
+			
+			---@type RankingConfigData
+			local configData = snapshot.ConfigData
+			local key = configData.Key
+			
+			---@type GlobalDataStorage
+			local ds = self:GetGlobalDS()
+			local code, expiredTimeStr = ds:GetAndWait(key)
+			if code ~= 0 then
+				snapshot:DeferToNextMinute(curElapsed, false)
+				continue
+			end
+			
+			if _Util:IsNilorEmptyString(expiredTimeStr) then
+				snapshot:DeferToNextMinute(curElapsed, false)
+				ds:SetAndWait(key, "0")
+				continue
+			end
+			
+			local expiredTime = DateTime(math.tointeger(tonumber(expiredTimeStr))).Elapsed
+			if expiredTime < curElapsed then
+				self:TryUpdateSharedMemory(curElapsed, snapshot, expiredTimeStr)
+				continue
+			end
+			
+			if expiredTime == snapshot.ExpiredTime then
+				snapshot:DeferToNextInterval(curElapsed)
+				continue
+			end
+			
+			local result = mem:GetVariableAndWait(key)
+			if result.Code == SharedMemoryResultCode.NotFound then
+				self:TryUpdateSharedMemory(curElapsed, snapshot, expiredTimeStr)
+				continue
+			end
+			
+			if result.Code ~= SharedMemoryResultCode.OK then
+				snapshot:DeferToNextMinute(curElapsed, false)
+			end
+			
+			local sharedValue = result.Info.Value
+			local sharedExpiredTime = self:GetExpiredTimeFrom(sharedValue)
+			if sharedExpiredTime == nil then
+				log_error("SharedValue format error. Id : " .. tostring(id))
+				snapshot:DeferToNextInterval(curElapsed)
+				continue
+			end
+			
+			-- Use value from shared memory
+			if not snapshot:FromSharedValue(sharedValue) then
+				log_error("SharedValue format error. Id : " .. tostring(id))
+				snapshot:DeferToNextInterval(curElapsed)
+				continue
+			end
+			
+			-- The shared memory may be updating in another world instance, or the update may have been interrupted during the process.
+			-- If the data is still not updated upon retry, an update attempt will be made.
+			if expiredTime ~= sharedExpiredTime then
+				if not snapshot.HadTimeMismatch then
+					snapshot:DeferToNextMinute(curElapsed, true)
+					continue
+				end
+				
+				self:TryUpdateSharedMemory(curElapsed, snapshot, expiredTimeStr)
+				continue
+			end
+		
+			-- Success
+			snapshot:DeferToNextInterval(curElapsed)		
+		end
+	end
+
+	@ExecSpace("ServerOnly")
+	method void TryUpdateSharedMemory(integer curElapsed, RankingSnapshotData snapshot, string prevExpiredTimeStr)
+		---@type GlobalDataStorage
+		local ds = self:GetGlobalDS()
+		
+		---@type WorldInstanceSharedMemory
+		local mem = self:GetSharedMem()
+		if mem == nil then
+			snapshot:DeferToNextMinute(curElapsed, false)
+			return
+		end
+		
+		---@type RankingConfigData
+		local configData = snapshot.ConfigData
+		local id = configData.Id
+		local key = configData.Key
+		
+		local nextExpiredTime = snapshot:GetNextUpdateTime(curElapsed)
+		local code, _ = ds:UpdateAndWait(key, prevExpiredTimeStr, tostring(nextExpiredTime))
+		if code ~= 0 then
+			snapshot:DeferToNextMinute(curElapsed, false)
+			return
+		end
+		
+		local cycleIndex = configData:GetCycleIndex(curElapsed)
+		
+		---@type SortableDataStorage
+		local sortDS = self:GetSortableDS(id, cycleIndex)
+		
+		local errorCode, pages = sortDS:GetSortedAndWait(SortDirection.Descending, 1, math.maxinteger)
+		if errorCode ~= 0 then
+			log_error(string.format("GetSortedAndWait Error. ErrorCode : %d, Id : %d", errorCode, id))
+			return
+		end
+		
+		local rankingDataList = {}
+		local viewCount = configData.ViewCount
+		
+		-- Number of players with the same score
+		local tieHandlingCount = 0
+		local tieHandlingMaxCount = 10
+		
+		local prevValue = math.maxinteger
+		while true do
+			local items = pages:GetCurrentPageDatas()
+			for _, item in pairs(items) do
+				local value = item.Value
+				if value <= 0 then
+					break
+				end
+				
+				local listCount = #rankingDataList
+				if viewCount <= listCount then
+					if prevValue ~= value then
+						break
+					end
+					
+					tieHandlingCount += 1
+					if tieHandlingMaxCount < tieHandlingCount then
+						break
+					end
+				end
+				
+				local s = RankingData()
+				local keyInfo = item.KeyInfo
+				s.ProfileCode = keyInfo.Key
+				s.Score = value
+				s.Tag = keyInfo.Tag
+				
+				rankingDataList[listCount + 1] = s
+			end
+			
+			if pages.IsLastPage == true then
+				break
+			end
+			
+			pages:MoveToNextPageAndWait()
+		end
+		
+		-- Update Snapshot
+		snapshot:SetData(cycleIndex, nextExpiredTime, rankingDataList)
+		snapshot:DeferToNextInterval(curElapsed)
+		
+		-- Update SharedMemory
+		local sharedValue = snapshot:ToSharedValue()
+		local result = mem:SetVariableAndWait(key, sharedValue)
+		if result.Code ~= SharedMemoryResultCode.OK then
+			log_error(string.format("SetVariableAndWait Error. ErrorCode : %s, Id : %d", tostring(result.Code), id))
+			snapshot:DeferToNextMinute(curElapsed, false)
+		end
+	end
+
+	@ExecSpace("ServerOnly")
+	method integer GetExpiredTimeFrom(string sharedValue)
+		local seperator = self.SharedMemSeperator
+		local len = #sharedValue
+		local first, second = "", ""
+		local commaCount = 0
+		local startIndex = 1
+		
+		for i = 1, len do
+			local char = sharedValue:sub(i, i)
+			if char == seperator then
+				commaCount = commaCount + 1
+				if commaCount == 1 then
+					first = sharedValue:sub(startIndex, i - 1)
+					startIndex = i + 1
+				elseif commaCount == 2 then
+					second = sharedValue:sub(startIndex, i - 1)
+					break
+				end
+			end
+		end
+		
+		-- If there's only one comma, the second value should be sliced until the end.
+		if commaCount == 1 and second == "" then
+			second = sharedValue:sub(startIndex)
+		end
+		
+		local expiredTime = math.tointeger(tonumber(second))
+		return expiredTime
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean SetScoreAndWait(integer id, integer cycleIndex, string profileCode, integer score, string tag)
+		---@type SortableDataStorage
+		local ds = self:GetSortableDS(id, cycleIndex)
+		if ds == nil then
+			log_error(string.format("GetSortableDS Failed. Id : %d", id))
+			return false
+		end
+		
+		local keyInfo = DataStorageKeyInfo(profileCode, nil, tag)
+		local errorCode = ds:SetByInfoAndWait(keyInfo, score)
+		if errorCode ~= 0 then
+			log_error(string.format("SetByInfoAndWait Failed. ErrorCode : %d, Id : %d, ProfileCode : %s", errorCode, id, score))
+			return false
+		end
+		
+		return true
+	end
+
+	@ExecSpace("ServerOnly")
+	method any GetSharedMem()
+		if self.SharedMem ~= nil then
+			return self.SharedMem
+		end
+		
+		local code, mem = _WorldInstanceService:GetSharedMemory(self.SharedMemName)
+		if code ~= SharedMemoryResultCode.OK then
+			log_error("GetSharedMemory Failed. Name : " .. self.SharedMemName)
+			return nil
+		end
+		
+		self.SharedMem = mem
+		return mem
+	end
+
+	@ExecSpace("ServerOnly")
+	method any GetGlobalDS()
+		if self.GlobalDS ~= nil then
+			return self.GlobalDS
+		end
+		
+		local ds = _DataStorageService:GetGlobalDataStorage(self.GlobalDSName)
+		self.GlobalDS = ds
+		
+		return ds
+	end
+
+	@ExecSpace("ServerOnly")
+	method any GetSortableDS(integer id, integer cycleIndex)
+		local configData = _RankingConfigDataSetLogic:GetData(id)
+		if configData == nil then
+			return nil
+		end
+		
+		local dsName = string.format("%s_%s_%s", self.SortableDSNamePrefix, configData.Key, tostring(cycleIndex))
+		return _DataStorageService:GetSortableDataStorage(dsName)
+	end
+
+	@ExecSpace("ServerOnly")
+	method RankingSnapshotData GetRankingSnapshot(integer id)
+		return self.DataTable[id]
+	end
+
+	@ExecSpace("ServerOnly")
+	method void TryForceUpdateSharedMemory(integer id)
+		if not self.IsInit then
+			return
+		end
+		
+		local snapshot = self:GetRankingSnapshot(id)
+		if snapshot == nil then
+			return
+		end
+		
+		---@type RankingConfigData
+		local configData = snapshot.ConfigData
+		local key = configData.Key
+		
+		---@type GlobalDataStorage
+		local ds = self:GetGlobalDS()
+		local code, expiredTimeStr = ds:GetAndWait(key)
+		if code ~= 0 then
+			log_error(string.format("GetAndWait Error. ErrorCode : %d, Key : %s", code, key))
+			return
+		end
+		
+		if _Util:IsNilorEmptyString(expiredTimeStr) then
+			log_error(string.format("The expiredTimeStr is nil or empty. Key : %s", key))
+			return
+		end
+		
+		local curElapsed = _DateTimeLogic:GetTimeElapsed()
+		self:TryUpdateSharedMemory(curElapsed, snapshot, expiredTimeStr)
+	end
+
+	@ExecSpace("ServerOnly")
+	method void OnEndPlay()
+		if self.TimerId ~= 0 then
+			_TimerService:ClearTimer(self.TimerId)
+		end
+	end
+
+end
