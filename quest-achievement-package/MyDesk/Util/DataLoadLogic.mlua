@@ -6,29 +6,73 @@ script DataLoadLogic extends Logic
 	property boolean IsLoadSuccess = false
 
 	method void OnBeginPlay()
+		if not self:InitOnBeginPlay() then
+			return
+		end
+		
+		_TimerService:SetTimerOnce(self.Init, 0.1)
+	end
+
+	method boolean InitOnBeginPlay()
 		local success, result = pcall(function()
-			_CycleEnum:Init()
 			_DayOfWeekEnum:Init()
 			_ActionConditionEnum:Init()
+			if not _CycleEnum:Init() then
+				log_error("Init Enum Failed.")
+				return false
+			end
 			
-			_AchievementCategoryEnum:Init()
-			_AchievementDataSetLogic:Load()
+			if not _AchievementCategoryEnum:Init() then
+				log_error("Init Enum Failed.")
+				return false
+			end
 			
-			_QuestCategoryEnum:Init()
-			_QuestDataSetLogic:Load()
+			if not _QuestCategoryEnum:Init() then
+				log_error("Init Enum Failed.")
+				return false
+			end
+			
+			return true
+		end)
+		
+		if not success then
+			log_error("InitOnBeginPlay Failed. " .. result)
+			return false
+		end
+		
+		return result
+	end
+
+	method void Init()
+		local success, result = pcall(function()
+			if not _AchievementDataSetLogic:Load() then
+				log_error("Init DataSetLogic Failed.")
+				return false
+			end
+			
+			if not _QuestDataSetLogic:Load() then
+				log_error("Init DataSetLogic Failed.")
+				return false
+			end
+			
+			return true
 		end)
 		self.IsLoadEnd = true
 		
 		if not success then
-			log_error("DataLoad Failed. " .. result)
+			log_error("Init Failed. " .. result)
 			return
 		end
+		
+		if not result then
+			return	
+		end
+		
 		self.IsLoadSuccess = true
 		
 		if self:IsClient() then
 			_UserService.LocalPlayer.PlayerDBManager:NotifyWorldDataLoadCompleted()
 		end
-		
 	end
 
 	method boolean IsLoadSuccessAndWait()

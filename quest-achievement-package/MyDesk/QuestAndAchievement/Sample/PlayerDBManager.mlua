@@ -141,7 +141,7 @@ script PlayerDBManager extends Component
 		self.IsLoadSuccess = true
 		
 		-- Database save interval
-		local period = 60
+		local period = 300
 		
 		local dbfunction = function()
 			self:SaveToDB(false)

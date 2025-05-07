@@ -47,6 +47,8 @@ script CycleEnum extends Logic
 			enumToStrTable[enum] = enumStr
 			strToEnumTable[enumStr] = enum
 		end
+		
+		return true
 	end
 
 	method integer ToEnum(string str)

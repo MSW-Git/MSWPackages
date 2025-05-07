@@ -48,6 +48,8 @@ script AchievementCategoryEnum extends Logic
 			enumToUIStrTable[enum] = uiStr
 			strToEnumTable[str] = enum
 		end
+		
+		return true
 	end
 
 	method integer ToEnum(string str)
