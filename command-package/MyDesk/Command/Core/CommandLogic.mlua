@@ -56,11 +56,8 @@ script CommandLogic extends Logic
 		local func = commandData[2]
 		local params = commandData[3]
 		
-		if #params == 0 then
-			func(senderUserId)
-		else
-			func(table.unpack(params), senderUserId)
-		end
+		table.insert(params, senderUserId)
+		func(table.unpack(params))
 		
 		self:OnCommandExecute(commandText, senderUserId)
 	end
