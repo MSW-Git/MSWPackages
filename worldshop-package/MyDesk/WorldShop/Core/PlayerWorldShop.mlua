@@ -1,9 +1,6 @@
 @Component
 script PlayerWorldShop extends Component
 
-	@Description("Key used for database storage of WorldShop data")
-	property string DBKey = "WorldShop"
-
 	@Description("Flag indicating if WorldShop data should be saved during the next save operation")
 	property boolean IsSaveDB = false
 
@@ -35,20 +32,20 @@ script PlayerWorldShop extends Component
 			dbString = _HttpService:JSONEncode(total)
 		end
 		
-		saveData[self.DBKey] = dbString		
+		saveData[_WorldShopConfig.DBKey] = dbString		
 		self.IsSaveDB = false
 		return true
 	end
 
 	@ExecSpace("ServerOnly")
 	method void LoadFromDB(table loadKeys)
-		table.insert(loadKeys, self.DBKey)
+		table.insert(loadKeys, _WorldShopConfig.DBKey)
 	end
 
 	@ExecSpace("ServerOnly")
 	method boolean OnLoadedDataFromDB(table loadedData)
 		---@type DataStorageItem
-		local sds = loadedData[self.DBKey]
+		local sds = loadedData[_WorldShopConfig.DBKey]
 		if sds ~= nil and (_Util:IsNilorEmptyString(sds.Value) == false) then
 			local dataTable = _HttpService:JSONDecode(sds.Value)
 			

@@ -1,0 +1,166 @@
+@Component
+script UIGMWorldShopTool_Page extends Component
+
+	property UIGMWorldShopTool Parent = nil
+
+	property Entity GridView = nil
+
+	property table PlayerWorldShopData = {}
+
+	property boolean CanEdit = false
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		
+		local item = entity:GetChildByName("DummyItem")
+		self.GridView = entity:GetChildByName("Scroll_Layout")
+		self.GridView.GridViewComponent.ItemEntity = item
+		self.GridView.GridViewComponent.OnRefresh = function(index, entity) self:OnRefresh(index, entity) end
+		self.GridView.GridViewComponent.OnClear = function(index, entity) self:OnClear(index, entity) end
+		
+		local btnRefresh = entity:GetChildByName("Btn_Refresh")
+		btnRefresh:ConnectEvent(ButtonClickEvent, function(evt) self:OnClick_Refresh(evt) end)
+		
+		local btnAdd = entity:GetChildByName("Btn_Add")
+		btnAdd:ConnectEvent(ButtonClickEvent, function(evt) self:OnClick_Add(evt) end)
+		
+		local btnEdit = entity:GetChildByName("Btn_Edit")
+		btnEdit:ConnectEvent(ButtonClickEvent, function(evt) self:OnClick_Edit(evt) end)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		table.clear(self.PlayerWorldShopData)
+		self.CanEdit = false
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Apply(table playerWorldShopData)
+		table.clear(self.PlayerWorldShopData)
+		for id, count in pairs(playerWorldShopData) do
+			table.insert(self.PlayerWorldShopData, {ProductId = id, Count = count})
+		end
+		
+		self.GridView.GridViewComponent.TotalCount = #self.PlayerWorldShopData
+		self.GridView.GridViewComponent:Refresh()
+		
+		self.CanEdit = true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Refresh()
+		self.CanEdit = false
+		_WorldShopAdminLogic:RequestGetPlayerWorldShopData(self.Parent.TargetUserID)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnRefresh(integer index, Entity entity)
+		local tableIndex = index + 1
+		local data = self.PlayerWorldShopData[tableIndex]
+		
+		if entity.UIGMWorldShopTool_Item.onChangedValue == nil then
+			entity.UIGMWorldShopTool_Item.onChangedValue = function(index, id, count) self:OnChangedValue(index, id, count) end
+		end
+		
+		entity.UIGMWorldShopTool_Item:Apply(data.ProductId, data.Count, tableIndex)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClear(integer index, Entity entity)
+		entity.UIGMWorldShopTool_Item:Clear()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnChangedValue(integer index, string id, integer count)
+		local data = self.PlayerWorldShopData[index]
+		data.ProductId = id
+		data.Count = count
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClick_Add(ButtonClickEvent evt)
+		if _Util:IsNilorEmptyString(self.Parent.TargetUserID) then
+			log_error("Required TargetUserID not entered.")
+			return
+		
+		end
+		
+		if not self.CanEdit then
+			log_error("Fetching data. Please retry after a short while.")
+			return
+		end
+		
+		table.insert(self.PlayerWorldShopData, {ProductId = "", Count = 0})
+		self.GridView.GridViewComponent.TotalCount = #self.PlayerWorldShopData
+		self.GridView.GridViewComponent:Refresh()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClick_Edit(ButtonClickEvent evt)
+		if _Util:IsNilorEmptyString(self.Parent.TargetUserID) then
+			log_error("Required TargetUserID not entered.")
+			return
+		end
+		
+		if not self.CanEdit then
+			log_error("Fetching data. Please retry after a short while.")
+			return
+		end
+		
+		local newDatas = {}
+		for _, data in pairs(self.PlayerWorldShopData) do	
+			local id = data.ProductId
+			local count = data.Count
+			
+			if _Util:IsNilorEmptyString(id) then
+				log_error("Required ID not entered.")
+				return
+			end
+			
+			if count < 0 then
+				log_error(string.format("[Id : %s, Count : %d] Quantity must be zero or greater.", id, count))
+				return
+			end
+			
+		 	if _WorldShopDataSetLogic:GetProductData(id) == nil then
+				log_error(string.format("[Id : %s] This is not valid data.", id))
+				return
+			end
+			
+			if newDatas[id] then
+				log_error(string.format("[ID : %s] ID already exists.", id))
+				return
+			end
+			
+			newDatas[id] = count
+		end
+		
+		_WorldShopAdminLogic:RequestSetPlayerWorldShopData(self.Parent.TargetUserID, self.PlayerWorldShopData)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClick_Refresh(ButtonClickEvent evt)
+		if _Util:IsNilorEmptyString(self.Parent.TargetUserID) then
+			log_error("Required TargetUserID not entered.")
+			return
+		end
+		
+		self:Refresh()
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("LocalPlayer")
+	handler HandlePlayerWorldShopDataReceivedEvent(PlayerWorldShopDataReceivedEvent event)
+		-- Parameters
+		local NewPlayerData = event.NewPlayerData
+		---------------------------------------------------------
+		
+		if not self.Entity.Enable then
+			return
+		end
+		
+		self:Apply(NewPlayerData)
+	end
+
+end

@@ -1,0 +1,6 @@
+@Logic
+script WorldShopConfig extends Logic
+
+	property string DBKey = "WorldShop"
+
+end

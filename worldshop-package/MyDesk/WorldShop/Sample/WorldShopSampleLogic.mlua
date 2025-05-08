@@ -5,7 +5,7 @@ script WorldShopSampleLogic extends Logic
 
 	property Entity Popup = nil
 
-	property Entity PurchasePopup = nil
+	property Entity AdminPopup = nil
 
 	@ExecSpace("ClientOnly")
 	method void OnBeginPlay()
@@ -18,6 +18,10 @@ script WorldShopSampleLogic extends Logic
 		local modelId = _EntryService:GetModelIdByName("Model_UIWorldShop")
 		self.Popup = _SpawnService:SpawnByModelId(modelId, "UIWorldShop", Vector3.zero, self.Root)
 		self.Popup:SetEnable(false)
+		
+		local adminModelId = _EntryService:GetModelIdByName("Model_UIGMWorldShopTool")
+		self.AdminPopup = _SpawnService:SpawnByModelId(adminModelId, "UIGMWorldShopTool", Vector3.zero, self.Root)
+		self.AdminPopup:SetEnable(false)
 	end
 
 	@ExecSpace("ClientOnly")
@@ -33,6 +37,8 @@ script WorldShopSampleLogic extends Logic
 		---------------------------------------------------------
 		if key == KeyboardKey.K then
 			self.Popup.UIWorldShop:Open()
+		elseif key == KeyboardKey.M then
+			self.AdminPopup.UIGMWorldShopTool:Open()
 		end
 	end
 
