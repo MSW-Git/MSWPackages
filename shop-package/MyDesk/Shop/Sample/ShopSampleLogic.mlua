@@ -44,6 +44,11 @@ script ShopSampleLogic extends Logic
 		if key == KeyboardKey.K then
 			self.Popup.UIShop:Open()
 		elseif key == KeyboardKey.L then
+			if not _AdminLogic:IsAdminLocalPlayer() then
+				log_error("Access denied. Administrator rights required.")
+				return
+			end
+			
 			self.AdminPopup.UIGMShopTool:Open()
 		end
 	end

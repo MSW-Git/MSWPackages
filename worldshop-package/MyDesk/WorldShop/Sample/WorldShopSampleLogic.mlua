@@ -37,7 +37,12 @@ script WorldShopSampleLogic extends Logic
 		---------------------------------------------------------
 		if key == KeyboardKey.K then
 			self.Popup.UIWorldShop:Open()
-		elseif key == KeyboardKey.M then
+		elseif key == KeyboardKey.L then
+			if not _AdminLogic:IsAdminLocalPlayer() then
+				log_error("Access denied. Administrator rights required.")
+				return
+			end
+			
 			self.AdminPopup.UIGMWorldShopTool:Open()
 		end
 	end
