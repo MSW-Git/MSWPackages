@@ -92,6 +92,11 @@ script RankingSampleUILogic extends Logic
 
 	@ExecSpace("ClientOnly")
 	method void OpenUI()
+		local userEntity = _UserService.LocalPlayer
+		if not userEntity.PlayerDBManager.IsLoadSuccess then
+			return
+		end
+		
 		local entity = self:GetUI()
 		if entity ~= nil then
 			entity.Enable = true

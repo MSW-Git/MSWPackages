@@ -214,7 +214,12 @@ script UIGMRankingTool_EditUser extends Component
 		
 		local id = editUserData.Id
 		local cycleIndex = editUserData.CycleIndex
-		local originalUserData = self.OriginalUserDataTable[id][cycleIndex]
+		
+		local originalUserData = nil
+		local subTable = self.OriginalUserDataTable[id]
+		if subTable ~= nil then
+			originalUserData = subTable[cycleIndex]
+		end
 		
 		self.Parent:OpenPopup_EditUser(originalUserData, editUserData)
 	end

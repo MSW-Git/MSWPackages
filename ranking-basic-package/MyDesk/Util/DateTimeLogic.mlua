@@ -69,7 +69,7 @@ script DateTimeLogic extends Logic
 	end
 
 	method integer GetNextCycleBaseTime(integer cycleEnum, integer elapsed)
-		-- CycleEnum에 해당하는 Elapsed 이후의 BaseTime을 구한다.
+		-- Calculates the BaseTime after the Elapsed time for the specified CycleEnum.
 		if elapsed == nil or elapsed < 0 then
 			return DateTime.MaxValue.Elapsed
 		end
