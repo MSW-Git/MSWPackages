@@ -281,7 +281,7 @@ script RankingDataStorageLogic extends Logic
 		local keyInfo = DataStorageKeyInfo(profileCode, nil, tag)
 		local errorCode = ds:SetByInfoAndWait(keyInfo, score)
 		if errorCode ~= 0 then
-			log_error(string.format("SetByInfoAndWait Failed. ErrorCode : %d, Id : %d, ProfileCode : %s", errorCode, id, score))
+			log_error(string.format("SetByInfoAndWait Failed. ErrorCode : %d, Id : %d, ProfileCode : %s", errorCode, id, profileCode))
 			return false
 		end
 		

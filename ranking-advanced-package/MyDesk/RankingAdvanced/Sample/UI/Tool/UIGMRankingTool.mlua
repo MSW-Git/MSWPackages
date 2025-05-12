@@ -1,8 +1,6 @@
 @Component
 script UIGMRankingTool extends Component
 
-	property Entity Text_TargetUserID = nil
-
 	property Entity Text_TimeOffset = nil
 
 	property Entity Page_View = nil

@@ -103,7 +103,7 @@ script GMRankingToolLogic extends Logic
 		local items = itemPages:GetCurrentPageDatas()
 		if #items ~= 0 then
 			local item = items[1]
-			local score = math.tointeger(tonumber(item.Value))
+			local score = item.Value
 			data.Score = score or 0
 			data.Tag = item.KeyInfo.Tag
 		end
