@@ -1,0 +1,19 @@
+@Struct
+script RankingData
+
+	property integer Rank = 0
+
+	property string ProfileCode = ""
+
+	property integer Score = 0
+
+	property string Tag = ""
+
+	method void CopyFrom(RankingData other)
+		self.Rank = other.Rank
+		self.ProfileCode = other.ProfileCode
+		self.Score = other.Score
+		self.Tag = other.Tag
+	end
+
+end

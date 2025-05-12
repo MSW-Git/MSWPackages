@@ -1,0 +1,112 @@
+@Component
+script UIGMRankingTool extends Component
+
+	property Entity Page_View = nil
+
+	property Entity Page_EditView = nil
+
+	property Entity Popup_EditView = nil
+
+	property table PageByTabButton = {}
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		local panel = entity:GetChildByName("Panel")
+		
+		-- Title
+		local title = panel:GetChildByName("Title")
+		
+		local btnClose = title:GetChildByName("Btn_Exit")
+		btnClose:ConnectEvent(ButtonClickEvent, function(evt) self:OnClose() end)
+		
+		-- Tab Buttons
+		local tabButtons = panel:GetChildByName("TabButtons")
+		
+		local btn_View = tabButtons:GetChildByName("Btn_View")
+		local btn_EditView = tabButtons:GetChildByName("Btn_EditView")
+		local btn_EditUser = tabButtons:GetChildByName("Btn_EditUser")
+		
+		-- Pages
+		local pages = panel:GetChildByName("Pages")
+		
+		local page_View = pages:GetChildByName("Page_View")
+		page_View.UIGMRankingTool_View.Parent = self
+		self.Page_View = page_View
+		
+		local page_EditView = pages:GetChildByName("Page_EditView")
+		page_EditView.UIGMRankingTool_EditView.Parent = self
+		self.Page_EditView = page_EditView
+		
+		local pageByTabButton = self.PageByTabButton
+		pageByTabButton[btn_View] = page_View
+		pageByTabButton[btn_EditView] = page_EditView
+		
+		for button, page in pairs(pageByTabButton) do
+			button:ConnectEvent(ButtonClickEvent, function(evt) self:OnClickTabButton(evt) end)
+		end
+		
+		self.Popup_EditView = panel:GetChildByName("Popup_EditView")
+		self.Popup_EditView.UIGMRankingTool_EditViewPopup.Parent = self
+		
+		local evt = ButtonClickEvent(btn_View)
+		self:OnClickTabButton(evt)
+		
+		self.Entity:SetEnable(true)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClose()
+		self.Entity:SetEnable(false)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickTabButton(ButtonClickEvent evt)
+		local entity = evt.Entity
+		
+		self:SetDisableAllButtons()
+		self:SetEnableButton(entity, true)
+		
+		self:DisableAllPages()
+		
+		---@type Entity
+		local page = self.PageByTabButton[entity]
+		if page ~= nil then
+			page.Enable = true
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetDisableAllButtons()
+		for tab, _ in pairs(self.PageByTabButton) do
+			self:SetEnableButton(tab, false)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetEnableButton(Entity entity, boolean enable)
+		local spriteGUIComp = entity.SpriteGUIRendererComponent
+		local textComp = entity.TextComponent
+		
+		if enable then
+			spriteGUIComp.ImageRUID = "e22dca176e7c48b39d5b40554b546e22"
+			textComp.FontColor = Color.FromHexCode("#653122")
+		else
+			spriteGUIComp.ImageRUID = "9bb8e4d004fb46bb9c1b528b3c1ebf9f"
+			textComp.FontColor = Color.FromHexCode("#ffe398")
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void DisableAllPages()
+		for _, page in pairs(self.PageByTabButton) do
+			page.Enable = false
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OpenPopup_EditView(integer cycleIndex, RankingData rankingData)
+		self.Popup_EditView.UIGMRankingTool_EditViewPopup:Open(cycleIndex, rankingData)
+	end
+
+end

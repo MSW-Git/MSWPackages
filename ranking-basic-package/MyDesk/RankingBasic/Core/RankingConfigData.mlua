@@ -1,0 +1,49 @@
+@Struct
+script RankingConfigData
+
+	property string Key = ""
+
+	property integer CycleEnum = 0
+
+	property integer ViewCount = 0
+
+	property integer RefreshIntervalSeconds = 0
+
+	property integer RefreshCacheIntervalSeconds = 0
+
+	property integer RankModeEnum = 0
+
+	property integer ReleaseBaseTime = 0
+
+	method integer GetCycleIndex(integer curElapsed)
+		local releaseBaseTime = self.ReleaseBaseTime
+		if releaseBaseTime == nil or releaseBaseTime == 0 then
+			return 1
+		end
+		
+		if curElapsed < releaseBaseTime then
+			return 1
+		end
+		
+		local cycleEnum = self.CycleEnum
+		
+		if cycleEnum == _CycleEnum.Day then
+			local elapsedDay = 86400000
+			return (curElapsed - releaseBaseTime) // elapsedDay + 1
+		elseif cycleEnum == _CycleEnum.Week then
+			local elapsedDay = 86400000
+			return (curElapsed - releaseBaseTime) // (elapsedDay * 7) + 1
+		elseif cycleEnum == _CycleEnum.Month then
+			local baseDateTime = DateTime(releaseBaseTime)
+			local curDateTime = DateTime(curElapsed)
+			return (curDateTime.Year - baseDateTime.Year) * 12 + curDateTime.Month - baseDateTime.Month + 1
+		elseif cycleEnum == _CycleEnum.Year then
+			local baseDateTime = DateTime(releaseBaseTime)
+			local curDateTime = DateTime(curElapsed)
+			return curDateTime.Year - baseDateTime.Year + 1
+		end
+		
+		return 1
+	end
+
+end

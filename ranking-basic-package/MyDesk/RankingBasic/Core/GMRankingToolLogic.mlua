@@ -1,0 +1,165 @@
+@Logic
+script GMRankingToolLogic extends Logic
+
+	property integer MaxViewCount = 100
+
+	@ExecSpace("Server")
+	method void RequestRankingDataList(integer cycleIndex, integer viewCount)
+		if not _AdminLogic:IsAdmin(senderUserId) then
+			return
+		end
+		
+		---@type SortableDataStorage
+		local sortDS = _RankingDataStorageLogic:GetSortableDS(cycleIndex)
+		if sortDS == nil then
+			log_error("GetSortableDS Failed.")
+			return
+		end
+		
+		local errorCode, pages = sortDS:GetSortedAndWait(SortDirection.Descending, 1, math.maxinteger)
+		if errorCode ~= 0 then
+			log_error(string.format("GetSortedAndWait Error. ErrorCode : %d", errorCode))
+			return
+		end
+		
+		if viewCount > self.MaxViewCount then
+			log_error(string.format("The view count must be less than or equal to %d.", self.MaxViewCount))
+			return
+		end
+		
+		local rankingDataList = {}
+		
+		while true do
+			local items = pages:GetCurrentPageDatas()
+			for _, item in pairs(items) do
+				local value = item.Value
+				if value <= 0 then
+					break
+				end
+				
+				local listCount = #rankingDataList
+				if viewCount <= listCount then
+					break			
+				end
+				
+				local s = RankingData()
+				local keyInfo = item.KeyInfo
+				s.ProfileCode = keyInfo.Key
+				s.Score = value
+				s.Tag = keyInfo.Tag
+				
+				rankingDataList[listCount + 1] = s
+			end
+			
+			if pages.IsLastPage == true then
+				break
+			end
+			
+			pages:MoveToNextPageAndWait()
+		end
+		
+		self:ResponseRankingDataList(cycleIndex, rankingDataList, senderUserId)
+	end
+
+	@ExecSpace("Client")
+	method void ResponseRankingDataList(integer cycleIndex, table rankingDataList)
+		---@type RankingConfigData
+		local configData = _RankingDataStorageLogic.ConfigData
+		local rankingMode = configData.RankModeEnum
+		
+		_RankingViewLogic:CalculateRanks(rankingMode, rankingDataList)
+		
+		local ui = _RankingSampleUILogic:GetToolUI()
+		if not isvalid(ui) then
+			return
+		end
+		
+		local page_view = ui.UIGMRankingTool.Page_View
+		page_view.UIGMRankingTool_View:Apply(cycleIndex, rankingDataList)
+	end
+
+	@ExecSpace("Server")
+	method void RequestRankingData(integer cycleIndex, string profileCode)
+		if not _AdminLogic:IsAdmin(senderUserId) then
+			return
+		end
+		
+		---@type SortableDataStorage
+		local sortDS = _RankingDataStorageLogic:GetSortableDS(cycleIndex)
+		if sortDS == nil then
+			log_error("GetSortableDS Failed.")
+			return
+		end
+		
+		local errorCode, itemPages = sortDS:BatchGetAndWait({profileCode})
+		if errorCode ~= 0 then
+			log_error(string.format("GetSortedAndWait Error. ErrorCode : %d", errorCode))
+			return
+		end
+		
+		local data = RankingData()
+		data.ProfileCode = profileCode
+		
+		local items = itemPages:GetCurrentPageDatas()
+		if #items ~= 0 then
+			local item = items[1]
+			local score = math.tointeger(tonumber(item.Value))
+			data.Score = score or 0
+			data.Tag = item.KeyInfo.Tag
+		end
+		
+		self:ResponseRankingData(cycleIndex, profileCode, data)
+	end
+
+	@ExecSpace("Client")
+	method void ResponseRankingData(integer cycleIndex, string profileCode, RankingData rankingData)
+		local ui = _RankingSampleUILogic:GetToolUI()
+		if not isvalid(ui) then
+			return
+		end
+		
+		local page_editView = ui.UIGMRankingTool.Page_EditView
+		page_editView.UIGMRankingTool_EditView:Apply(cycleIndex, rankingData)
+	end
+
+	@ExecSpace("Server")
+	method void RequestEditRankingData(integer cycleIndex, RankingData rankingData)
+		if not _AdminLogic:IsAdmin(senderUserId) then
+			return
+		end
+		
+		if cycleIndex == nil or cycleIndex <= 0 then
+			log_error("The cycleIndex is invalid.")
+			return
+		end
+		
+		local profileCode = rankingData.ProfileCode
+		if _Util:IsNilorEmptyString(profileCode) then
+			log_error("The profileCode is invalid.")
+			return
+		end
+		
+		---@type SortableDataStorage
+		local ds = _RankingDataStorageLogic:GetSortableDS(cycleIndex)
+		if ds == nil then
+			log_error("GetSortableDS Failed.")
+			return
+		end
+		
+		local keyInfo = DataStorageKeyInfo(profileCode, nil, rankingData.Tag)
+		local errorCode = ds:SetByInfoAndWait(keyInfo, rankingData.Score)
+		self:ResponseEditRankingData(cycleIndex, rankingData, errorCode, senderUserId)
+	end
+
+	@ExecSpace("Client")
+	method void ResponseEditRankingData(integer cycleIndex, RankingData rankingData, integer errorCode)
+		if errorCode ~= 0 then
+			log_error(string.format("SetByInfoAndWait Error. ErrorCode : %d, CycleIndex : %d", errorCode, cycleIndex))
+			return
+		end
+		
+		log(string.format("RequestEditRankingData Success. CycleIndex : %d, ProfileCode : %s, Score : %d, Tag : %s",
+			cycleIndex, rankingData.ProfileCode, rankingData.Score, rankingData.Tag))
+	end
+
+end

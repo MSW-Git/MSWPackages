@@ -1,0 +1,165 @@
+@Component
+script UIRanking extends Component
+
+	property GridViewComponent GridView = nil
+
+	property table GridViewDataTable = {}
+
+	property TextComponent Text_Name = nil
+
+	property TextComponent Text_PageNo = nil
+
+	property Entity MyItem = nil
+
+	property integer PageSize = 10
+
+	property integer CurCycleIndex = 0
+
+	property integer CurPageNo = 1
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		local panel = entity:GetChildByName("Panel")
+		
+		local panel_title = panel:GetChildByName("Panel_Title")
+		local btn_exit = panel_title:GetChildByName("Btn_Exit")
+		btn_exit:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Exit)
+		
+		self:InitContent()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void InitContent()
+		local panel = self.Entity:GetChildByName("Panel"):GetChildByName("Panel_Content")
+		
+		local panel_top = panel:GetChildByName("Panel_Top")
+		self.Text_Name = panel_top:GetChildByName("Text_Name").TextComponent
+		
+		local item = panel:GetChildByName("Item")
+		item.Enable = false
+		
+		local gridView = panel:GetChildByName("GridView").GridViewComponent
+		gridView.ItemEntity = item
+		gridView.OnRefresh = self.OnRefresh
+		gridView.OnClear = self.OnClear
+		
+		self.GridView = gridView
+		
+		local panel_bottom = panel:GetChildByName("Panel_Bottom")
+		self.MyItem = panel_bottom:GetChildByName("Item")
+		
+		self.Text_PageNo = panel_bottom:GetChildByName("Text_PageNo").TextComponent
+		self.Text_PageNo.Text = tostring(self.CurPageNo)
+		
+		local btn_prev = panel_bottom:GetChildByName("Btn_Prev")
+		btn_prev:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Prev)
+		
+		local btn_next = panel_bottom:GetChildByName("Btn_Next")
+		btn_next:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Next)
+		
+		if _AdminLogic:IsAdminLocalPlayer() then
+			local btn_Debug = panel_bottom:GetChildByName("Btn_Debug")
+			btn_Debug.Enable = true
+			btn_Debug:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Debug)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		self.Text_Name.Text = ""
+		
+		table.clear(self.GridViewDataTable)
+		
+		self.GridView.TotalCount = 0
+		self.GridView:Refresh(true, true)
+		
+		self.MyItem.UIRankingItem:Clear()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void BeforeOpen()
+		self:Clear()
+		
+		_RankingViewLogic:RequestDataListWithSenderData(1, self.PageSize)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnRefresh(integer index, Entity entity)
+		index += 1
+		local data = self.GridViewDataTable[index]
+		entity.UIRankingItem:SetData(data)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClear(integer index, Entity entity)
+		entity.UIRankingItem:Clear()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Exit()
+		self.Entity.Enable = false
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Close()
+		self.Entity.Enable = false
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Prev()
+		local pageNo = self.CurPageNo
+		_RankingViewLogic:RequestDataList(self.CurCycleIndex, pageNo - 1, self.PageSize)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Next()
+		local pageNo = self.CurPageNo
+		_RankingViewLogic:RequestDataList(self.CurCycleIndex, pageNo + 1, self.PageSize)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Debug()
+		_RankingViewLogic:RequestForceUpdate()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetRanking(integer cycleIndex, integer pageNo, integer pageSize, table dataList)
+		if self.PageSize ~= pageSize then return end
+		
+		self:SetCycleIndex(cycleIndex)
+		self:SetPageNo(pageNo)
+		
+		table.initialize(self.GridViewDataTable, dataList)
+		self.GridView.TotalCount = #dataList
+		self.GridView:Refresh(true, true)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetRankingAndMyData(integer cycleIndex, integer pageNo, integer pageSize, table dataList, RankingData myData)
+		if self.PageSize ~= pageSize then return end
+		
+		self:SetCycleIndex(cycleIndex)
+		self:SetPageNo(pageNo)
+		
+		table.initialize(self.GridViewDataTable, dataList)
+		self.GridView.TotalCount = #dataList
+		self.GridView:Refresh(true, true)
+		
+		self.MyItem.UIRankingItem:SetMyData(myData)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetCycleIndex(integer cycleIndex)
+		self.CurCycleIndex = cycleIndex
+		
+		self.Text_Name.Text = string.format("CycleIndex : %d", cycleIndex)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetPageNo(integer pageNo)
+		self.CurPageNo = pageNo
+		self.Text_PageNo.Text = tostring(pageNo)
+	end
+
+end

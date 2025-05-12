@@ -1,0 +1,46 @@
+@Logic
+script RankingModeEnum extends Logic
+
+	property table StrToEnumTable = {}
+
+	property integer None = 0
+
+	property integer Index = 1
+
+	property integer Rank = 2
+
+	property integer DenseRank = 3
+
+	method boolean Init()
+		local strToEnumTable = self.StrToEnumTable
+		local enumStrList = {
+			"Index",
+			"Rank",
+			"DenseRank",
+		}
+		
+		for i = 1, #enumStrList do
+			local str = enumStrList[i]
+			local enum = self[str]
+			
+			if enum == nil then
+				log_error("Cannot find enum. " .. str)
+				return false
+			end
+			
+			strToEnumTable[str] = enum
+		end
+		
+		return true
+	end
+
+	method integer ToEnum(string str)
+		local enum = self.StrToEnumTable[str]
+		if enum == nil then
+			return self.None
+		end
+		
+		return enum
+	end
+
+end

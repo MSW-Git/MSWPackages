@@ -1,0 +1,209 @@
+@Logic
+script RankingViewLogic extends Logic
+
+	@ExecSpace("Server")
+	method void RequestDataList(integer cycleIndex, integer pageNo, integer pageSize)
+		-- Requesting the current ranking data.
+		local dsLogic = _RankingDataStorageLogic
+		if not dsLogic.IsInit then
+			return
+		end
+		
+		---@type RankingConfigData
+		local configData = dsLogic.ConfigData
+		local curCycleIndex = configData:GetCycleIndex(_DateTimeLogic:GetTimeElapsed())
+		
+		if cycleIndex ~= curCycleIndex then
+			-- Also update the client's data.
+			self:ProcessDataListWithSenderData(senderUserId, pageNo, pageSize)
+			return
+		end
+		
+		if curCycleIndex ~= dsLogic.CycleIndex then
+			self:ResponseDataList(curCycleIndex, 1, pageSize, {}, senderUserId)
+			return
+		end
+		
+		local validPageNo = dsLogic:GetValidPageNo(pageNo, pageSize)
+		local dataList = dsLogic:GetRankingDataList(validPageNo, pageSize)
+		self:ResponseDataList(cycleIndex, validPageNo, pageSize, dataList, senderUserId)
+	end
+
+	@ExecSpace("Client")
+	method void ResponseDataList(integer cycleIndex, integer pageNo, integer pageSize, table dataList)
+		local entity = _RankingSampleUILogic:GetUI()
+		if entity == nil then
+			return
+		end
+		
+		entity.UIRanking:SetRanking(cycleIndex, pageNo, pageSize, dataList)
+	end
+
+	@ExecSpace("Server")
+	method void RequestDataListWithSenderData(integer pageNo, integer pageSize)
+		-- Requesting the current ranking data and sernder's data.
+		self:ProcessDataListWithSenderData(senderUserId, pageNo, pageSize)
+	end
+
+	@ExecSpace("ServerOnly")
+	method void ProcessDataListWithSenderData(string userId, integer pageNo, integer pageSize)
+		local userEntity = _UserService:GetUserEntityByUserId(userId)
+		if not isvalid(userEntity) then
+			return
+		end
+		
+		local dsLogic = _RankingDataStorageLogic
+		if not dsLogic.IsInit then
+			return
+		end
+		
+		---@type RankingConfigData
+		local configData = dsLogic.ConfigData
+		local cycleIndex = configData:GetCycleIndex(_DateTimeLogic:GetTimeElapsed())
+		
+		local profileCode = userEntity.PlayerComponent.ProfileCode
+		local myData = _RankingDataCacheLogic:GetMyRankingDataAndWait(profileCode, cycleIndex)
+		
+		if cycleIndex ~= dsLogic.CycleIndex then
+			self:ResponseDataListWithSenderData(cycleIndex, 1, pageSize, {}, myData, userId)
+			return
+		end
+		
+		local validPageNo = dsLogic:GetValidPageNo(pageNo, pageSize)
+		local dataList = dsLogic:GetRankingDataList(validPageNo, pageSize)
+		
+		self:ResponseDataListWithSenderData(cycleIndex, validPageNo, pageSize, dataList, myData, userId)
+	end
+
+	@ExecSpace("Client")
+	method void ResponseDataListWithSenderData(integer cycleIndex, integer pageNo, integer pageSize, table dataList, RankingData myData)
+		local entity = _RankingSampleUILogic:GetUI()
+		if entity == nil then
+			return
+		end
+		
+		entity.UIRanking:SetRankingAndMyData(cycleIndex, pageNo, pageSize, dataList, myData)
+	end
+
+	@ExecSpace("Server")
+	method void RequestRegisterRanking(integer score, boolean force)
+		-- A request to register the ranking is made.
+		local userEntity = _UserService:GetUserEntityByUserId(senderUserId)
+		if not isvalid(userEntity) then
+			return
+		end
+		
+		local dsLogic = _RankingDataStorageLogic
+		if not dsLogic.IsInit then
+			return
+		end
+		
+		local curElapsed = _DateTimeLogic:GetTimeElapsed()
+		
+		---@type RankingConfigData
+		local configData = dsLogic.ConfigData
+		local cycleIndex = configData:GetCycleIndex(curElapsed)
+		
+		local profileCode = userEntity.PlayerComponent.ProfileCode
+		local tag = userEntity.PlayerComponent.Nickname
+		_RankingDataStorageLogic:SetScoreAndWait(cycleIndex, profileCode, score, tag, force)
+	end
+
+	@ExecSpace("Server")
+	method void RequestForceUpdate()
+		if not _AdminLogic:IsAdmin(senderUserId) then
+			return
+		end
+		
+		_RankingDataStorageLogic:UpdateDataTable()
+		_RankingDataCacheLogic:Clear()
+	end
+
+	method void CalculateRanks(integer rankingMode, table rankingDataList)
+		if rankingMode == _RankingModeEnum.Index then
+			self:CalculateRanks_Index(rankingDataList)
+		elseif rankingMode == _RankingModeEnum.Rank then
+			self:CalculateRanks_Rank(rankingDataList)
+		elseif rankingMode == _RankingModeEnum.DenseRank then
+			self:CalculateRanks_DenseRank(rankingDataList)
+		else
+			self:CalculateRanks_Index(rankingDataList)
+		end
+	end
+
+	method void CalculateRanks_Index(table rankingDataList)
+		-- Ranks are assigned based on the order of the data, starting from 1 and incrementing by 1 for each subsequent entry.
+		---@type table<RankingData>
+		local dataList = rankingDataList
+		if #dataList == 0 then
+			return
+		end
+		
+		for i = 1, #dataList do
+			---@type RankingData
+			local data = dataList[i]
+			data.Rank = i
+		end
+	end
+
+	method void CalculateRanks_Rank(table rankingDataList)
+		-- Similar to Index, but in the case of ties (two players having the same score), they are assigned the same rank.
+		-- The next rank is then skipped, meaning there are gaps between ranks.
+		---@type table<RankingData>
+		local dataList = rankingDataList
+		if #dataList == 0 then
+			return
+		end
+		
+		---@type RankingData
+		local firstRankData = dataList[1]
+		local prevRank = 1
+		local prevScore = firstRankData.Score
+		
+		for i = 1, #dataList do
+			---@type RankingData
+			local data = dataList[i]
+			local score = data.Score
+			
+			if prevScore == score then
+				data.Rank = prevRank
+				continue
+			end
+			
+			prevRank = i
+			data.Rank = prevRank
+			prevScore = score
+		end
+	end
+
+	method void CalculateRanks_DenseRank(table rankingDataList)
+		-- Like Rank, but there are no gaps in the ranks, even if there are ties.
+		-- Players who tie are given the same rank, but the next rank will continue from the next position without skipping any numbers.
+		---@type table<RankingData>
+		local dataList = rankingDataList
+		if #dataList == 0 then
+			return
+		end
+		
+		---@type RankingData
+		local firstRankData = dataList[1]
+		local prevRank = 1
+		local prevScore = firstRankData.Score
+		
+		for i = 1, #dataList do
+			---@type RankingData
+			local data = dataList[i]
+			local score = data.Score
+			
+			if prevScore == score then
+				data.Rank = prevRank
+				continue
+			end
+			
+			prevRank += 1
+			data.Rank = prevRank
+			prevScore = score
+		end
+	end
+
+end

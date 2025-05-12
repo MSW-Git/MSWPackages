@@ -1,0 +1,242 @@
+@Logic
+script RankingDataStorageLogic extends Logic
+
+	property string SortableDSNamePrefix = "Ranking"
+
+	property integer MaxTagLen = 64
+
+	property any ConfigData = nil
+
+	property integer CycleIndex = 0
+
+	property table RankingDataList = {}
+
+	property table RankingDataByProfileCode = {}
+
+	property integer TimerId = 0
+
+	property boolean IsInit = false
+
+	method void OnBeginPlay()
+		self:InitAndWait()
+	end
+
+	method void InitAndWait()
+		local config = RankingConfigData()
+		config.Key = "Ranking"
+		config.CycleEnum = _CycleEnum.Week
+		config.ViewCount = 100
+		config.RefreshIntervalSeconds = 1800
+		config.RefreshCacheIntervalSeconds = 600
+		config.RankModeEnum = _RankingModeEnum.Rank
+		config.ReleaseBaseTime = DateTime(2025, 1, 1).Elapsed
+		
+		self.ConfigData = config
+		
+		if self:IsClient() then
+			self.IsInit = true
+			return
+		end
+		
+		self:UpdateDataTable()
+		self.IsInit = true
+		
+		self.TimerId = _TimerService:SetTimerRepeat(self.UpdateDataTable, config.RefreshIntervalSeconds)
+		_RankingDataCacheLogic:Init(config.RefreshCacheIntervalSeconds)
+	end
+
+	@ExecSpace("ServerOnly")
+	method void UpdateDataTable()
+		local curElapsed = _DateTimeLogic:GetTimeElapsed()
+		
+		---@type RankingConfigData
+		local config = self.ConfigData
+		local cycleIndex = config:GetCycleIndex(curElapsed)
+		
+		---@type SortableDataStorage
+		local sortDS = self:GetSortableDS(cycleIndex)
+		
+		local errorCode, pages = sortDS:GetSortedAndWait(SortDirection.Descending, 1, math.maxinteger)
+		if errorCode ~= 0 then
+			log_error(string.format("GetSortedAndWait Error. ErrorCode : %d", errorCode))
+			return
+		end
+		
+		---@type table<RankingData>
+		local dataList = {}
+		local viewCount = config.ViewCount
+		
+		local listCount = 0
+		while true do
+			local items = pages:GetCurrentPageDatas()
+			for _, item in pairs(items) do
+				local value = item.Value
+				if value <= 0 then
+					break
+				end
+				
+				local s = RankingData()
+				local keyInfo = item.KeyInfo
+				s.ProfileCode = keyInfo.Key
+				s.Score = value
+				s.Tag = keyInfo.Tag
+				
+				dataList[listCount + 1] = s
+				listCount += 1
+				
+				if viewCount <= listCount then
+					break
+				end
+			end
+			
+			if viewCount <= listCount then
+				break
+			end
+			
+			if pages.IsLastPage == true then
+				break
+			end
+			
+			pages:MoveToNextPageAndWait()
+		end
+		
+		_RankingViewLogic:CalculateRanks(config.RankModeEnum, dataList)
+		
+		-- Set Data
+		self.CycleIndex = cycleIndex
+		table.initialize(self.RankingDataList, dataList)
+		
+		local byProfileCode = self.RankingDataByProfileCode
+		table.clear(byProfileCode)
+		
+		for i = 1, #dataList do
+			local data = dataList[i]
+			byProfileCode[data.ProfileCode] = data
+		end
+	end
+
+	@ExecSpace("ServerOnly")
+	method any GetSortableDS(integer cycleIndex)
+		---@type RankingConfigData
+		local configData = self.ConfigData
+		
+		local dsName = string.format("%s_%s_%s", self.SortableDSNamePrefix, configData.Key, tostring(cycleIndex))
+		return _DataStorageService:GetSortableDataStorage(dsName)
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean SetScoreAndWait(integer cycleIndex, string profileCode, integer score, string tag, boolean force)
+		---@type SortableDataStorage
+		local ds = self:GetSortableDS(cycleIndex)
+		if ds == nil then
+			log_error("GetSortableDS Failed.")
+			return false
+		end
+		
+		if string.len(tag) > _RankingDataStorageLogic.MaxTagLen then
+			log_error("The tag is not valid.")
+			return false
+		end
+		
+		if not force then
+			local myData = self:GetMyRankingDataAndWait(profileCode, cycleIndex)
+			if myData == nil then
+				return false
+			end
+			
+			if score <= myData.Score then
+				return true
+			end
+		end
+		
+		local keyInfo = DataStorageKeyInfo(profileCode, nil, tag)
+		local errorCode = ds:SetByInfoAndWait(keyInfo, score)
+		if errorCode ~= 0 then
+			log_error(string.format("SetByInfoAndWait Failed. ErrorCode : %d, ProfileCode : %s", errorCode, profileCode))
+			return false
+		end
+		
+		log(string.format("Score updated. ProfileCode : %s, CycleIndex : %d, Score : %d", profileCode, cycleIndex, score))
+		return true
+	end
+
+	@ExecSpace("ServerOnly")
+	method table GetRankingDataList(integer pageNo, integer pageSize)
+		local list = {}
+		local dataList = self.RankingDataList
+		
+		local startIndex = (pageNo - 1) * pageSize + 1
+		local endIndex = math.min(startIndex + pageSize - 1, #dataList)
+		if endIndex < startIndex then
+			return list
+		end
+		
+		for i = startIndex, endIndex do
+			list[#list + 1] = dataList[i]
+		end
+		return list
+	end
+
+	@ExecSpace("ServerOnly")
+	method integer GetValidPageNo(integer pageNo, integer pageSize)
+		if pageNo < 1 then
+			return 1
+		end
+		
+		local count = #self.RankingDataList
+		if count == 0 then
+			return 1
+		end
+		
+		local max = (count - 1) // pageSize + 1
+		if max < pageNo then
+			return max
+		end
+		
+		return pageNo
+	end
+
+	@ExecSpace("ServerOnly")
+	method RankingData GetMyRankingDataAndWait(string profileCode, integer cycleIndex)
+		-- Retrieves the RankingData from sortable datastorage.
+		---@type SortableDataStorage
+		local ds = self:GetSortableDS(cycleIndex)
+		if ds == nil then
+			log_error("GetSortableDS Failed.")
+			return nil
+		end
+		
+		local errorCode, itemPages = ds:BatchGetAndWait({profileCode})
+		if errorCode ~= 0 then
+			log_error(string.format("BatchGetAndWait Failed. ErrorCode : %d, ProfileCode : %s", errorCode, profileCode))
+			return nil
+		end
+		
+		local data = RankingData()
+		data.ProfileCode = profileCode
+		
+		local items = itemPages:GetCurrentPageDatas()
+		if #items ~= 0 then
+			local item = items[1]
+			data.Score = item.Value or 0
+			data.Tag = item.KeyInfo.Tag
+		end
+		
+		-- Use Rank in RankingDataList.
+		---@type RankingData
+		local rankingData = self.RankingDataByProfileCode[profileCode]
+		if rankingData ~= nil then
+			data.Rank = rankingData.Rank
+		end
+		
+		return data
+	end
+
+	@ExecSpace("ServerOnly")
+	method void OnEndPlay()
+		if self.TimerId ~= 0 then
+			_TimerService:ClearTimer(self.TimerId)
+		end
+	end
+
+end

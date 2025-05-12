@@ -1,0 +1,55 @@
+@Component
+script UIHUD extends Component
+
+	property TextComponent Text_Score = nil
+
+	property Entity Btn_Force = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		
+		local panel = entity:GetChildByName("Panel")
+		self.Text_Score = panel:GetChildByName("Text_Score").TextComponent
+		
+		local btn_force = panel:GetChildByName("Btn_Force")
+		btn_force:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Force)
+		self.Btn_Force = btn_force
+		
+		local btn_register = panel:GetChildByName("Btn_Register")
+		btn_register:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Register)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Register()
+		local score = math.tointeger(tonumber(self.Text_Score.Text))
+		if score == nil then
+			return
+		end
+		
+		local force = self:IsForce()
+		
+		_RankingViewLogic:RequestRegisterRanking(score, force)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Force()
+		local isForce = self:IsForce()
+		if isForce then
+			self.Btn_Force.TextComponent.Text = ""
+		else
+			self.Btn_Force.TextComponent.Text = "V "
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method boolean IsForce()
+		local text = self.Btn_Force.TextComponent.Text
+		if _Util:IsNilorEmptyString(text) then
+			return false
+		end
+		
+		return true
+	end
+
+end

@@ -1,0 +1,116 @@
+@Component
+script UIGMRankingTool_EditViewPopup extends Component
+
+	property UIGMRankingTool Parent = nil
+
+	property TextComponent Name = nil
+
+	property TextComponent Score = nil
+
+	property TextComponent Tag = nil
+
+	property integer CycleIndex = 0
+
+	property any EditData = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		local panel = entity:GetChildByName("Panel")
+		
+		local btn_exit = panel:GetChildByName("Title"):GetChildByName("Btn_Exit")
+		btn_exit:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Close)
+		
+		self.Name = panel:GetChildByName("Text_Name").TextComponent
+		
+		local item = panel:GetChildByName("item")
+		self.Score = item:GetChildByName("Text_Score").TextComponent
+		self.Tag = item:GetChildByName("Text_Tag").TextComponent
+		
+		local scroll_action = panel:GetChildByName("Scroll_Action")
+		local btn_revert = scroll_action:GetChildByName("Btn_Revert")
+		btn_revert:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Revert)
+		
+		local btn_save = scroll_action:GetChildByName("Btn_Save")
+		btn_save:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Save)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Open(integer cycleIndex, RankingData rankingData)
+		self.CycleIndex = cycleIndex
+		
+		local editData = RankingData()
+		editData:CopyFrom(rankingData)
+		self.EditData = editData
+		
+		self.Name.Text = string.format("CycleIndex : %d | ProfileCode : %s", cycleIndex, rankingData.ProfileCode)
+		self:Set(rankingData)
+		
+		self.Entity.Enable = true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Set(RankingData s)
+		self.Score.Text = tostring(s.Score)
+		self.Tag.Text = tostring(s.Tag)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		self.CycleIndex = 0
+		self.EditData = nil
+		
+		self.Score.Text = ""
+		self.Tag.Text = ""
+	end
+
+	@ExecSpace("ClientOnly")
+	method RankingData GetDataFromTextInput()
+		---@type RankingData
+		local editData = self.EditData
+		if editData == nil then
+			log_error("The originalData is not valid.")
+			return nil
+		end
+		
+		local score = math.tointeger(tonumber(self.Score.Text))
+		if score == nil or score < 0 then
+			log_error("State is not valid.")
+			return nil
+		end
+		
+		local tag = self.Tag.Text
+		if string.len(tag) > _RankingDataStorageLogic.MaxTagLen then
+			log_error("The tag is not valid.")
+			return nil
+		end
+		
+		local data = RankingData()
+		data.ProfileCode = editData.ProfileCode
+		data.Score = score
+		data.Tag = tag
+		
+		return data
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Revert()
+		self:Set(self.EditData)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Save()
+		local data = self:GetDataFromTextInput()
+		if data == nil then
+			return
+		end
+		
+		_GMRankingToolLogic:RequestEditRankingData(self.CycleIndex, data)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Close()
+		self.Entity.Enable = false
+	end
+
+end

@@ -1,0 +1,56 @@
+@Component
+script UIRankingItem extends Component
+
+	property integer Id = 0
+
+	property TextComponent Text_Rank = nil
+
+	property TextComponent Text_Name = nil
+
+	property TextComponent Text_Score = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		
+		self.Text_Rank = entity:GetChildByName("Text_Rank").TextComponent
+		self.Text_Name = entity:GetChildByName("Text_Name").TextComponent
+		self.Text_Score = entity:GetChildByName("Text_Score").TextComponent
+		
+		self:Clear()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetData(RankingData data)
+		if data == nil then
+			self:Clear()
+			return
+		end
+		
+		self.Text_Rank.Text = tostring(data.Rank)
+		self.Text_Score.Text = tostring(data.Score)
+		
+		local tagStr = data.Tag or ""
+		self.Text_Name.Text = tostring(data.ProfileCode) .. "," .. tagStr
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetMyData(RankingData myData)
+		self.Text_Rank.Text = myData.Rank ~= 0 and tostring(myData.Rank) or "-"
+		self.Text_Score.Text = tostring(myData.Score)
+		
+		local playerComp = _UserService.LocalPlayer.PlayerComponent
+		local profileCode = playerComp.ProfileCode
+		local nickName = playerComp.Nickname
+		
+		self.Text_Name.Text = profileCode .. "," .. nickName
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		self.Text_Rank.Text = ""
+		self.Text_Name.Text = ""
+		self.Text_Score.Text = ""
+	end
+
+end

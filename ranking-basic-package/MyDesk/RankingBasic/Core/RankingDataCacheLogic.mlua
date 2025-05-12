@@ -1,0 +1,55 @@
+@Logic
+script RankingDataCacheLogic extends Logic
+
+	property table RankingDataTable = {}
+
+	property integer TimerId = 0
+
+	@ExecSpace("ServerOnly")
+	method void Init(integer intervalSeconds)
+		self.TimerId = _TimerService:SetTimerRepeat(self.Clear, intervalSeconds)
+	end
+
+	@ExecSpace("ServerOnly")
+	method void Clear()
+		table.clear(self.RankingDataTable)
+	end
+
+	@ExecSpace("ServerOnly")
+	method void OnEndPlay()
+		if self.TimerId ~= 0 then
+			_TimerService:ClearTimer(self.TimerId)
+		end
+	end
+
+	@ExecSpace("ServerOnly")
+	method RankingData GetMyRankingDataAndWait(string profileCode, integer cycleIndex)
+		-- Retrieves the RankingData from the Cached Table, which is updated more frequently than the RankingDataStorageLogic.RankingDataList.
+		---@type table<integer, table<string, RankingData>>
+		local mainTable = self.RankingDataTable
+		local subTable = mainTable[cycleIndex]
+		
+		if subTable ~= nil then
+			local cachedData = subTable[profileCode]
+			if cachedData ~= nil then
+				return cachedData
+			end
+		end
+		
+		local data = _RankingDataStorageLogic:GetMyRankingDataAndWait(profileCode, cycleIndex)
+		if data == nil then
+			return data
+		end
+		
+		-- After the wait function, subTable may no longer be valid, so it is retrieved again.
+		subTable = mainTable[cycleIndex]
+		if subTable == nil then
+			subTable = {}
+			mainTable[cycleIndex] = subTable
+		end
+		
+		subTable[profileCode] = data
+		return data
+	end
+
+end
