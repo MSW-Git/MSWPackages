@@ -1,0 +1,63 @@
+@Component
+script UIGMShopTool extends Component
+
+	property string TargetUserID = ""
+
+	property Entity Text_TargetUserID = nil
+
+	property Entity ViewUI = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		local panel = entity:GetChildByName("Panel")
+		
+		-- Title
+		local title = panel:GetChildByName("Title")
+		
+		local btnClose = title:GetChildByName("Btn_Exit")
+		btnClose:ConnectEvent(ButtonClickEvent, function(evt) self:OnClose()  end)
+		
+		-- TargetUser
+		local targetUser = panel:GetChildByName("TargetUser")
+		self.Text_TargetUserID = targetUser:GetChildByName("UIText_UserID")
+		self.Text_TargetUserID.TextComponent.Text = self.TargetUserID
+		self.Text_TargetUserID.TextInputComponent.Text = self.TargetUserID
+		self.Text_TargetUserID:ConnectEvent(TextInputEndEditEvent, function(evt) self:OnChanged_TargetUser(evt) end)
+		
+		local btn_targetTooltip = targetUser:GetChildByName("Btn_Tooltip")
+		local panel_targetTooltip = btn_targetTooltip:GetChildByName("Panel_TooTip")
+		btn_targetTooltip:ConnectEvent(ButtonClickEvent, function(evt) panel_targetTooltip.Enable = not panel_targetTooltip.Enable end)
+		
+		-- Page
+		self.ViewUI = panel:GetChildByName("Page")
+		self.ViewUI.UIGMShopTool_Page.Parent = self
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Open()
+		self.Entity:SetEnable(true)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClose()
+		self.TargetUserID = ""
+		self.Text_TargetUserID.TextComponent.Text = ""
+		
+		self.ViewUI.UIGMShopTool_Page:Clear()
+		
+		self.Entity:SetEnable(false)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnChanged_TargetUser(TextInputEndEditEvent evt)
+		local targetUserId = evt.text
+		local textInputComp = self.Text_TargetUserID.TextInputComponent
+		
+		textInputComp.Text = targetUserId
+		self.TargetUserID = targetUserId
+		
+		self.ViewUI.UIGMShopTool_Page:Refresh()
+	end
+
+end

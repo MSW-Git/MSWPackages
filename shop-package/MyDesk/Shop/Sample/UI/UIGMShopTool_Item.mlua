@@ -1,0 +1,52 @@
+@Component
+script UIGMShopTool_Item extends Component
+
+	property Entity ProductId = nil
+
+	property Entity Count = nil
+
+	property integer Index = 0
+
+	property any onChangedValue = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		self.ProductId = self.Entity:GetChildByName("Text_ID")
+		self.ProductId:ConnectEvent(TextInputSubmitEvent, function(evt) self:OnChangedProductId(evt) end)
+		
+		self.Count = self.Entity:GetChildByName("Text_Count")
+		self.Count:ConnectEvent(TextInputSubmitEvent, function(evt) self:OnChangedCount(evt) end)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Apply(string productId, integer count, integer index)
+		self.ProductId.TextComponent.Text = productId
+		self.Count.TextComponent.Text = tostring(count)
+		self.Index = index
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		self.ProductId.TextComponent.Text = ""
+		self.Count.TextComponent.Text = ""
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnChangedProductId(TextInputSubmitEvent evt)
+		local count = self.Count.TextComponent.Text
+		
+		if self.onChangedValue ~= nil then
+			self.onChangedValue(self.Index, evt.Text, tonumber(count))
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnChangedCount(TextInputSubmitEvent evt)
+		local productId = self.ProductId.TextComponent.Text
+		
+		if self.onChangedValue ~= nil then
+			self.onChangedValue(self.Index, productId, tonumber(evt.Text))
+		end
+	end
+
+end

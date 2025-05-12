@@ -1,0 +1,134 @@
+@Logic
+script ShopAdminLogic extends Logic
+
+	@ExecSpace("Server")
+	method void RequestGetPlayerShopData(string userId)
+		if not _AdminLogic:IsAdmin(senderUserId) then
+			log_error("Access denied. Administrator rights required.")
+			return
+		end
+		
+		self:GetPlayerShopData(senderUserId, userId)
+	end
+
+	@ExecSpace("ServerOnly")
+	method void GetPlayerShopData(string adminUserId, string userId)
+		local ds = _DataStorageService:GetUserDataStorage(userId)
+		if ds == nil then
+			log_error("Failed to load data storage.")
+			return
+		end
+		
+		local result = {}
+		local returnCode, strData = ds:GetAndWait(_ShopConfig.DBKey)
+		if returnCode ~= 0 then
+			log_error(string.format("[Error: %d] A database error has occurred.",returnCode))
+			return
+		end
+		
+		
+		if not _Util:IsNilorEmptyString(strData) then
+			local dataTable = _HttpService:JSONDecode(strData)
+			
+			local purchaseCount = dataTable["PurchaseCount"]
+			local curElapsed = _DateTimeLogic:GetTimeElapsed()
+			if not _Util:IsNilorEmptyTable(purchaseCount) then
+				for shopItemId, count in pairs(purchaseCount) do
+					local data = _ShopDataSetLogic:GetData(tonumber(shopItemId))
+					if not _ShopDataSetLogic:IsInSalePeriod(data, curElapsed) then
+						continue
+					end
+					
+					result[shopItemId] = count
+				end
+			end
+		end
+		
+		-- Sending event to the client.
+		self:ResponseGetPlayerShopData(result, adminUserId)
+	end
+
+	@ExecSpace("Client")
+	method void ResponseGetPlayerShopData(table newPlayerData)
+		local evt = PlayerShopDataReceivedEvent()
+		evt.NewPlayerData = newPlayerData
+		_UserService.LocalPlayer:SendEvent(evt)
+	end
+
+	@ExecSpace("Server")
+	method void RequestSetPlayerShopData(string userId, table newDataList)
+		if not _AdminLogic:IsAdmin(senderUserId) then
+			log_error("Access denied. Administrator rights required.")
+			return
+		end
+		
+		self:SetPlayerShopData(senderUserId, userId, newDataList)
+	end
+
+	@ExecSpace("ServerOnly")
+	method void SetPlayerShopData(string adminUserId, string userId, table newDataList)
+		local ds = _DataStorageService:GetUserDataStorage(userId)
+		if ds == nil then
+			log_error("Failed to load data storage.")
+			return
+		end
+		
+		local errorCode, strData = ds:GetAndWait(_ShopConfig.DBKey)
+		if errorCode ~= 0 then
+			log_error(string.format("[Error: %d] A database error has occurred.",errorCode))
+			return
+		end
+		
+		local newPlayerShopData = {}
+		for _, data in pairs(newDataList) do	
+			local id = data.ProductId
+			local count = data.Count
+			
+			if _Util:IsNilorEmptyString(id) then
+				log_error("Required ID not entered.")
+				return
+			end
+			
+			if count < 0 then
+				log_error(string.format("[Id : %s, Count : %d] Quantity must be zero or greater.", id, count))
+				return
+			end
+			
+		 	if _ShopDataSetLogic:GetData(tonumber(id)) == nil then
+				log_error(string.format("[Id : %s] This is not valid data.", id))
+				return
+			end
+			
+			if newPlayerShopData[id] then
+				log_error(string.format("[ID : %s] ID already exists.", id))
+				return
+			end
+			
+			newPlayerShopData[id] = count
+		end
+		
+		local total = {}
+		if not _Util:IsNilorEmptyTable(newPlayerShopData) then			
+			total["PurchaseCount"] = newPlayerShopData
+		end
+		
+		local dbString = ""
+		if not _Util:IsNilorEmptyTable(total) then
+			dbString = _HttpService:JSONEncode(total)
+		end
+		
+		local dsError = -1
+		local result = ""
+		if _Util:IsNilorEmptyString(strData) then
+			dsError = ds:SetAndWait(_ShopConfig.DBKey, dbString)
+		else
+			dsError, result = ds:UpdateAndWait(_ShopConfig.DBKey, strData, dbString)
+		end
+		
+		if dsError ~= 0 then
+			log_error(string.format("[Error: %d] A database error has occurred.",dsError))
+			return
+		end
+	end
+
+end

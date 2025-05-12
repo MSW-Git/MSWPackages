@@ -1,0 +1,9 @@
+@Logic
+script AdminLogic extends Logic
+
+	@ExecSpace("ServerOnly")
+	method boolean IsAdmin(string userId)
+		return true
+	end
+
+end

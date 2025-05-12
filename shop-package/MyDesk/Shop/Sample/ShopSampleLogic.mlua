@@ -7,6 +7,8 @@ script ShopSampleLogic extends Logic
 
 	property Entity PurchasePopup = nil
 
+	property Entity AdminPopup = nil
+
 	@ExecSpace("ClientOnly")
 	method void OnBeginPlay()
 		self.Root = _EntityService:GetEntityByPath("/ui/DefaultGroup")
@@ -22,6 +24,10 @@ script ShopSampleLogic extends Logic
 		local modelPurchaseId = _EntryService:GetModelIdByName("Model_UIShop_Purchase")
 		self.PurchasePopup = _SpawnService:SpawnByModelId(modelPurchaseId, "UIShop_Purchase", Vector3.zero, self.Root)
 		self.PurchasePopup:SetEnable(false)
+		
+		local adminPopupId = _EntryService:GetModelIdByName("Model_UIGMShopTool")
+		self.AdminPopup = _SpawnService:SpawnByModelId(adminPopupId, "UIGMShopTool", Vector3.zero, self.Root)
+		self.AdminPopup:SetEnable(false)
 	end
 
 	@ExecSpace("ClientOnly")
@@ -37,6 +43,8 @@ script ShopSampleLogic extends Logic
 		---------------------------------------------------------
 		if key == KeyboardKey.K then
 			self.Popup.UIShop:Open()
+		elseif key == KeyboardKey.L then
+			self.AdminPopup.UIGMShopTool:Open()
 		end
 	end
 

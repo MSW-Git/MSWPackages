@@ -1,0 +1,7 @@
+@Logic
+script ShopConfig extends Logic
+
+	@Description("Key used for database storage of shop data")
+	property string DBKey = "Shop"
+
+end

@@ -1,0 +1,6 @@
+@Event
+script PlayerShopDataReceivedEvent extends EventType
+
+	property table NewPlayerData = {}
+
+end
