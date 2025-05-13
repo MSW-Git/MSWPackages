@@ -112,6 +112,7 @@ script RankingDataStorageLogic extends Logic
 			
 			if result.Code ~= SharedMemoryResultCode.OK then
 				snapshot:DeferToNextMinute(curElapsed, false)
+				continue
 			end
 			
 			local sharedValue = result.Info.Value

@@ -1,7 +1,11 @@
 @Component
-script UIHUD extends Component
+script UIRankingHUD extends Component
+
+	property TextComponent Text_Id = nil
 
 	property TextComponent Text_Score = nil
+
+	property TextComponent Text_Extra = nil
 
 	property Entity Btn_Force = nil
 
@@ -10,7 +14,9 @@ script UIHUD extends Component
 		local entity = self.Entity
 		
 		local panel = entity:GetChildByName("Panel")
+		self.Text_Id = panel:GetChildByName("Text_Id").TextComponent
 		self.Text_Score = panel:GetChildByName("Text_Score").TextComponent
+		self.Text_Extra = panel:GetChildByName("Text_Extra").TextComponent
 		
 		local btn_force = panel:GetChildByName("Btn_Force")
 		btn_force:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Force)
@@ -18,18 +24,27 @@ script UIHUD extends Component
 		
 		local btn_register = panel:GetChildByName("Btn_Register")
 		btn_register:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Register)
+		
+		local btn_exit = panel:GetChildByName("Btn_Exit")
+		btn_exit:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Exit)
 	end
 
 	@ExecSpace("ClientOnly")
 	method void OnClickBtn_Register()
+		local id = math.tointeger(tonumber(self.Text_Id.Text))
+		if id == nil then
+			return
+		end
+		
 		local score = math.tointeger(tonumber(self.Text_Score.Text))
 		if score == nil then
 			return
 		end
 		
+		local extra = self.Text_Extra.Text
 		local force = self:IsForce()
 		
-		_RankingViewLogic:RequestRegisterRanking(score, force)
+		_RankingViewLogic:RequestRegisterRanking(id, score, extra, force)
 	end
 
 	@ExecSpace("ClientOnly")
@@ -50,6 +65,11 @@ script UIHUD extends Component
 		end
 		
 		return true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Exit()
+		self.Entity.Enable = false
 	end
 
 end

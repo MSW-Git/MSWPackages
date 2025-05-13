@@ -5,13 +5,19 @@ script RankingSampleUILogic extends Logic
 
 	property string ModelToolName = "UIGMRankingTool"
 
+	property string ModelHUDName = "UIRankingHUD"
+
 	property string UIPath = "/ui/DefaultGroup"
 
 	property string ToolUIPath = "/ui/DefaultGroup"
 
+	property string HUDUIPath = "/ui/DefaultGroup"
+
 	property Entity UIEntity = nil
 
 	property Entity ToolUIEntity = nil
+
+	property Entity HUDUIEntity = nil
 
 	@ExecSpace("ClientOnly")
 	method Entity GetUI()
@@ -61,6 +67,32 @@ script RankingSampleUILogic extends Logic
 		
 		entity = self:SpawnUI(self.ModelToolName, self.ToolUIPath)
 		self.ToolUIEntity = entity
+		
+		return entity
+	end
+
+	@ExecSpace("ClientOnly")
+	method Entity GetHUDUI()
+		-- Retrieves the existing HUDUI entity.
+		local entity = self.HUDUIEntity
+		if not isvalid(entity) then
+			return nil
+		end
+		
+		return entity
+	end
+
+	@ExecSpace("ClientOnly")
+	method Entity ActiveHUDUI()
+		-- Spawns the HUDUI model or activates the existing HUDUI entity.
+		local entity = self:GetHUDUI()
+		if entity ~= nil then
+			entity.Enable = true
+			return entity
+		end
+		
+		entity = self:SpawnUI(self.ModelHUDName, self.HUDUIPath)
+		self.HUDUIEntity = entity
 		
 		return entity
 	end
@@ -118,11 +150,28 @@ script RankingSampleUILogic extends Logic
 	end
 
 	@ExecSpace("ClientOnly")
+	method void OpenHUDUI()
+		if not _AdminLogic:IsAdminLocalPlayer() then
+			return
+		end
+		
+		local entity = self:GetHUDUI()
+		if entity ~= nil then
+			entity.Enable = true
+			return
+		end
+		
+		self:ActiveHUDUI()
+	end
+
+	@ExecSpace("ClientOnly")
 	@EventSender("Service", "InputService")
 	handler HandleKeyDownEvent(KeyDownEvent event)
 		local key = event.key
 		
-		if key == KeyboardKey.F3 then
+		if key == KeyboardKey.F2 then
+			self:OpenHUDUI()
+		elseif key == KeyboardKey.F3 then
 			self:OpenUI()
 		elseif key == KeyboardKey.F4 then
 			self:OpenToolUI()
