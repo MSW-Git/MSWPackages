@@ -1,0 +1,6 @@
+﻿Type,Name,RUID,IsRechargeable,RechargeValue,RechargeInterval,MaxValue,DefaultValue,IsInitialGrant,ResetToMaxOnCreate
+1,Meso,543e1155a44e4793ae0d3bfccf474f06,0,0,0,0,0,1,0
+2,Dia,6cd3d3db879042a8a934782350355666,0,0,0,30,0,1,1
+3,Heart,6a0a1311869b462b9ac75a6deabdb4f5,1,1,10,20,10,1,0
+4,Stamina,92441a6a09b542c7aad7072b44ed3ef8,1,2,20,50,0,1,1
+5,Ticket,2343d419ad8c426c8fa4f28acfea9df8,1,1,500,5,1,0,0

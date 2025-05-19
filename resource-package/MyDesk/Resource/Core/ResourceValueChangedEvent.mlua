@@ -1,0 +1,16 @@
+@Event
+script ResourceValueChangedEvent extends EventType
+
+	@Description("The type of the resource.")
+	property integer Type = 0
+
+	@Description("The previous value of the resource.")
+	property integer PrevValue = 0
+
+	@Description("The current value of the resource.")
+	property integer CurValue = 0
+
+	@Description("The next server time when the resource will be recharged.")
+	property number NextRechargeServerTime = 0
+
+end

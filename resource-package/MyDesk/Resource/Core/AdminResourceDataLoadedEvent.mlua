@@ -1,0 +1,10 @@
+@Event
+script AdminResourceDataLoadedEvent extends EventType
+
+	@Description("Complete resource data retrieved for admin view")
+	property table ResourceData = {}
+
+	@Description("Last time when resource data was saved (in seconds)")
+	property integer LastSaveTimeInSeconds = 0
+
+end

@@ -1,0 +1,36 @@
+@Logic
+script ResourceFactoryLogic extends Logic
+
+	@ExecSpace("ServerOnly")
+	method ResourceBase CreateResource(integer type, Entity playerEntity)
+		local resourceStruct = self:CreateResourceStruct(type)
+		
+		local tblData = _ResourceDataSetLogic:GetData(type)
+		if tblData == nil then
+			return nil
+		end
+		
+		local defaultValue = tblData.DefaultValue
+		if tblData.ResetToMaxOnCreate then
+			defaultValue = tblData.MaxValue
+		end
+		resourceStruct:Setup(tblData.Type, defaultValue, playerEntity)
+		
+		if resourceStruct:IsRechargeable() then
+			---@type RechargeableResource
+			local rechargeableResource = resourceStruct
+			rechargeableResource:InitializeRechargeableResource(tblData.MaxValue, tblData.RechargeValue, tblData.RechargeInterval, 0)
+		end
+		
+		return resourceStruct
+	end
+
+	method ResourceBase CreateResourceStruct(integer type)
+		if _ResourceDataSetLogic:IsRechargeableType(type) then
+			return RechargeableResource()
+		else
+			return ResourceBase()
+		end
+	end
+
+end

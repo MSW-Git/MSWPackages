@@ -1,0 +1,19 @@
+@Component
+script UIResourceHUD extends Component
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		self:Create()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Create()
+		local data = _ResourceDataSetLogic.TableData
+		for type, d in pairs(data) do
+			local modelId = _EntryService:GetModelIdByName("Model_UIResourceItem")
+			local item = _SpawnService:SpawnByModelId(modelId, "Item", Vector3.zero, self.Entity)
+			item.UIResourceItem:Apply(type, 0, 0)
+		end
+	end
+
+end

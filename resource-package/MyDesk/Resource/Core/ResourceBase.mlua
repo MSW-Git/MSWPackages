@@ -1,0 +1,73 @@
+@Struct
+script ResourceBase
+
+	property Entity PlayerEntity = nil
+
+	property integer Type = 0
+
+	property integer Value = 0
+
+	method void Serialize(table dbTable)
+		dbTable["T"] = self.Type
+		dbTable["V"] = self.Value
+	end
+
+	method void Deserialize(table dbTable, Entity playerEntity)
+		self.Type = dbTable["T"]
+		self.Value = dbTable["V"]
+		
+		self.PlayerEntity = playerEntity
+	end
+
+	method boolean IsRechargeable()
+		return false
+	end
+
+	method void Setup(integer type, integer value, Entity playerEntity)
+		self.Type = type
+		self.Value = value
+		self.PlayerEntity = playerEntity
+	end
+
+	method void SendChangedEvent(integer prevValue)
+		local evt = ResourceValueChangedEvent()
+		evt.Type = self.Type
+		evt.PrevValue = prevValue
+		evt.CurValue = self.Value
+		evt.NextRechargeServerTime = 0
+		self.PlayerEntity.PlayerResource:SendResourceValueChangedEvent(evt)
+	end
+
+	method boolean Add(integer value)
+		-- value: amount to add to the resource
+		if value <= 0 then
+			log_warning("AddResource Value is negative. value : " .. tostring(value))
+			return false
+		end
+		
+		local prevValue = self.Value
+		self.Value += value
+		
+		self:SendChangedEvent(prevValue)
+		return true
+	end
+
+	method boolean Consume(integer value)
+		-- value: amount to consume from the resource
+		if value < 0 then
+			log_warning("ConsumeResource Value is negative. value : " .. tostring(value))
+			return false
+		end
+		
+		if self.Value < value then
+			return false
+		end
+		
+		local prevValue = self.Value
+		self.Value -= value
+		
+		self:SendChangedEvent(prevValue)
+		return true
+	end
+
+end

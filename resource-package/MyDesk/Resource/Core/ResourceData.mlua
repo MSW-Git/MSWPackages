@@ -1,0 +1,111 @@
+@Struct
+script ResourceData
+
+	property integer Type = 0
+
+	property string Name = ""
+
+	property string RUID = ""
+
+	property boolean IsRechargeable = false
+
+	property integer RechargeValue = 0
+
+	property integer RechargeInterval = 0
+
+	property integer MaxValue = 0
+
+	property integer DefaultValue = 0
+
+	property boolean IsInitialGrant = false
+
+	property boolean ResetToMaxOnCreate = false
+
+	method boolean Load(any dataRow)
+		---@type UserDataRow
+		local row = dataRow
+		
+		local type = tonumber(row:GetItem("Type"))
+		if type == nil then
+			log_error("Failed to load ResourceData: Type value is nil")
+			return false
+		end
+		self.Type = math.tointeger(type)
+		
+		self.Name = row:GetItem("Name")
+		if _Util:IsNilorEmptyString(self.Name) then
+			log_error(string.format("ResourceData Name is empty. Type : %d", self.Type))
+			return false
+		end
+		
+		self.RUID = row:GetItem("RUID")
+		if _Util:IsNilorEmptyString(self.RUID) then
+			log_error(string.format("ResourceData RUID is empty. Type : %d", self.Type))
+			return false
+		end
+		
+		local defaultValue = tonumber(row:GetItem("DefaultValue"))
+		if defaultValue == nil then
+			log_error("ResourceData DefaultValue is nil.")
+			return false
+		end
+		self.DefaultValue = math.tointeger(defaultValue)
+		
+		local isInitialGrant = tonumber(row:GetItem("IsInitialGrant"))
+		if isInitialGrant == nil then
+			log_error(string.format("ResourceData IsInitialGrant is not boolean. Type : %d", self.Type))
+			return false
+		end
+		self.IsInitialGrant = isInitialGrant == 1
+		
+		local resetToMaxOnCreate = tonumber(row:GetItem("ResetToMaxOnCreate"))
+		if resetToMaxOnCreate == nil then
+			log_error(string.format("ResourceData ResetToMaxOnCreate is not boolean. Type : %d", self.Type))
+			return false
+		end
+		self.ResetToMaxOnCreate = resetToMaxOnCreate == 1
+		
+		local maxValue = tonumber(row:GetItem("MaxValue"))
+		if maxValue == nil then
+			log_error(string.format("ResourceData MaxValue is nil. Type : %d", self.Type))
+			return false
+		end
+		self.MaxValue = math.tointeger(maxValue)
+		
+		local isRechargeable = tonumber(row:GetItem("IsRechargeable"))
+		if isRechargeable == nil then
+			log_error(string.format("ResourceData IsRechargeable is not boolean. Type : %d", self.Type))
+			return false
+		end
+		self.IsRechargeable = isRechargeable == 1
+		
+		if self.IsRechargeable then
+			local rechargeValue = tonumber(row:GetItem("RechargeValue"))
+			if rechargeValue == nil then
+				log_error(string.format("ResourceData RechargeValue is nil. Type : %d", self.Type))
+				return false
+			end
+			self.RechargeValue = math.tointeger(rechargeValue)
+			
+			local rechargeInterval = tonumber(row:GetItem("RechargeInterval"))
+			if rechargeInterval == nil then
+				log_error(string.format("ResourceData RechargeInterval is nil. Type : %d", self.Type))
+				return false
+			end
+			self.RechargeInterval = math.tointeger(rechargeInterval)
+			
+			if self.RechargeValue < 0 then
+				log_error(string.format("ResourceData RechargeValue is negative. Type : %d", self.Type))
+				return false
+			end
+			
+			if self.RechargeInterval < 0 then
+				log_error(string.format("ResourceData RechargeInterval is negative. Type : %d", self.Type))
+				return false
+			end
+		end
+		
+		return true
+	end
+
+end

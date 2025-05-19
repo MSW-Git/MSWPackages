@@ -1,0 +1,89 @@
+@Logic
+script Base64Logic extends Logic
+
+	property table Base64Chars = {}
+
+	property table Base64Integers = {}
+
+	property boolean IsInit = false
+
+	method void Init()
+		if self.IsInit then
+			return
+		end
+		
+		local base64Chars = {
+			"A", "B", "C", "D", "E", "F", "G", "H", "I", "J",
+			"K", "L", "M", "N", "O", "P", "Q", "R", "S", "T",
+			"U", "V", "W", "X", "Y", "Z", "a", "b", "c", "d",
+			"e", "f", "g", "h", "i", "j", "k", "l", "m", "n",
+			"o", "p", "q", "r", "s", "t", "u", "v", "w", "x",
+			"y", "z", "0", "1", "2", "3", "4", "5", "6", "7",
+			"8", "9", "+", "/"
+		}
+		self.Base64Chars = base64Chars
+		
+		local base64Integers = self.Base64Integers
+		
+		for val, char in ipairs(base64Chars) do
+			base64Integers[char] = val
+		end
+		
+		self.IsInit = true
+	end
+
+	method string DecimalToBase64(integer decimal)
+		if not self.IsInit then
+			self:Init()
+		end
+		
+		if decimal == nil then
+			return nil
+		end
+		
+		local t = {}
+		local base64Chars = self.Base64Chars
+		
+		repeat
+			local remainder = decimal % 64
+			t[#t + 1] = base64Chars[remainder + 1]
+			decimal = math.floor(decimal / 64)
+		until decimal == 0
+		
+		local result = {}
+		for i = #t, 1, -1 do
+			result[#result + 1] = t[i]
+		end
+		
+		local str = table.concat(result)
+		return str
+	end
+
+	method integer Base64ToDecimal(string str)
+		if self.IsInit == false then
+			self:Init()
+		end
+		
+		if _Util:IsNilorEmptyString(str) then
+			return nil
+		end
+		
+		local result = 0
+		local base = 1
+		local base64Integers = self.Base64Integers
+		
+		for i = string.len(str), 1, -1 do
+			local char = string.sub(str, i, i)
+			local value = base64Integers[char] - 1
+			if value == nil then
+				return nil
+			end
+			
+			result = result + value * base
+			base = base * 64
+		end
+		
+		return result
+	end
+
+end

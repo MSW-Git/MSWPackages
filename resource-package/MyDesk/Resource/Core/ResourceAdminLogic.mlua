@@ -1,0 +1,163 @@
+@Logic
+script ResourceAdminLogic extends Logic
+
+	@ExecSpace("Server")
+	method void RequestGetPlayerResourceData(string userId)
+		if not _AdminLogic:IsAdmin(senderUserId) then
+			log_error("Access denied. Administrator rights required.")
+			return
+		end
+		
+		self:GetPlayerResourceData(senderUserId, userId)
+	end
+
+	@ExecSpace("ServerOnly")
+	method void GetPlayerResourceData(string adminUserId, string userId)
+		local ds = _DataStorageService:GetUserDataStorage(userId)
+		if ds == nil then
+			log_error("Failed to load data storage.")
+			return
+		end
+				
+		local result = {}
+		local returnCode, strData = ds:GetAndWait(_ResourceConfig.ResourceDBKey)
+		if returnCode ~= 0 then
+			log_error(string.format("[Error: %d] A database error has occurred.",returnCode))
+			return
+		end
+		
+		local lastSaveTimeInSeconds = 0
+		if not _Util:IsNilorEmptyString(strData) then
+			local dataTable = _HttpService:JSONDecode(strData)
+			
+			lastSaveTimeInSeconds = dataTable["LS"]
+			local resourceData = dataTable["R"]
+			if not _Util:IsNilorEmptyTable(resourceData) then
+				for strType, data in pairs(resourceData) do
+					local type = tonumber(strType)
+					local resourceStruct = _ResourceFactoryLogic:CreateResourceStruct(type)
+					resourceStruct:Deserialize(data, nil)
+					
+					if resourceStruct:IsRechargeable() then
+						---@type RechargeableResource
+						local rechargeableResource = resourceStruct
+		
+						-- Admin tool queries the time remaining until next recharge.
+						rechargeableResource.NextRechargeServerTime -= _UtilLogic.ServerElapsedSeconds
+					end
+					
+					result[type] = resourceStruct
+				end
+			end
+		end
+		
+		-- Sending event to the client.
+		self:ResponseGetPlayerResourceData(result, lastSaveTimeInSeconds, adminUserId)
+	end
+
+	@ExecSpace("Client")
+	method void ResponseGetPlayerResourceData(table resourceData, integer lastSaveTimeInSeconds)
+		local evt = AdminResourceDataLoadedEvent()
+		evt.ResourceData = resourceData
+		evt.LastSaveTimeInSeconds = lastSaveTimeInSeconds
+		_UserService.LocalPlayer:SendEvent(evt)
+	end
+
+	@ExecSpace("Server")
+	method void RequestSetPlayerResourceData(string userId, table newResourceData)
+		if not _AdminLogic:IsAdmin(senderUserId) then
+			log_error("Access denied. Administrator rights required.")
+			return
+		end
+		
+		self:SetPlayerResourceData(senderUserId, userId, newResourceData)
+	end
+
+	@ExecSpace("ServerOnly")
+	method void SetPlayerResourceData(string adminUserId, string userId, table newResourceData)
+		local ds = _DataStorageService:GetUserDataStorage(userId)
+		if ds == nil then
+			log_error("Failed to load data storage.")
+			return
+		end
+		
+		local errorCode, strData = ds:GetAndWait(_ResourceConfig.ResourceDBKey)
+		if errorCode ~= 0 then
+			log_error(string.format("[Error: %d] A database error has occurred.",errorCode))
+			return
+		end
+		
+		local lastSaveTimeInSeconds = 0
+		if not _Util:IsNilorEmptyString(strData) then
+			local dbTable = _HttpService:JSONDecode(strData)
+			lastSaveTimeInSeconds = dbTable["LS"]
+		end
+		
+		local resourceData = {}
+		local resourceTable = {}
+		for _, data in pairs(newResourceData) do
+			local type = data.Type
+			if type < 0 then
+				log_error(string.format("[Type : %d] Type must be zero or greater.", type))
+				return
+			end
+		
+			if resourceTable[tostring(type)] ~= nil then
+				log_error(string.format("[Type : %s] Type already exists.", type))
+				return
+			end
+		
+			local value = data.Value
+			if value < 0 then
+				log_error(string.format("[Type : %d, Value : %d] Quantity must be zero or greater.", type, value))
+				return
+			end
+		
+			local newStruct = _ResourceFactoryLogic:CreateResourceStruct(type)
+			newStruct:Setup(type, value, nil)
+			local tblData = _ResourceDataSetLogic:GetData(type)
+			if tblData == nil then
+				log_error(string.format("[Type : %d] This is not valid data.", type))
+				return
+			end
+		
+			if newStruct:IsRechargeable() then
+				local nextRechargeTime = data.NextRechargeServerTime
+				if nextRechargeTime < 0 then
+					log_error(string.format("[Type : %d] NextRechargeTime must be zero or greater.", type))
+					return
+				end
+		
+				---@type RechargeableResource
+				local rechargeableResource = newStruct
+				rechargeableResource.NextRechargeServerTime = nextRechargeTime
+			end
+		
+			local newData = {}
+			newStruct:Serialize(newData)
+			resourceTable[tostring(type)] = newData
+		end
+		
+		resourceData["LS"] = lastSaveTimeInSeconds
+		resourceData["R"] = resourceTable
+		
+		local dbString = ""
+		if not _Util:IsNilorEmptyTable(resourceData) then
+			dbString = _HttpService:JSONEncode(resourceData)
+		end
+		
+		local dsError = -1
+		local result = ""
+		if _Util:IsNilorEmptyString(strData) then
+			dsError = ds:SetAndWait(_ResourceConfig.ResourceDBKey, dbString)
+		else
+			dsError, result = ds:UpdateAndWait(_ResourceConfig.ResourceDBKey, strData, dbString)
+		end
+		
+		if dsError ~= 0 then
+			log_error(string.format("[Error: %d] A database error has occurred.",dsError))
+			return
+		end
+	end
+
+end

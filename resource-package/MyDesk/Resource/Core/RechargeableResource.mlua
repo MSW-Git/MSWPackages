@@ -1,0 +1,197 @@
+@Struct
+script RechargeableResource extends ResourceBase
+
+	property number NextRechargeServerTime = 0
+
+	property integer TimerId = 0
+
+	property integer MaxValue = 0
+
+	property integer RechargeValue = 0
+
+	property integer RechargeInterval = 0
+
+	method void Serialize(table dbTable)
+		__base:Serialize(dbTable)
+		
+		if self.NextRechargeServerTime ~= nil then
+			local rechargeTimeLeft = math.max(0, self.NextRechargeServerTime - _UtilLogic.ServerElapsedSeconds)
+			dbTable["L"] = string.format("%.2f", rechargeTimeLeft)
+		end
+	end
+
+	method void Deserialize(table dbTable, Entity playerEntity)
+		__base:Deserialize(dbTable,playerEntity)
+		
+		-- NextRechargeTime: DB stores the time left until next recharge, while script uses the server time for next recharge
+		local serverElapsedSeconds = _UtilLogic.ServerElapsedSeconds
+		
+		local rechargeTimeLeft = dbTable["L"]
+		if not _Util:IsNilorEmptyString(rechargeTimeLeft) then
+			rechargeTimeLeft = tonumber(rechargeTimeLeft)
+			if rechargeTimeLeft ~= nil then
+				self.NextRechargeServerTime = serverElapsedSeconds + rechargeTimeLeft
+			end
+		end
+	end
+
+	method boolean IsRechargeable()
+		return true
+	end
+
+	method void InitializeRechargeableResource(integer maxValue, integer rechargeValue, integer rechargeInterval, integer lastSaveTimeInSeconds)
+		self.MaxValue = maxValue
+		self.RechargeValue = rechargeValue
+		self.RechargeInterval = rechargeInterval
+		
+		local serverElapsedSeconds = _UtilLogic.ServerElapsedSeconds
+		self:RecalculateResource(serverElapsedSeconds, lastSaveTimeInSeconds)
+		
+		if self.NextRechargeServerTime > 0 then
+			self:SetRechargeTimer(self.NextRechargeServerTime - serverElapsedSeconds)
+		end
+	end
+
+	method void RecalculateResource(integer serverElapsedSeconds, integer lastSaveTimeInSeconds)
+		-- No need to recharge if already at or above max value
+		if self.Value >= self.MaxValue then
+			return
+		end
+		
+		if lastSaveTimeInSeconds <= 0 then
+			self.NextRechargeServerTime = serverElapsedSeconds + self.RechargeInterval
+			return
+		end
+		
+		local elapsedSecondsSinceLastSave = math.floor(_DateTimeLogic:GetTimeElapsed() / 1000) - lastSaveTimeInSeconds
+		-- Ignore time reversal
+		if elapsedSecondsSinceLastSave < 0 then
+			elapsedSecondsSinceLastSave = 0
+		end
+		
+		local rechargeTimeLeft = self.NextRechargeServerTime - serverElapsedSeconds
+		-- Recalculate time left until next recharge if player reconnected before recharge time
+		if elapsedSecondsSinceLastSave < rechargeTimeLeft then
+			self.NextRechargeServerTime = self.NextRechargeServerTime - elapsedSecondsSinceLastSave
+			return
+		end
+		
+		-- Calculate number of recharges that should have occurred
+		local rechargeCount = math.floor(((self.RechargeInterval - rechargeTimeLeft) + elapsedSecondsSinceLastSave) / self.RechargeInterval)
+		
+		-- Handle overflow exception
+		if rechargeCount >= 999999 then
+			self.Value = self.MaxValue
+			self.NextRechargeServerTime = 0
+			return
+		end
+		
+		-- Update resource amount
+		self.Value = math.min(self.MaxValue, self.Value + (rechargeCount * self.RechargeValue))
+		if self.Value >= self.MaxValue then
+			self.NextRechargeServerTime = 0
+			return
+		end
+		
+		-- Calculate next recharge time
+		local recalculatedTimeLeft = (rechargeCount * self.RechargeInterval) + rechargeTimeLeft - elapsedSecondsSinceLastSave 
+		self.NextRechargeServerTime = serverElapsedSeconds + recalculatedTimeLeft
+	end
+
+	method void SetRechargeTimer(integer rechargeTimeLeft)
+		self:ClearRechargeTimer()
+		
+		self.NextRechargeServerTime = _UtilLogic.ServerElapsedSeconds + rechargeTimeLeft
+		self.TimerId = _TimerService:SetTimerOnce(function() self:RechargeResource() end, rechargeTimeLeft)
+	end
+
+	method void RechargeResource()
+		-- Don't recharge if already at max capacity
+		if self.Value >= self.MaxValue then
+			self:ClearRechargeTimer()
+			return
+		end
+		
+		self:AddRechargeResource(self.RechargeValue, false, true)
+	end
+
+	method void ClearRechargeTimer()
+		if self.TimerId == 0 then
+			return
+		end
+				
+		_TimerService:ClearTimer(self.TimerId)
+		self.TimerId = 0
+		self.NextRechargeServerTime = 0
+	end
+
+	method boolean Add(integer value)
+		return self:AddRechargeResource(value, true, false)
+	end
+
+	method boolean Consume(integer value)
+		-- value: amount of resource to consume
+		if value < 0 then
+			log_warning("ConsumeResource Value is negative. value : " .. tostring(value))
+			return false
+		end
+		
+		if self.Value < value then
+			return false
+		end
+		
+		local prevValue = self.Value
+		self.Value -= value
+		
+		if self.Value < self.MaxValue and self:IsTimerActive() == false then
+			self:SetRechargeTimer(self.RechargeInterval)
+		end
+		
+		self:SendChangedEvent(prevValue)
+		return true
+	end
+
+	method boolean IsTimerActive()
+		return self.TimerId ~= 0
+	end
+
+	method void SendChangedEvent(integer prevValue)
+		local evt = ResourceValueChangedEvent()
+		evt.Type = self.Type
+		evt.PrevValue = prevValue
+		evt.CurValue = self.Value
+		evt.NextRechargeServerTime = self.NextRechargeServerTime
+		self.PlayerEntity.PlayerResource:SendResourceValueChangedEvent(evt)
+	end
+
+	method boolean AddRechargeResource(integer value, boolean ignoreMaxValue, boolean isPeriodicRecharge)
+		-- value: amount to add to the resource
+		-- ignoreMaxValue: whether to ignore max value when adding
+		        -- isPeriodicRecharge: whether this is part of periodic recharge process
+		if value <= 0 then
+			log_warning("AddResource Value is negative. value : " .. tostring(value))
+			return false
+		end
+		
+		local prevValue = self.Value
+		self.Value += value
+		
+		if not ignoreMaxValue then
+			self.Value = math.min(self.Value, self.MaxValue)
+		end
+		
+		if prevValue == self.Value then
+			return false
+		end
+		
+		if self.Value >= self.MaxValue then
+			self:ClearRechargeTimer()
+		elseif isPeriodicRecharge then
+			self:SetRechargeTimer(self.RechargeInterval)
+		end
+		
+		self:SendChangedEvent(prevValue)
+		return true
+	end
+
+end

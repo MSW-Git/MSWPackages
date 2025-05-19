@@ -1,0 +1,97 @@
+@Component
+script UIGMResourceTool_Item extends Component
+
+	property Entity Type = nil
+
+	property Entity Value = nil
+
+	property Entity NextRechargeTime = nil
+
+	property integer Index = 0
+
+	property any onChangedValue = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		self.Type = self.Entity:GetChildByName("Text_Type")
+		self.Type:ConnectEvent(TextInputSubmitEvent, function(evt) self:OnChangedType(evt) end)
+		
+		self.Value = self.Entity:GetChildByName("Text_Value")
+		self.Value:ConnectEvent(TextInputSubmitEvent, function(evt) self:OnChangedValue(evt) end)
+		
+		self.NextRechargeTime = self.Entity:GetChildByName("Text_NextRechargeTime")
+		self.NextRechargeTime:ConnectEvent(TextInputSubmitEvent, function(evt) self:OnChangedNextRechargeTime(evt) end)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Apply(table data, integer index)
+		if data == nil then
+			log_error("Apply data is nil")
+			return
+		end
+		
+		local type = data.Type
+		local value = data.Value
+		self.Index = index
+		
+		local nextRechargeTime = data.NextRechargeServerTime
+		if type == nil or value == nil then
+			log_error("Apply data is nil")
+			return
+		end
+		
+		self.Type.TextComponent.Text = tostring(type)
+		self.Value.TextComponent.Text = tostring(value)
+		
+		local tblData = _ResourceDataSetLogic:GetData(type)
+		if tblData == nil then
+			return
+		end
+		
+		local isRechargeable = tblData.IsRechargeable
+		if isRechargeable then
+			self.NextRechargeTime.TextComponent.Text = tostring(nextRechargeTime)
+		else
+			self.NextRechargeTime.TextComponent.Text = ""
+		end
+		self.NextRechargeTime.TextInputComponent.Enable = isRechargeable
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		self.Type.TextComponent.Text = ""
+		self.Value.TextComponent.Text = ""
+		self.NextRechargeTime.TextComponent.Text = ""
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnChangedType(TextInputSubmitEvent evt)
+		local value = self.Value.TextComponent.Text
+		local nextRechargeTime = self.NextRechargeTime.TextComponent.Text
+		
+		if self.onChangedValue ~= nil then
+			self.onChangedValue(self.Index, evt.Text, value, nextRechargeTime)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnChangedValue(TextInputSubmitEvent evt)
+		local type = self.Type.TextComponent.Text
+		local nextRechargeTime = self.NextRechargeTime.TextComponent.Text
+		
+		if self.onChangedValue ~= nil then
+			self.onChangedValue(self.Index, type, evt.Text, nextRechargeTime)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnChangedNextRechargeTime(TextInputSubmitEvent evt)
+		local type = self.Type.TextComponent.Text
+		local value = self.Value.TextComponent.Text
+		
+		if self.onChangedValue ~= nil then
+			self.onChangedValue(self.Index, type, value, evt.Text)
+		end
+	end
+
+end

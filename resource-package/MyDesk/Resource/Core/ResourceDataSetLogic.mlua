@@ -1,0 +1,56 @@
+@Logic
+script ResourceDataSetLogic extends Logic
+
+	property table TableData = {}
+
+	method void OnBeginPlay()
+		if not self:Load() then
+			table.clear(self.TableData)
+			log_error("DataSet Load Fail")
+			return
+		end
+	end
+
+	method boolean Load()
+		local dataSet = _DataService:GetTable("ResourceDataSet")
+		for i, row in ipairs(dataSet:GetAllRow()) do
+			local data = ResourceData()
+			if not data:Load(row) then
+				return false
+			end
+			
+			self.TableData[data.Type] = data
+		end
+		
+		return true
+	end
+
+	method ResourceData GetData(integer type)
+		return self.TableData[type]
+	end
+
+	method boolean IsRechargeableType(integer type)
+		local data = self:GetData(type)
+		if data == nil then
+			log_error(string.format("ResourceData is nil. type: %d", type))
+			return false
+		end
+		
+		return data.IsRechargeable
+	end
+
+	@ExecSpace("ServerOnly")
+	method table GetInitGrantResourceTypes()
+		local result = {}
+		for type, d in pairs(self.TableData) do
+			---@type ResourceData
+			local data = d
+			if data.IsInitialGrant then
+				table.insert(result, data.Type)
+			end
+		end
+		
+		return result
+	end
+
+end

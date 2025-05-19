@@ -1,0 +1,6 @@
+@Logic
+script ResourceConfig extends Logic
+
+	property string ResourceDBKey = "Resource"
+
+end

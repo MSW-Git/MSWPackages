@@ -1,0 +1,119 @@
+@Component
+script UIResourceItem extends Component
+
+	property Entity Icon = nil
+
+	property Entity Value = nil
+
+	property number NextRechargeServerTime = 0
+
+	property Entity TextRemainTime = nil
+
+	property integer Type = 0
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		self.Icon = entity:GetChildByName("UISprite_Icon")
+		self.Value = entity:GetChildByName("UIText_Value")
+		
+		self.TextRemainTime = self.Icon:GetChildByName("UISprite_RemainTime")
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Apply(integer type, integer value, integer nextRechargeServerTime)
+		local data = _ResourceDataSetLogic:GetData(type)
+		if data == nil then
+			log_error(string.format("ResourceData is nil. type: %d", type))
+			return
+		end
+		
+		self.Type = type
+		self.Icon.SpriteGUIRendererComponent.ImageRUID = data.RUID
+		self.Value.TextComponent.Text = tostring(value)
+		self.NextRechargeServerTime = nextRechargeServerTime
+		
+		--log(string.format("type : %d, value : %d, time : %f", self.Type, value, self.NextRechargeServerTime))
+		if nextRechargeServerTime > 0 then
+			local remainSeconds = self.NextRechargeServerTime - _UtilLogic.ServerElapsedSeconds
+		
+			self.TextRemainTime.TextComponent.Text = self:GetTimeString(remainSeconds)
+			self.TextRemainTime:SetEnable(true)
+		else
+			self.TextRemainTime:SetEnable(false)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnUpdate(number delta)
+		local remainSeconds = self.NextRechargeServerTime - _UtilLogic.ServerElapsedSeconds
+		
+		if remainSeconds > 0 then
+			self.TextRemainTime.TextComponent.Text = self:GetTimeString(remainSeconds)
+		else
+			self.TextRemainTime:SetEnable(false)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method string GetTimeString(number remainSeconds)
+		local days = math.tointeger(remainSeconds / 86400);
+		remainSeconds %= 86400;
+		
+		local hours = math.tointeger(remainSeconds / 3600);
+		remainSeconds %= 3600;
+		
+		local minutes = math.tointeger(remainSeconds / 60);
+		local seconds = remainSeconds % 60;
+		
+		if days > 0 then
+			return string.format("%02d일 %02d:%02d:%02d", days, hours, minutes, seconds)
+		elseif hours > 0 then
+			return string.format("%02d:%02d:%02d", hours, minutes, seconds)
+		elseif minutes > 0 then
+			return string.format("%02d:%02d", minutes, seconds)
+		else
+			return string.format("%02d", seconds)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("LocalPlayer")
+	handler HandleResourceValueChangedEvent(ResourceValueChangedEvent event)
+		-- Parameters
+		local Type = event.Type
+		--local PrevValue = event.PrevValue
+		local CurValue = event.CurValue
+		local NextRechargeServerTime = event.NextRechargeServerTime
+		---------------------------------------------------------
+		
+		if self.Type ~= Type then
+			return
+		end
+		
+		self:Apply(Type, CurValue, NextRechargeServerTime)
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("LocalPlayer")
+	handler HandleResourceInitEvent(ResourceInitEvent event)
+		local accountComponent = _UserService.LocalPlayer.PlayerResource
+		local data = accountComponent:GetResource(self.Type)
+		
+		local value = 0
+		local nextRechargeServerTime = 0
+		if data ~= nil then
+			value = data.Value
+			
+			if data:IsRechargeable() then
+				---@type RechargeableResource
+				local rechargeData = data
+				
+				nextRechargeServerTime = rechargeData.NextRechargeServerTime
+			end
+		end
+		
+		self:Apply(self.Type, value, nextRechargeServerTime)
+	end
+
+end

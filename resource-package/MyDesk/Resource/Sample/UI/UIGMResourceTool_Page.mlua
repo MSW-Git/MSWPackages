@@ -1,0 +1,225 @@
+@Component
+script UIGMResourceTool_Page extends Component
+
+	property UIGMResourceTool Parent = nil
+
+	property Entity GridView = nil
+
+	property Entity LastSaveTime = nil
+
+	property table PlayerData = {}
+
+	property boolean CanEdit = false
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		
+		local item = entity:GetChildByName("DummyItem")
+		self.GridView = entity:GetChildByName("Scroll_Layout")
+		self.GridView.GridViewComponent.ItemEntity = item
+		self.GridView.GridViewComponent.OnRefresh = function(index, entity) self:OnRefresh(index, entity) end
+		self.GridView.GridViewComponent.OnClear = function(index, entity) self:OnClear(index, entity) end
+		
+		self.LastSaveTime = entity:GetChildByName("UIText_LastLoginTime")
+		
+		local btnRefresh = entity:GetChildByName("Btn_Refresh")
+		btnRefresh:ConnectEvent(ButtonClickEvent, function(evt) self:OnClick_Refresh(evt) end)
+		
+		local btnAdd = entity:GetChildByName("Btn_Add")
+		btnAdd:ConnectEvent(ButtonClickEvent, function(evt) self:OnClick_Add(evt) end)
+		
+		local btnEdit = entity:GetChildByName("Btn_Edit")
+		btnEdit:ConnectEvent(ButtonClickEvent, function(evt) self:OnClick_Edit(evt) end)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		table.clear(self.PlayerData)
+		self.GridView.GridViewComponent.TotalCount = 0
+		self.GridView.GridViewComponent:Refresh()
+		self.LastSaveTime.TextComponent.Text = ""
+		self.CanEdit = false
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Apply(table playerData, integer lastSaveTime)
+		table.clear(self.PlayerData)
+		for _, resourceStruct in pairs(playerData) do
+		
+			local type = resourceStruct.Type
+			local value = resourceStruct.Value
+			local nextRechargeServerTime = -1
+		
+			if resourceStruct:IsRechargeable() then
+				---@type RechargeableResource
+				local rechargeData = resourceStruct
+				nextRechargeServerTime = rechargeData.NextRechargeServerTime
+			end
+		
+			table.insert(self.PlayerData, {Type = type, Value = value, NextRechargeServerTime = nextRechargeServerTime})
+		end
+		
+		self.GridView.GridViewComponent.TotalCount = #self.PlayerData
+		self.GridView.GridViewComponent:Refresh(false, true)
+		
+		if lastSaveTime > 0 then
+			local dateTime = DateTime(lastSaveTime * 1000)
+			self.LastSaveTime.TextComponent.Text = string.format("마지막 저장 시간 :\n %s", dateTime:ToFormattedString("yyyy-MM-dd HH:mm:ss"))
+		else
+			self.LastSaveTime.TextComponent.Text = "마지막 저장 시간 :\n 없음"
+		end
+		
+		self.CanEdit = true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Refresh()
+		self.CanEdit = false
+		_ResourceAdminLogic:RequestGetPlayerResourceData(self.Parent.TargetUserID)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnRefresh(integer index, Entity entity)
+		local tableIndex = index + 1
+		local data = self.PlayerData[tableIndex]
+		
+		if entity.UIGMResourceTool_Item.onChangedValue == nil then
+			entity.UIGMResourceTool_Item.onChangedValue = function(index, strType, strValue, strNextRechargeTime) self:OnChangedValue(index, strType, strValue, strNextRechargeTime) end
+		end
+		
+		entity.UIGMResourceTool_Item:Apply(data, tableIndex)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClear(integer index, Entity entity)
+		entity.UIGMResourceTool_Item:Clear()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnChangedValue(integer index, string strType, string strValue, string strNextRechargeTime)
+		local data = self.PlayerData[index]
+		
+		local type = tonumber(strType)
+		if type == nil then
+			log_error("Type is nil")
+			return
+		end
+		
+		local value = tonumber(strValue)
+		if value == nil then
+			value = 0
+		end
+		
+		local tblData = _ResourceDataSetLogic:GetData(type)
+		if tblData == nil then
+			log_error(string.format("Check ResourceDataSet. Type : %d", type))
+			return
+		end
+		
+		if tblData.IsRechargeable then
+			local nextRechargeTime = tonumber(strNextRechargeTime)
+			if nextRechargeTime == nil then
+				nextRechargeTime = 0
+				return
+			end
+		
+			data.NextRechargeServerTime = nextRechargeTime
+		end
+		
+		data.Type = type
+		data.Value = value
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClick_Add(ButtonClickEvent evt)
+		if _Util:IsNilorEmptyString(self.Parent.TargetUserID) then
+			log_error("Required TargetUserID not entered.")
+			return
+		end
+		
+		if not self.CanEdit then
+			log_error("Fetching data. Please retry after a short while.")
+			return
+		end
+		
+		table.insert(self.PlayerData, {Type = 0, Value = 0, NextRechargeServerTime = 0})
+		self.GridView.GridViewComponent.TotalCount = #self.PlayerData
+		self.GridView.GridViewComponent:Refresh()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClick_Edit(ButtonClickEvent evt)
+		if _Util:IsNilorEmptyString(self.Parent.TargetUserID) then
+			log_error("Required TargetUserID not entered.")
+			return
+		end
+		
+		if not self.CanEdit then
+			log_error("Fetching data. Please retry after a short while.")
+			return
+		end
+		
+		local newDatas = {}
+		for _, data in pairs(self.PlayerData) do
+			local type = data.Type
+			if type < 0 then
+				log_error(string.format("[Type : %d] Type must be zero or greater.", type))
+				return
+			end
+			local value = data.Value
+			if data.Value < 0 then
+				log_error(string.format("[Type : %d, Value : %d] Quantity must be zero or greater.", type, value))
+				return
+			end
+			
+			local tblData = _ResourceDataSetLogic:GetData(type)
+			if tblData == nil then
+				log_error(string.format("[Type : %d] This is not valid data.", type))
+				return
+			end
+		
+			if tblData.IsRechargeable then
+				local nextRechargeTime = data.NextRechargeServerTime
+				if nextRechargeTime < 0 then
+					log_error(string.format("[Type : %d] NextRechargeTime must be zero or greater.", type))
+					return
+				end
+			end
+			
+			if newDatas[type] then
+				log_error(string.format("[Type : %s] Type already exists.", type))
+				return
+			end
+			
+			newDatas[type] = data
+		end
+		
+		_ResourceAdminLogic:RequestSetPlayerResourceData(self.Parent.TargetUserID, self.PlayerData)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClick_Refresh(ButtonClickEvent evt)
+		if _Util:IsNilorEmptyString(self.Parent.TargetUserID) then
+			log_error("Required TargetUserID not entered.")
+			return
+		end
+		
+		self:Refresh()
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("LocalPlayer")
+	handler HandleAdminResourceDataLoadedEvent(AdminResourceDataLoadedEvent event)
+		-- Parameters
+		local ResourceData = event.ResourceData
+		local LastSaveTimeInSeconds = event.LastSaveTimeInSeconds
+		---------------------------------------------------------
+		if not self.Entity.Enable then
+			return
+		end
+		
+		self:Apply(ResourceData, LastSaveTimeInSeconds)
+	end
+
+end

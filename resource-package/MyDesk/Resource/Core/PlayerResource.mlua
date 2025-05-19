@@ -1,0 +1,147 @@
+@Component
+script PlayerResource extends Component
+
+	@Description("A boolean indicating whether the resource data has changed and needs to be saved to the database.")
+	property boolean IsSaveDB = false
+
+	@Description("A table containing all resources owned by the player.")
+	property table Resources = {}
+
+	@ExecSpace("ServerOnly")
+	method void LoadFromDB(table loadKeys)
+		table.insert(loadKeys, _ResourceConfig.ResourceDBKey)
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean OnLoadedDataFromDB(table loadedData)
+		---@type DataStorageItem
+		local storageData = loadedData[_ResourceConfig.ResourceDBKey]
+		if storageData ~= nil and (_Util:IsNilorEmptyString(storageData.Value) == false) then
+			local dbTable = _HttpService:JSONDecode(storageData.Value)
+			
+			local lastSaveTimeInSeconds = dbTable["LS"]
+			local dbResource = dbTable["R"]
+			for strType, data in pairs(dbResource) do
+				local type = tonumber(strType)
+				local resourceStruct = _ResourceFactoryLogic:CreateResourceStruct(type)
+				resourceStruct:Deserialize(data, self.Entity)
+				
+				if resourceStruct:IsRechargeable() then
+					local tblData = _ResourceDataSetLogic:GetData(type)
+					if tblData == nil then
+						log_error(string.format("Check ResourceDataSet. Type : %d", type))
+						continue
+					end
+					
+					---@type RechargeableResource
+					local rechargeableResource = resourceStruct
+					rechargeableResource:InitializeRechargeableResource(tblData.MaxValue, tblData.RechargeValue, tblData.RechargeInterval, lastSaveTimeInSeconds)
+				end
+				
+				self.Resources[type] = resourceStruct
+			end
+		else
+			-- First login. Setting initial values
+			for _, type in pairs(_ResourceDataSetLogic:GetInitGrantResourceTypes()) do
+				local resourceStruct = _ResourceFactoryLogic:CreateResource(type, self.Entity)
+				if resourceStruct == nil then
+					continue
+				end
+				
+				self.Resources[type] = resourceStruct
+			end
+		
+			self.IsSaveDB = true
+		end
+		
+		self:SyncInitialDataToClient(self.Resources, self.Entity.PlayerComponent.UserId)
+		return true
+	end
+
+	@ExecSpace("ServerOnly")
+	method void SaveToDB(table saveData)
+		if not self.IsSaveDB then
+			return
+		end
+		
+		local resourceData = {}
+		
+		-- To prevent cheating via time manipulation, the current server time is always used when saving data to the database.
+		resourceData["LS"] = math.floor(_DateTimeLogic:GetTimeElapsedWithoutOffset() / 1000)
+		
+		local resourceTable = {}
+		for type, r in pairs(self.Resources) do
+			local data = {}
+			---@type ResourceBase
+			local resource = r
+			resource:Serialize(data)
+			resourceTable[tostring(type)] = data
+		end
+		resourceData["R"] = resourceTable
+		
+		local dbString = ""
+		if not _Util:IsNilorEmptyTable(resourceData) then
+			dbString = _HttpService:JSONEncode(resourceData)
+		end
+		
+		saveData[_ResourceConfig.ResourceDBKey] = dbString
+		self.IsSaveDB = false
+	end
+
+	@ExecSpace("Client")
+	method void SyncInitialDataToClient(table resources)
+		self.Resources = resources
+				
+		local evt = ResourceInitEvent()
+		self.Entity:SendEvent(evt)
+	end
+
+	@ExecSpace("ServerOnly")
+	method void SendResourceValueChangedEvent(ResourceValueChangedEvent evt)
+		self.IsSaveDB = true
+		self.Entity:SendEvent(evt)
+		
+		self:SyncResourceValueChangedEvent(evt)
+	end
+
+	@ExecSpace("Client")
+	method void SyncResourceValueChangedEvent(ResourceValueChangedEvent evt)
+		local resource = self:GetResource(evt.Type)
+		resource.Value = evt.CurValue
+		
+		if resource:IsRechargeable() then
+			---@type RechargeableResource
+			local rechargeResource = resource	
+			rechargeResource.NextRechargeServerTime = evt.NextRechargeServerTime
+		end
+		
+		self.Entity:SendEvent(evt)
+	end
+
+	@ExecSpace("Server")
+	method void RequestAddResource(integer type, integer value)
+		self:AddResource(type, value)
+	end
+
+	method ResourceBase GetResource(integer type)
+		return self.Resources[type]
+	end
+
+	@ExecSpace("ServerOnly")
+	method void AddResource(integer type, integer value)
+		local resource = self:GetResource(type)
+		resource:Add(value)
+	end
+
+	@ExecSpace("Server")
+	method void RequestConsumeResource(integer type, integer value)
+		self:ConsumeResource(type, value)
+	end
+
+	@ExecSpace("ServerOnly")
+	method void ConsumeResource(integer type, integer value)
+		local resource = self:GetResource(type)
+		resource:Consume(value)
+	end
+
+end
