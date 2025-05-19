@@ -108,11 +108,6 @@ script ResourceAdminLogic extends Logic
 			end
 		
 			local value = data.Value
-			if value < 0 then
-				log_error(string.format("[Type : %d, Value : %d] Quantity must be zero or greater.", type, value))
-				return
-			end
-		
 			local newStruct = _ResourceFactoryLogic:CreateResourceStruct(type)
 			newStruct:Setup(type, value, nil)
 			local tblData = _ResourceDataSetLogic:GetData(type)

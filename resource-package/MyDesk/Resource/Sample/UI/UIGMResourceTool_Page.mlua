@@ -21,7 +21,7 @@ script UIGMResourceTool_Page extends Component
 		self.GridView.GridViewComponent.OnRefresh = function(index, entity) self:OnRefresh(index, entity) end
 		self.GridView.GridViewComponent.OnClear = function(index, entity) self:OnClear(index, entity) end
 		
-		self.LastSaveTime = entity:GetChildByName("UIText_LastLoginTime")
+		self.LastSaveTime = entity:GetChildByName("UIText_LastSaveTime")
 		
 		local btnRefresh = entity:GetChildByName("Btn_Refresh")
 		btnRefresh:ConnectEvent(ButtonClickEvent, function(evt) self:OnClick_Refresh(evt) end)
@@ -165,11 +165,6 @@ script UIGMResourceTool_Page extends Component
 			local type = data.Type
 			if type < 0 then
 				log_error(string.format("[Type : %d] Type must be zero or greater.", type))
-				return
-			end
-			local value = data.Value
-			if data.Value < 0 then
-				log_error(string.format("[Type : %d, Value : %d] Quantity must be zero or greater.", type, value))
 				return
 			end
 			

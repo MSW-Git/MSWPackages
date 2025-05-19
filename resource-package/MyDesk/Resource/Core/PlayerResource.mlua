@@ -23,16 +23,17 @@ script PlayerResource extends Component
 			local dbResource = dbTable["R"]
 			for strType, data in pairs(dbResource) do
 				local type = tonumber(strType)
+				local tblData = _ResourceDataSetLogic:GetData(type)
+				if tblData == nil then
+					log_error(string.format("Check ResourceDataSet. Type : %d", type))
+					self.IsSaveDB = true
+					continue
+				end
+				
 				local resourceStruct = _ResourceFactoryLogic:CreateResourceStruct(type)
 				resourceStruct:Deserialize(data, self.Entity)
 				
 				if resourceStruct:IsRechargeable() then
-					local tblData = _ResourceDataSetLogic:GetData(type)
-					if tblData == nil then
-						log_error(string.format("Check ResourceDataSet. Type : %d", type))
-						continue
-					end
-					
 					---@type RechargeableResource
 					local rechargeableResource = resourceStruct
 					rechargeableResource:InitializeRechargeableResource(tblData.MaxValue, tblData.RechargeValue, tblData.RechargeInterval, lastSaveTimeInSeconds)
@@ -40,17 +41,9 @@ script PlayerResource extends Component
 				
 				self.Resources[type] = resourceStruct
 			end
-		else
-			-- First login. Setting initial values
-			for _, type in pairs(_ResourceDataSetLogic:GetInitGrantResourceTypes()) do
-				local resourceStruct = _ResourceFactoryLogic:CreateResource(type, self.Entity)
-				if resourceStruct == nil then
-					continue
-				end
-				
-				self.Resources[type] = resourceStruct
-			end
+		end
 		
+		if self:InitializeMissingResources() then			
 			self.IsSaveDB = true
 		end
 		
@@ -88,6 +81,27 @@ script PlayerResource extends Component
 		self.IsSaveDB = false
 	end
 
+	@ExecSpace("ServerOnly")
+	method boolean InitializeMissingResources()
+		local result = false
+		for _, type in pairs(_ResourceDataSetLogic:GetInitGrantResourceTypes()) do
+			local resource = self:GetResource(type)
+			if resource ~= nil then
+				continue
+			end
+		
+			local resourceStruct = _ResourceFactoryLogic:CreateResource(type, self.Entity)
+			if resourceStruct == nil then
+				continue
+			end
+			
+			self.Resources[type] = resourceStruct
+			result = true
+		end
+		
+		return result
+	end
+
 	@ExecSpace("Client")
 	method void SyncInitialDataToClient(table resources)
 		self.Resources = resources
@@ -107,6 +121,11 @@ script PlayerResource extends Component
 	@ExecSpace("Client")
 	method void SyncResourceValueChangedEvent(ResourceValueChangedEvent evt)
 		local resource = self:GetResource(evt.Type)
+		if resource == nil then
+			log_error(string.format("Resource not found. Type : %d", evt.Type))
+			return
+		end
+		
 		resource.Value = evt.CurValue
 		
 		if resource:IsRechargeable() then
@@ -130,7 +149,15 @@ script PlayerResource extends Component
 	@ExecSpace("ServerOnly")
 	method void AddResource(integer type, integer value)
 		local resource = self:GetResource(type)
-		resource:Add(value)
+		if resource == nil then
+			log_error(string.format("Resource not found. Type : %d", type))
+			return
+		end
+		
+		if not resource:Add(value) then			
+			log_error(string.format("Resource add failed. Type : %d, Value : %d", type, value))
+			return
+		end
 	end
 
 	@ExecSpace("Server")
@@ -141,7 +168,15 @@ script PlayerResource extends Component
 	@ExecSpace("ServerOnly")
 	method void ConsumeResource(integer type, integer value)
 		local resource = self:GetResource(type)
-		resource:Consume(value)
+		if resource == nil then
+			log_error(string.format("Resource not found. Type : %d", type))
+			return
+		end
+		
+		if not resource:Consume(value) then
+			log_error(string.format("Resource consume failed. Type : %d, Value : %d", type, value))
+			return
+		end
 	end
 
 end

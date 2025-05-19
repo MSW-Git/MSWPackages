@@ -131,7 +131,7 @@ script RechargeableResource extends ResourceBase
 
 	method boolean Consume(integer value)
 		-- value: amount of resource to consume
-		if value < 0 then
+		if value <= 0 then
 			log_warning("ConsumeResource Value is negative. value : " .. tostring(value))
 			return false
 		end

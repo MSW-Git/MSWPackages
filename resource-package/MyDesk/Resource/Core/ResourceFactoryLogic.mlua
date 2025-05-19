@@ -25,6 +25,7 @@ script ResourceFactoryLogic extends Logic
 		return resourceStruct
 	end
 
+	@ExecSpace("ServerOnly")
 	method ResourceBase CreateResourceStruct(integer type)
 		if _ResourceDataSetLogic:IsRechargeableType(type) then
 			return RechargeableResource()

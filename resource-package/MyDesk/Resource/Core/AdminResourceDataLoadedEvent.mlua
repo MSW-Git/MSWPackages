@@ -6,5 +6,4 @@ script AdminResourceDataLoadedEvent extends EventType
 
 	@Description("Last time when resource data was saved (in seconds)")
 	property integer LastSaveTimeInSeconds = 0
-
 end
