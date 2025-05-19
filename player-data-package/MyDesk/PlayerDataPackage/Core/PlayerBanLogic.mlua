@@ -245,35 +245,11 @@ script PlayerBanLogic extends Logic
 	@EventSender("Service", "WorldInstanceService")
 	handler HandleRequestKickUserEvent(RequestKickUserEvent event)
 		self:HandleKickEvent(event)
-		
-		local code = _RoomService:RequestSendEventToAllRoomsAndWait(event)
-		if code ~= SendEventRequestResultCode.OK then
-			log_error("Send RequestKickUser Failed. ErrorCode : " .. tostring(code))
-			return
-		end
-	end
-
-	@ExecSpace("ServerOnly")
-	@EventSender("Service", "RoomService")
-	handler HandleRequestKickUserEvent2(RequestKickUserEvent event)
-		self:HandleKickEvent(event)
 	end
 
 	@ExecSpace("ServerOnly")
 	@EventSender("Service", "WorldInstanceService")
 	handler HandleRequestBanUserEvent(RequestBanUserEvent event)
-		self:HandleBanEvent(event)
-		
-		local code = _RoomService:RequestSendEventToAllRoomsAndWait(event)
-		if code ~= SendEventRequestResultCode.OK then
-			log_error("Send RequestBanUser Failed. ErrorCode : " .. tostring(code))
-			return
-		end
-	end
-
-	@ExecSpace("ServerOnly")
-	@EventSender("Service", "RoomService")
-	handler HandleRequestBanUserEvent2(RequestBanUserEvent event)
 		self:HandleBanEvent(event)
 	end
 
