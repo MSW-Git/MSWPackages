@@ -1,0 +1,149 @@
+@Component
+script UIGMPlayerDataTool_EditItem extends Component
+
+	property TextComponent Level = nil
+
+	property TextComponent Dia = nil
+
+	property TextComponent Meso = nil
+
+	property TextComponent LoginTime = nil
+
+	property TextComponent LogoutTime = nil
+
+	property TextComponent Extra = nil
+
+	property any Data = nil
+
+	property integer TimeOffset = 0
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		
+		self.Level = entity:GetChildByName("Text_Level").TextComponent
+		self.Dia = entity:GetChildByName("Text_Dia").TextComponent
+		self.Meso = entity:GetChildByName("Text_Meso").TextComponent
+		self.LoginTime = entity:GetChildByName("Text_LoginTime").TextComponent
+		self.LoginTime.Entity:ConnectEvent(TextInputEndEditEvent, self.OnEndEdit_LoginTime)
+		self.LogoutTime = entity:GetChildByName("Text_LogoutTime").TextComponent
+		self.LogoutTime.Entity:ConnectEvent(TextInputEndEditEvent, self.OnEndEdit_LogoutTime)
+		self.Extra = entity:GetChildByName("Text_Extra").TextComponent
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Set(PlayerBasicData s, integer timeOffset)
+		self.Data = s
+		self.TimeOffset = timeOffset
+		
+		self.Level.Text = tostring(s.Level)
+		self.Dia.Text = tostring(s.Dia)
+		self.Meso.Text = tostring(s.Meso)
+		self.LoginTime.Text = _UtilGMTool:ElapsedTimeToString(s.LoginTime, timeOffset)
+		self.LogoutTime.Text = _UtilGMTool:ElapsedTimeToString(s.LogoutTime, timeOffset)
+		self.Extra.Text = s.Extra
+	end
+
+	@ExecSpace("ClientOnly")
+	method PlayerBasicData Get()
+		---@type PlayerBasicData
+		local data = self.Data
+		if data == nil then
+			return nil
+		end
+		
+		local level = math.tointeger(tonumber(self.Level.Text))
+		if level == nil then
+			log_error("Level is invalid.")
+			return nil
+		end
+		data.Level = level
+		
+		local dia = math.tointeger(tonumber(self.Dia.Text))
+		if dia == nil then
+			log_error("Level is invalid.")
+			return nil
+		end
+		data.Dia = dia
+		
+		local meso = math.tointeger(tonumber(self.Meso.Text))
+		if meso == nil then
+			log_error("Meso is invalid.")
+			return nil
+		end
+		data.Meso = meso
+		
+		local timeOffset = self.TimeOffset
+		data.LoginTime = _UtilGMTool:StringToElapsedTime(self.LoginTime.Text, timeOffset)
+		data.LogoutTime = _UtilGMTool:StringToElapsedTime(self.LogoutTime.Text, timeOffset)
+		data.Extra = self.Extra.Text
+		
+		return data
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Invalidate(integer timeOffset)
+		self.TimeOffset = timeOffset
+		
+		---@type PlayerBasicData
+		local data = self.Data
+		if data == nil then
+			return
+		end
+		
+		self.LoginTime.Text = _UtilGMTool:ElapsedTimeToString(data.LoginTime, timeOffset)
+		self.LogoutTime.Text = _UtilGMTool:ElapsedTimeToString(data.LogoutTime, timeOffset)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		self.Data = nil
+		
+		self.Level.Text = ""
+		self.Dia.Text = ""
+		self.Meso.Text = ""
+		self.LoginTime.Text = ""
+		self.LogoutTime.Text = ""
+		self.Extra.Text = ""
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnEndEdit_LoginTime(TextInputEndEditEvent evt)
+		---@type PlayerBasicData
+		local data = self.Data
+		if data == nil then
+			return
+		end
+		
+		local success, result = pcall(function()
+			data.LoginTime = _UtilGMTool:StringToElapsedTime(self.LoginTime.Text, self.TimeOffset)
+		end)
+		
+		-- Rollback Text
+		if not success then
+			local prevStr = _UtilGMTool:ElapsedTimeToString(data.LoginTime, self.TimeOffset)
+			self.LoginTime.Entity.TextInputComponent.Text = prevStr
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnEndEdit_LogoutTime(TextInputEndEditEvent evt)
+		---@type PlayerBasicData
+		local data = self.Data
+		if data == nil then
+			return
+		end
+		
+		local success, result = pcall(function()
+			data.LogoutTime = _UtilGMTool:StringToElapsedTime(self.LogoutTime.Text, self.TimeOffset)
+		end)
+		
+		-- Rollback Text
+		if not success then
+			local prevStr = _UtilGMTool:ElapsedTimeToString(data.LogoutTime, self.TimeOffset)
+			self.LogoutTime.Entity.TextInputComponent.Text = prevStr
+			return
+		end
+	end
+
+end

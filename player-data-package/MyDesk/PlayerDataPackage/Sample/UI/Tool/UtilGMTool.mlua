@@ -1,0 +1,24 @@
+@Logic
+script UtilGMTool extends Logic
+
+	method integer StringToElapsedTime(string dateTimeStr, integer hourOffset)
+		local offsetElapsed = hourOffset * 60 * 60 * 1000
+		
+		if dateTimeStr == "0" then
+			return 0
+		end
+		
+		return DateTime(dateTimeStr).Elapsed - offsetElapsed
+	end
+
+	method string ElapsedTimeToString(integer elapsed, integer hourOffset)
+		local offsetElapsed = hourOffset * 60 * 60 * 1000
+		
+		if elapsed == 0 then
+			return "0"
+		else
+			return DateTime(elapsed + offsetElapsed):ToFormattedString("yyyy-MM-dd HH:mm:ss")	
+		end
+	end
+
+end

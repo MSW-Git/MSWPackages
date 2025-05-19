@@ -1,0 +1,40 @@
+@Component
+script UIGMPlayerBanTool_BulkEdit extends Component
+
+	property UIGMPlayerBanTool Parent = nil
+
+	property Entity Item = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		
+		self.Item = entity:GetChildByName("Scroll"):GetChildByName("Panel"):GetChildByName("Item")
+		
+		local btn_save = entity:GetChildByName("Btn_Save")
+		btn_save:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Save)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Save()
+		local item = self.Item.UIGMPlayerBanTool_BulkEditItem
+		
+		local profileCodes = item:GetProfileCodes()
+		if profileCodes == nil then
+			return
+		end
+		
+		local banInfo = item:GetBanInfo()
+		if banInfo == nil then
+			return
+		end
+		
+		_GMPlayerBanToolLogic:RequestEditBanInfo(profileCodes, banInfo)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Invalidate()
+		self.Item.UIGMPlayerBanTool_BulkEditItem:Invalidate(self.Parent.TimeOffset)
+	end
+
+end

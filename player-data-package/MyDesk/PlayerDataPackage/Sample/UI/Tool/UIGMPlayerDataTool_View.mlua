@@ -1,0 +1,74 @@
+@Component
+script UIGMPlayerDataTool_View extends Component
+
+	property UIGMPlayerDataTool Parent = nil
+
+	property Entity Item = nil
+
+	property TextComponent Text_Name = nil
+
+	property TextComponent Text_ProfileCode = nil
+
+	property string ProfileCode = ""
+
+	property table DeserTable = {}
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		
+		self.Text_Name = entity:GetChildByName("Text_Name").TextComponent
+		self.Item = entity:GetChildByName("Scroll"):GetChildByName("Panel"):GetChildByName("Item")
+		
+		local scroll_bottom = entity:GetChildByName("Scroll_Bottom")
+		
+		self.Text_ProfileCode = scroll_bottom:GetChildByName("Text_ProfileCode").TextComponent
+		
+		local btn_query = scroll_bottom:GetChildByName("Btn_Query")
+		btn_query:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Query)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Apply(string profileCode, table deserTable)
+		self:Clear()
+		
+		self.ProfileCode = profileCode
+		table.initialize(self.DeserTable, deserTable)
+		
+		self.Text_Name.Text = "ProfileCode : " .. self.ProfileCode
+		
+		local basicData = PlayerBasicData()
+		if not basicData:Deserialize(self.DeserTable) then
+			log_error("Deserialize Failed.")
+			return
+		end
+		
+		self.Item.UIGMPlayerDataTool_ViewItem:Set(basicData, self.Parent.TimeOffset)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Invalidate()
+		self.Item.UIGMPlayerDataTool_ViewItem:Invalidate(self.Parent.TimeOffset)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		self.ProfileCode = ""
+		table.clear(self.DeserTable)
+		self.Text_Name.Text = "ProfileCode : "
+		
+		self.Item.UIGMPlayerDataTool_ViewItem:Clear()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Query()
+		local profileCode = self.Text_ProfileCode.Text
+		if _Util:IsNilorEmptyString(profileCode) then
+			log_error("The id is not valid.")
+			return
+		end
+		
+		_GMPlayerDataToolLogic:RequestPlayerData(profileCode, true)
+	end
+
+end

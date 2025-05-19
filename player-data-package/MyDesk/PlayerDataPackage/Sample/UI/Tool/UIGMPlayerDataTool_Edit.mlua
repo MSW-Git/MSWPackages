@@ -1,0 +1,108 @@
+@Component
+script UIGMPlayerDataTool_Edit extends Component
+
+	property UIGMPlayerDataTool Parent = nil
+
+	property Entity Item = nil
+
+	property TextComponent Text_Name = nil
+
+	property TextComponent Text_ProfileCode = nil
+
+	property string ProfileCode = ""
+
+	property table DeserTable = {}
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		
+		self.Text_Name = entity:GetChildByName("Text_Name").TextComponent
+		self.Item = entity:GetChildByName("Scroll"):GetChildByName("Panel"):GetChildByName("Item")
+		
+		local scroll_bottom = entity:GetChildByName("Scroll_Bottom")
+		
+		self.Text_ProfileCode = scroll_bottom:GetChildByName("Text_ProfileCode").TextComponent
+		
+		local btn_query = scroll_bottom:GetChildByName("Btn_Query")
+		btn_query:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Query)
+		
+		local btn_revert = entity:GetChildByName("Btn_Revert")
+		btn_revert:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Revert)
+		
+		local btn_save = entity:GetChildByName("Btn_Save")
+		btn_save:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Save)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Apply(string profileCode, table deserTable)
+		self:Clear()
+		
+		self.ProfileCode = profileCode
+		self.Text_Name.Text = "ProfileCode : " .. self.ProfileCode
+		table.initialize(self.DeserTable, deserTable)
+		
+		self:InitItem()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void InitItem()
+		local basicData = PlayerBasicData()
+		if not basicData:Deserialize(self.DeserTable) then
+			log_error("Deserialize Failed.")
+			return
+		end
+		
+		self.Item.UIGMPlayerDataTool_EditItem:Set(basicData, self.Parent.TimeOffset)
+		
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Invalidate()
+		self.Item.UIGMPlayerDataTool_EditItem:Invalidate(self.Parent.TimeOffset)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		self.ProfileCode = ""
+		table.clear(self.DeserTable)
+		self.Text_Name.Text = "ProfileCode : "
+		
+		self.Item.UIGMPlayerDataTool_EditItem:Clear()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Query()
+		local profileCode = self.Text_ProfileCode.Text
+		if _Util:IsNilorEmptyString(profileCode) then
+			log_error("The id is not valid.")
+			return
+		end
+		
+		_GMPlayerDataToolLogic:RequestPlayerData(profileCode, false)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Revert()
+		self:InitItem()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Save()
+		local profileCode = self.ProfileCode
+		if _Util:IsNilorEmptyString(profileCode) then
+			return
+		end
+		
+		local deserTable = {}
+		
+		local basicData = self.Item.UIGMPlayerDataTool_EditItem:Get()
+		if basicData == nil then
+			return
+		end
+		basicData:Serialize(deserTable)
+		
+		_GMPlayerDataToolLogic:RequestEditPlayerData(profileCode, deserTable)
+	end
+
+end

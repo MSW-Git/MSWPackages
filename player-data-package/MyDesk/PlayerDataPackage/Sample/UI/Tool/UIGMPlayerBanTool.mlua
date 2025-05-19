@@ -1,0 +1,171 @@
+@Component
+script UIGMPlayerBanTool extends Component
+
+	property Entity Text_TimeOffset = nil
+
+	property Entity Page_View = nil
+
+	property Entity Page_Edit = nil
+
+	property Entity Page_BulkEdit = nil
+
+	property Entity Page_Kick = nil
+
+	property integer TimeOffset = 0
+
+	property table PageByTabButton = {}
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		local panel = entity:GetChildByName("Panel")
+		
+		-- Title
+		local title = panel:GetChildByName("Title")
+		
+		local btnClose = title:GetChildByName("Btn_Exit")
+		btnClose:ConnectEvent(ButtonClickEvent, function(evt) self:OnClose() end)
+		
+		local text_timeOffset = title:GetChildByName("Text_TimeOffset")
+		local userTimeOffsetStr = self:ToStringWithSign(self.TimeOffset)
+		text_timeOffset.TextComponent.Text = userTimeOffsetStr
+		text_timeOffset.TextInputComponent.Text = userTimeOffsetStr
+		text_timeOffset:ConnectEvent(TextInputEndEditEvent, function(evt) self:OnChanged_TimeOffset(evt) end)
+		self.Text_TimeOffset = text_timeOffset
+		
+		local btn_tooltip = text_timeOffset:GetChildByName("Btn_Tooltip")
+		local panel_tooltip = btn_tooltip:GetChildByName("Panel_TooTip")
+		btn_tooltip:ConnectEvent(ButtonClickEvent, function(evt) panel_tooltip.Enable = not panel_tooltip.Enable end)
+		
+		-- Tab Buttons
+		local tabButtons = panel:GetChildByName("TabButtons")
+		
+		local btn_View = tabButtons:GetChildByName("Btn_View")
+		local btn_Edit = tabButtons:GetChildByName("Btn_Edit")
+		local btn_BulkEdit = tabButtons:GetChildByName("Btn_BulkEdit")
+		local btn_Kick = tabButtons:GetChildByName("Btn_Kick")
+		
+		-- Pages
+		local pages = panel:GetChildByName("Pages")
+		
+		local page_View = pages:GetChildByName("Page_View")
+		page_View.UIGMPlayerBanTool_View.Parent = self
+		self.Page_View = page_View
+		
+		local page_Edit = pages:GetChildByName("Page_Edit")
+		page_Edit.UIGMPlayerBanTool_Edit.Parent = self
+		self.Page_Edit = page_Edit
+		
+		local page_BulkEdit = pages:GetChildByName("Page_BulkEdit")
+		page_BulkEdit.UIGMPlayerBanTool_BulkEdit.Parent = self
+		self.Page_BulkEdit = page_BulkEdit
+		
+		local page_Kick = pages:GetChildByName("Page_Kick")
+		page_Kick.UIGMPlayerBanTool_Kick.Parent = self
+		self.Page_Kick = page_Kick
+		
+		local pageByTabButton = self.PageByTabButton
+		pageByTabButton[btn_View] = page_View
+		pageByTabButton[btn_Edit] = page_Edit
+		pageByTabButton[btn_BulkEdit] = page_BulkEdit
+		pageByTabButton[btn_Kick] = page_Kick
+		
+		for button, page in pairs(pageByTabButton) do
+			button:ConnectEvent(ButtonClickEvent, function(evt) self:OnClickTabButton(evt) end)
+		end
+		
+		local evt = ButtonClickEvent(btn_View)
+		self:OnClickTabButton(evt)
+		
+		self.Entity:SetEnable(true)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClose()
+		self.Entity:SetEnable(false)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnChanged_TimeOffset(TextInputEndEditEvent evt)
+		local offset = math.tointeger(tonumber(evt.text))
+		local textInputComp = self.Text_TimeOffset.TextInputComponent
+		
+		if offset == nil then
+			textInputComp.Text = self:ToStringWithSign(self.TimeOffset)
+			return
+		end
+		
+		-- The UTC time offset ranges from -23 hours to +23 hours.
+		if offset <= -24 or offset >= 24 then
+			textInputComp.Text = self:ToStringWithSign(self.TimeOffset)
+			return
+		end
+		
+		self.TimeOffset = offset
+		textInputComp.Text = self:ToStringWithSign(offset)
+		
+		self:Invalidate()
+	end
+
+	@ExecSpace("ClientOnly")
+	method string ToStringWithSign(integer num)
+		-- Return the positive number with a '+' sign attached.
+		if num >= 0 then
+			return "+" .. tostring(num)
+		else
+			return tostring(num)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickTabButton(ButtonClickEvent evt)
+		local entity = evt.Entity
+		
+		self:SetDisableAllButtons()
+		self:SetEnableButton(entity, true)
+		
+		self:DisableAllPages()
+		
+		---@type Entity
+		local page = self.PageByTabButton[entity]
+		if page ~= nil then
+			page.Enable = true
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetDisableAllButtons()
+		for tab, _ in pairs(self.PageByTabButton) do
+			self:SetEnableButton(tab, false)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetEnableButton(Entity entity, boolean enable)
+		local spriteGUIComp = entity.SpriteGUIRendererComponent
+		local textComp = entity.TextComponent
+		
+		if enable then
+			spriteGUIComp.ImageRUID = "e22dca176e7c48b39d5b40554b546e22"
+			textComp.FontColor = Color.FromHexCode("#653122")
+		else
+			spriteGUIComp.ImageRUID = "9bb8e4d004fb46bb9c1b528b3c1ebf9f"
+			textComp.FontColor = Color.FromHexCode("#ffe398")
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void DisableAllPages()
+		for _, page in pairs(self.PageByTabButton) do
+			page.Enable = false
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Invalidate()
+		self.Page_View.UIGMPlayerBanTool_View:Invalidate()
+		self.Page_Edit.UIGMPlayerBanTool_Edit:Invalidate()
+		self.Page_BulkEdit.UIGMPlayerBanTool_BulkEdit:Invalidate()
+	end
+
+end

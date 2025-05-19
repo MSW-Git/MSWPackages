@@ -1,0 +1,67 @@
+@Component
+script UIGMPlayerBanTool_View extends Component
+
+	property UIGMPlayerBanTool Parent = nil
+
+	property Entity Item = nil
+
+	property TextComponent Text_Name = nil
+
+	property TextComponent Text_ProfileCode = nil
+
+	property string ProfileCode = ""
+
+	property any BanInfo = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		
+		self.Text_Name = entity:GetChildByName("Text_Name").TextComponent
+		self.Item = entity:GetChildByName("Scroll"):GetChildByName("Panel"):GetChildByName("Item")
+		
+		local scroll_bottom = entity:GetChildByName("Scroll_Bottom")
+		
+		self.Text_ProfileCode = scroll_bottom:GetChildByName("Text_ProfileCode").TextComponent
+		
+		local btn_query = scroll_bottom:GetChildByName("Btn_Query")
+		btn_query:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Query)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Apply(string profileCode, PlayerBanInfo banInfo)
+		self:Clear()
+		
+		self.ProfileCode = profileCode
+		self.BanInfo = banInfo
+		
+		self.Text_Name.Text = "ProfileCode : " .. self.ProfileCode
+		self.Item.UIGMPlayerBanTool_ViewItem:Set(banInfo, self.Parent.TimeOffset)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Invalidate()
+		self.Item.UIGMPlayerBanTool_ViewItem:Invalidate(self.Parent.TimeOffset)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		self.ProfileCode = ""
+		self.BanInfo = nil
+		self.Text_Name.Text = "ProfileCode : "
+		
+		self.Item.UIGMPlayerBanTool_ViewItem:Clear()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Query()
+		local profileCode = self.Text_ProfileCode.Text
+		if _Util:IsNilorEmptyString(profileCode) then
+			log_error("The id is not valid.")
+			return
+		end
+		
+		_GMPlayerBanToolLogic:RequestBanInfo(profileCode, true)
+	end
+
+end

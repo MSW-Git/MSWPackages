@@ -1,0 +1,139 @@
+@Component
+script UIGMPlayerBanTool_BulkEditItem extends Component
+
+	property TextComponent ProfileCodes = nil
+
+	property TextComponent StartTime = nil
+
+	property TextComponent EndTime = nil
+
+	property TextComponent Message = nil
+
+	property TextComponent Extra = nil
+
+	property integer TimeOffset = 0
+
+	property any Data = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		
+		self.ProfileCodes = entity:GetChildByName("Text_ProfileCodes").TextComponent
+		self.StartTime = entity:GetChildByName("Text_StartTime").TextComponent
+		self.StartTime.Entity:ConnectEvent(TextInputEndEditEvent, self.OnEndEdit_StartTime)
+		self.EndTime = entity:GetChildByName("Text_EndTime").TextComponent
+		self.EndTime.Entity:ConnectEvent(TextInputEndEditEvent, self.OnEndEdit_EndTime)
+		self.Message = entity:GetChildByName("Text_Message").TextComponent
+		self.Extra = entity:GetChildByName("Text_Extra").TextComponent
+		
+		self.Data = PlayerBanInfo()
+	end
+
+	@ExecSpace("ClientOnly")
+	method table GetProfileCodes()
+		local profileCodesStr = self.ProfileCodes.Text
+		if _Util:IsNilorEmptyString(profileCodesStr) then
+			return nil
+		end
+		
+		local profileCodes = {}
+		local splitTable = _UtilLogic:Split(profileCodesStr, ",")
+		for i = 1, #splitTable do
+			local profileCode = splitTable[i]
+			if _Util:IsNilorEmptyString(profileCode) then
+				continue
+			end
+			
+			table.insert(profileCodes, profileCode)
+		end
+		
+		if #profileCodes == 0 then
+			return nil
+		end
+		
+		return profileCodes
+	end
+
+	@ExecSpace("ClientOnly")
+	method PlayerBanInfo GetBanInfo()
+		---@type PlayerBanInfo
+		local data = self.Data
+		if data == nil then
+			return nil
+		end
+		
+		local timeOffset = self.TimeOffset
+		data.StartTime = _UtilGMTool:StringToElapsedTime(self.StartTime.Text, timeOffset)
+		data.EndTime = _UtilGMTool:StringToElapsedTime(self.EndTime.Text, timeOffset)
+		data.Message = self.Message.Text
+		data.Extra = self.Extra.Text
+		
+		return data
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Invalidate(integer timeOffset)
+		self.TimeOffset = timeOffset
+		
+		---@type PlayerBanInfo
+		local data = self.Data
+		if data == nil then
+			return
+		end
+		
+		self.StartTime.Text = _UtilGMTool:ElapsedTimeToString(data.StartTime, timeOffset)
+		self.EndTime.Text = _UtilGMTool:ElapsedTimeToString(data.EndTime, timeOffset)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		self.Data = nil
+		
+		self.ProfileCodes.Text = ""
+		self.StartTime.Text = ""
+		self.EndTime.Text = ""
+		self.Message.Text = ""
+		self.Extra.Text = ""
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnEndEdit_StartTime(TextInputEndEditEvent evt)
+		---@type PlayerBanInfo
+		local data = self.Data
+		if data == nil then
+			return
+		end
+		
+		local success, result = pcall(function()
+			data.StartTime = _UtilGMTool:StringToElapsedTime(self.StartTime.Text, self.TimeOffset)
+		end)
+		
+		-- Rollback Text
+		if not success then
+			local prevStr = _UtilGMTool:ElapsedTimeToString(data.StartTime, self.TimeOffset)
+			self.StartTime.Entity.TextInputComponent.Text = prevStr
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnEndEdit_EndTime(TextInputEndEditEvent evt)
+		---@type PlayerBanInfo
+		local data = self.Data
+		if data == nil then
+			return
+		end
+		
+		local success, result = pcall(function()
+			data.EndTime = _UtilGMTool:StringToElapsedTime(self.EndTime.Text, self.TimeOffset)
+		end)
+		
+		-- Rollback Text
+		if not success then
+			local prevStr = _UtilGMTool:ElapsedTimeToString(data.EndTime, self.TimeOffset)
+			self.EndTime.Entity.TextInputComponent.Text = prevStr
+			return
+		end
+	end
+
+end

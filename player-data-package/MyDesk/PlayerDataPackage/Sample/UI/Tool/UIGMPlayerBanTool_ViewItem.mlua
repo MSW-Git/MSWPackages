@@ -1,0 +1,57 @@
+@Component
+script UIGMPlayerBanTool_ViewItem extends Component
+
+	property TextComponent StartTime = nil
+
+	property TextComponent EndTime = nil
+
+	property TextComponent Message = nil
+
+	property TextComponent Extra = nil
+
+	property any Data = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		
+		self.StartTime = entity:GetChildByName("Text_StartTime").TextComponent
+		self.EndTime = entity:GetChildByName("Text_EndTime").TextComponent
+		self.Message = entity:GetChildByName("Text_Message").TextComponent
+		self.Extra = entity:GetChildByName("Text_Extra").TextComponent
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Set(PlayerBanInfo s, integer timeOffset)
+		self.Data = s
+		
+		self.StartTime.Text = _UtilGMTool:ElapsedTimeToString(s.StartTime, timeOffset)
+		self.EndTime.Text = _UtilGMTool:ElapsedTimeToString(s.EndTime, timeOffset)
+		self.Message.Text = s.Message
+		self.Extra.Text = s.Extra
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Invalidate(integer timeOffset)
+		---@type PlayerBanInfo
+		local s = self.Data
+		if s == nil then
+			self:Clear()
+			return
+		end
+		
+		self.StartTime.Text = _UtilGMTool:ElapsedTimeToString(s.StartTime, timeOffset)
+		self.EndTime.Text = _UtilGMTool:ElapsedTimeToString(s.EndTime, timeOffset)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		self.Data = nil
+		
+		self.StartTime.Text = ""
+		self.EndTime.Text = ""
+		self.Message.Text = ""
+		self.Extra.Text = ""
+	end
+
+end

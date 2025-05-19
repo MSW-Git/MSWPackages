@@ -1,0 +1,79 @@
+@Struct
+script PlayerBasicData
+
+	property integer Level = 0
+
+	property integer Dia = 0
+
+	property integer Meso = 0
+
+	property integer LoginTime = 0
+
+	property integer LogoutTime = 0
+
+	property string Extra = ""
+
+	method void Init()
+		self.Level = 1
+	end
+
+	method boolean Serialize(table deserTable)
+		local t = {}
+		deserTable["Basic"] = t
+		
+		t["Level"] = self.Level
+		t["Dia"] = self.Dia
+		t["Meso"] = self.Meso
+		t["LoginTime"] = self.LoginTime
+		t["LogoutTime"] = self.LogoutTime
+		t["Extra"] = self.Extra
+		
+		return true
+	end
+
+	method boolean Deserialize(table deserTable)
+		local t = deserTable["Basic"]
+		if t == nil then
+			return true
+		end
+		
+		local level = t["Level"]
+		self.Level = level or 1
+		
+		local dia = t["Dia"]
+		self.Dia = dia or 0
+		
+		local meso = t["Meso"]
+		self.Meso = meso or 0
+		
+		local loginTime = t["LoginTime"]
+		self.LoginTime = loginTime or 0
+		
+		local logoutTime = t["LogoutTime"]
+		self.LogoutTime = logoutTime or 0
+		
+		local extra = t["Extra"]
+		self.Extra = extra or ""
+		
+		return true
+	end
+
+	method void ToComponent(PlayerData comp)
+		comp.Level = self.Level
+		comp.Dia = self.Dia
+		comp.Meso = self.Meso
+		comp.LoginTime = self.LoginTime
+		comp.LogoutTime = self.LogoutTime
+		comp.Extra = self.Extra
+	end
+
+	method void FromComponent(PlayerData comp)
+		self.Level = comp.Level
+		self.Dia = comp.Dia
+		self.Meso = comp.Meso
+		self.LoginTime = comp.LoginTime
+		self.LogoutTime = comp.LogoutTime
+		self.Extra = comp.Extra
+	end
+
+end

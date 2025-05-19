@@ -1,0 +1,65 @@
+@Logic
+script GMPlayerDataToolLogic extends Logic
+
+	property string StorageName = "PlayerData"
+
+	@ExecSpace("ServerOnly")
+	method table GetDeserTable(string profileCode)
+		local ds = _DataStorageService:GetUserDataStorage(profileCode)
+		local errorCode, sdsValue = ds:GetAndWait(_GMPlayerDataToolLogic.StorageName)
+		if errorCode ~= 0 then
+			log_error(string.format("GetDeserTable Error. ErrorCode : %d, ProfileCode : %s", errorCode, profileCode))
+			return nil
+		end
+		
+		if _Util:IsNilorEmptyString(sdsValue) then
+			return {}
+		end
+		
+		return _HttpService:JSONDecode(sdsValue)
+	end
+
+	@ExecSpace("Server")
+	method void RequestPlayerData(string profileCode, boolean isView)
+		if not _AdminLogic:IsAdmin(senderUserId) then
+			return
+		end
+		
+		local deserTable = self:GetDeserTable(profileCode)
+		self:ResponsePlayerData(profileCode, deserTable, isView, senderUserId)
+	end
+
+	@ExecSpace("Client")
+	method void ResponsePlayerData(string profileCode, table deserTable, boolean isView)
+		local ui = _PlayerDataSampleUILogic:GetToolUI()
+		if not isvalid(ui) then
+			return
+		end
+		
+		if isView then
+			local page_view = ui.UIGMPlayerDataTool.Page_View
+			page_view.UIGMPlayerDataTool_View:Apply(profileCode, deserTable)
+		else
+			local page_edit = ui.UIGMPlayerDataTool.Page_Edit
+			page_edit.UIGMPlayerDataTool_Edit:Apply(profileCode, deserTable)
+		end
+	end
+
+	@ExecSpace("Server")
+	method void RequestEditPlayerData(string profileCode, table deserTable)
+		local sds = ""
+		if not _Util:IsNilorEmptyTable(deserTable) then
+			sds = _HttpService:JSONEncode(deserTable)
+		end
+		
+		local ds = _DataStorageService:GetUserDataStorage(profileCode)
+		local errorCode = ds:SetAndWait(_GMPlayerDataToolLogic.StorageName, sds)
+		if errorCode ~= 0 then
+			log_error(string.format("SetAndWait Failed. ErrorCode : %d, ProfileCode : %s", errorCode, profileCode))
+			return 
+		end
+		
+		log("RequestEditPlayerData Success. ProfileCode : " .. profileCode)
+	end
+
+end

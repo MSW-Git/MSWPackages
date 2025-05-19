@@ -1,0 +1,98 @@
+@Struct
+script PlayerBanInfo
+
+	property integer StartTime = 0
+
+	property integer EndTime = 0
+
+	property string Message = ""
+
+	property string Extra = ""
+
+	method void CopyFrom(PlayerBanInfo other)
+		self.StartTime = other.StartTime
+		self.EndTime = other.EndTime
+		self.Message = other.Message
+		self.Extra = other.Extra
+	end
+
+	method string Serialize(boolean includeExtra)
+		local dbItem = {}
+		dbItem["StartTime"] = self.StartTime
+		dbItem["EndTime"] = self.EndTime
+		dbItem["Message"] = self.Message
+		
+		if includeExtra then
+			dbItem["Extra"] = self.Extra
+		end
+		
+		return _HttpService:JSONEncode(dbItem)
+	end
+
+	method void Deserialize(string dbStr, boolean includeExtra)
+		if _Util:IsNilorEmptyString(dbStr) then
+			return
+		end
+		
+		local dbItem = _HttpService:JSONDecode(dbStr)
+		
+		local startTime = dbItem["StartTime"]
+		local endTime = dbItem["EndTime"]
+		if startTime == nil or endTime == nil then
+			return
+		end
+		
+		if startTime > endTime then
+			return
+		end
+		
+		self.StartTime = startTime
+		self.EndTime = endTime
+		self.Message = dbItem["Message"]
+		
+		if includeExtra then
+			self.Extra = dbItem["Extra"]
+		end
+	end
+
+	method boolean IsBanned(integer curElapsed)
+		-- Returns true if the current time is within the startTime and endTime range.  
+		-- This indicates that the user is banned.
+		if self.EndTime == 0 then
+			return false
+		end
+		
+		if self.StartTime <= curElapsed and curElapsed <= self.EndTime then
+			return true
+		end
+		
+		return false
+	end
+
+	method boolean IsReservationNeeded(integer curElapsed)
+		-- Returns true if the current time is earlier than the ban time.  
+		-- This indicates that a reservation ban process is required.
+		if self.EndTime == 0 then
+			return false
+		end
+		
+		if self.StartTime <= curElapsed then
+			return false
+		end
+		
+		return true
+	end
+
+	method boolean IsValid()
+		if self.StartTime == nil or self.EndTime == nil then
+			return false
+		end
+		
+		if self.EndTime < self.StartTime then
+			return false
+		end
+		
+		return true
+	end
+
+end

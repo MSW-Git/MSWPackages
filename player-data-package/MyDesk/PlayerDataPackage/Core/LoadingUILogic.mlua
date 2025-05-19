@@ -1,0 +1,46 @@
+@Logic
+script LoadingUILogic extends Logic
+
+	property string UIName = "UILoading"
+
+	property string UIPath = "/ui/SystemGroup"
+
+	property Entity UIEntity = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local uiEntity = _EntityService:GetEntityByPath(self.UIPath .. "/" .. self.UIName)
+		if not isvalid(uiEntity) then
+			log_error("Cannot find loading UI.")
+			return
+		end
+		
+		if not isvalid(uiEntity.UILoading) then
+			log_error("Cannot find UILoading Component.")
+			return
+		end
+		
+		self.UIEntity = uiEntity
+	end
+
+	@ExecSpace("ClientOnly")
+	method void FadeIn()
+		local uiEntity = self.UIEntity
+		if uiEntity == nil then
+			return
+		end
+		
+		uiEntity.UILoading:FadeIn()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void FadeOut()
+		local uiEntity = self.UIEntity
+		if uiEntity == nil then
+			return
+		end
+		
+		uiEntity.UILoading:FadeOut()
+	end
+
+end

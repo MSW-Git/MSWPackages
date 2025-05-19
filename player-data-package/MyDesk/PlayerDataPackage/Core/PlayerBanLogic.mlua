@@ -1,0 +1,280 @@
+@Logic
+script PlayerBanLogic extends Logic
+
+	property table KickTimerIdTable = {}
+
+	property table ReservedBanInfoTable = {}
+
+	property integer TiemrId = 0
+
+	property number UpdateIntervalSeconds = 30
+
+	@ExecSpace("ServerOnly")
+	method void OnBeginPlay()
+		self.TiemrId = _TimerService:SetTimerRepeat(self.UpdateReservedBanInfo, self.UpdateIntervalSeconds, self.UpdateIntervalSeconds)
+	end
+
+	@ExecSpace("ServerOnly")
+	method integer GetBanInfoAndWait(string profileCode, boolean includeExtra, PlayerBanInfo outInfo)
+		local ds = _DataStorageService:GetGlobalDataStorage(_GMPlayerBanToolLogic.StorageName)
+		local err, str = ds:GetAndWait(profileCode)
+		if err == 1000002 then	-- NotFound
+		    return 0	-- Success
+		end
+		
+		if err ~= 0 then
+		    log_error("GetBanInfoAndWait GetAndWait failed. Error:" .. tostring(err))
+		    return nil
+		end
+		
+		outInfo:Deserialize(str, includeExtra)
+		return 0	-- Success
+	end
+
+	@ExecSpace("ServerOnly")
+	method void SendBanInfo(string profileCode, PlayerBanInfo baninfo, any kickReason)
+		-- Sends ban information to the user and displays a message box to notify them.  
+		-- Registers a timer to kick the user after a specified duration.
+		if baninfo == nil then
+			return
+		end
+		
+		local user = _UserService:GetUserByProfileCode(profileCode)
+		if not isvalid(user) then
+			return
+		end
+		
+		local userId = user.UserId
+		self:SetKickTimer(profileCode, kickReason)
+		self:SendBanInfoToClient(baninfo, tostring(kickReason), userId)
+	end
+
+	@ExecSpace("Client")
+	method void SendBanInfoToClient(PlayerBanInfo baninfo, string kickReasonStr)
+		_PopupSampleUILogic:OpenPopupOneBtn("You Have Been Banned", baninfo.Message, "OK", function()
+			self:RequestKickSelf(kickReasonStr)
+		end)
+	end
+
+	@ExecSpace("Server")
+	method void RequestKickSelf(string kickReasonStr)
+		local kickReason = KickReason.CastFrom(kickReasonStr)
+		_UserService:KickUser(senderUserId, kickReason)
+	end
+
+	@ExecSpace("ServerOnly")
+	method void TryDirectKick(string profileCode, any kickReason)
+		-- Immediately removes the user from the world without displaying a notification message.  
+		self:ClearKickTimer(profileCode)
+		
+		local user = _UserService:GetUserByProfileCode(profileCode)
+		if not isvalid(user) then
+			return
+		end
+		
+		local userId = user.UserId
+		_UserService:KickUser(userId, kickReason)
+	end
+
+	@ExecSpace("ServerOnly")
+	method void TryKick(string profileCode, string kickMessage, any kickReason)
+		-- Displays a kick message to the user.  
+		-- Registers a timer to kick the user after a specified duration.
+		local user = _UserService:GetUserByProfileCode(profileCode)
+		if not isvalid(user) then
+			return
+		end
+		
+		local userId = user.UserId
+		
+		self:SendKickInfoToClient(kickMessage, tostring(kickReason), userId)
+		self:SetKickTimer(profileCode, kickReason)
+	end
+
+	@ExecSpace("Client")
+	method void SendKickInfoToClient(string kickMessage, string kickReasonStr)
+		_PopupSampleUILogic:OpenPopupOneBtn("You Have Been Kicked", kickMessage, "OK", function()
+			self:RequestKickSelf(kickReasonStr)
+		end)
+	end
+
+	@ExecSpace("ServerOnly")
+	method void SetKickTimer(string profileCode, any kickReason)
+		-- Registers a timer to kick the user after a specified duration.
+		self:ClearKickTimer(profileCode)
+		
+		local timerId = _TimerService:SetTimerOnce(function() self:TryDirectKick(profileCode, kickReason) end, 15)
+		if timerId == 0 then
+			log_error("_TimerService:SetTimerOnce Failed.")
+			return
+		end
+		self.KickTimerIdTable[profileCode] = timerId
+	end
+
+	@ExecSpace("ServerOnly")
+	method void ClearKickTimer(string profileCode)
+		local timerIdTable = self.KickTimerIdTable
+		local timerId = timerIdTable[profileCode]
+		if timerId == nil then
+			return
+		end
+		
+		_TimerService:ClearTimer(timerId)
+		timerIdTable[profileCode] = nil
+	end
+
+	@ExecSpace("ServerOnly")
+	method void ReserveBanInfo(string profileCode, PlayerBanInfo banInfo)
+		-- Schedules a ban by storing the ban information for future processing.  
+		-- The ban will be enforced when the specified time is reached.
+		self.ReservedBanInfoTable[profileCode] = banInfo
+	end
+
+	@ExecSpace("ServerOnly")
+	method void ClearReservedBanInfo(string profileCode)
+		self.ReservedBanInfoTable[profileCode] = nil
+	end
+
+	@ExecSpace("ServerOnly")
+	method void UpdateReservedBanInfo()
+		-- Executes scheduled bans at regular intervals.
+		local curElapsed = _DateTimeLogic:GetTimeElapsed()
+		
+		---@type table<string, PlayerBanInfo>
+		local banInfoTable = self.ReservedBanInfoTable
+		for profileCode, banInfo in pairs(banInfoTable) do
+			if curElapsed < banInfo.StartTime then
+				continue
+			end
+			
+			local user = _UserService:GetUserByProfileCode(profileCode)
+			if not isvalid(user) then
+				self:ClearReservedBanInfo(profileCode)
+				continue
+			end
+			
+			local userEntity = _UserService:GetUserEntityByUserId(user.UserId)
+			if not isvalid(userEntity) then
+				self:ClearReservedBanInfo(profileCode)
+				continue
+			end
+			
+			self:SendBanInfo(profileCode, banInfo, KickReason.WorldContent)
+			self:ClearReservedBanInfo(profileCode)
+		end
+	end
+
+	@ExecSpace("ServerOnly")
+	method void OnEndPlay()
+		if self.TiemrId ~= 0 then
+			_TimerService:ClearTimer(self.TiemrId)
+			self.TiemrId = 0
+		end
+	end
+
+	@ExecSpace("ServerOnly")
+	method void HandleKickEvent(RequestKickUserEvent event)
+		local profileCodes = event.ProfileCodes
+		
+		for i = 1, #profileCodes do
+			local profileCode = profileCodes[i]
+			local user = _UserService:GetUserByProfileCode(profileCode)
+			if not isvalid(user) then
+				continue
+			end
+			
+			if event.IsDirectKick then
+				self:TryDirectKick(profileCode, KickReason.CastFrom(event.KickReasonStr))
+			else
+				self:TryKick(profileCode, event.Message, KickReason.CastFrom(event.KickReasonStr))
+			end
+		end
+	end
+
+	@ExecSpace("ServerOnly")
+	method void HandleBanEvent(RequestBanUserEvent event)
+		local profileCodes = event.ProfileCodes
+		
+		local banInfo = PlayerBanInfo()
+		banInfo:Deserialize(event.SerializedBanInfo, false)
+		
+		local lookup = {}
+		for i = 1, #profileCodes do
+			lookup[profileCodes[i]] = true
+		end
+		
+		while true do
+			if _Util:IsNilorEmptyTable(lookup) then
+				break
+			end
+			
+			for profileCode, _ in pairs(lookup) do
+				local user = _UserService:GetUserByProfileCode(profileCode)
+				if not isvalid(user) then
+					lookup[profileCode] = nil
+					continue
+				end
+				
+				local userEntity = _UserService:GetUserEntityByUserId(user.UserId)
+				if not isvalid(userEntity) then
+					lookup[profileCode] = nil
+					continue
+				end
+				
+				if not userEntity.PlayerDBManager.IsLoadSuccess then
+					continue
+				end
+				
+				lookup[profileCode] = nil
+				userEntity.PlayerDBManager:HandleBanInfoAndKickIfBanned(profileCode, banInfo)
+			end
+			
+			wait(1)
+		end
+	end
+
+	@EventSender("Service", "UserService")
+	handler HandleUserLeaveEvent(UserLeaveEvent event)
+		local profileCode = event.ProfileCode
+		
+		self:ClearKickTimer(profileCode)
+		self:ClearReservedBanInfo(profileCode)
+	end
+
+	@ExecSpace("ServerOnly")
+	@EventSender("Service", "WorldInstanceService")
+	handler HandleRequestKickUserEvent(RequestKickUserEvent event)
+		self:HandleKickEvent(event)
+		
+		local code = _RoomService:RequestSendEventToAllRoomsAndWait(event)
+		if code ~= SendEventRequestResultCode.OK then
+			log_error("Send RequestKickUser Failed. ErrorCode : " .. tostring(code))
+			return
+		end
+	end
+
+	@ExecSpace("ServerOnly")
+	@EventSender("Service", "RoomService")
+	handler HandleRequestKickUserEvent2(RequestKickUserEvent event)
+		self:HandleKickEvent(event)
+	end
+
+	@ExecSpace("ServerOnly")
+	@EventSender("Service", "WorldInstanceService")
+	handler HandleRequestBanUserEvent(RequestBanUserEvent event)
+		self:HandleBanEvent(event)
+		
+		local code = _RoomService:RequestSendEventToAllRoomsAndWait(event)
+		if code ~= SendEventRequestResultCode.OK then
+			log_error("Send RequestBanUser Failed. ErrorCode : " .. tostring(code))
+			return
+		end
+	end
+
+	@ExecSpace("ServerOnly")
+	@EventSender("Service", "RoomService")
+	handler HandleRequestBanUserEvent2(RequestBanUserEvent event)
+		self:HandleBanEvent(event)
+	end
+
+end

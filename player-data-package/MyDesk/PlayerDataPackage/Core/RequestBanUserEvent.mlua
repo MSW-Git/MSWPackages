@@ -1,0 +1,19 @@
+@Event
+script RequestBanUserEvent extends EventType
+
+	property table ProfileCodes = {}
+
+	property string SerializedBanInfo = ""
+
+	method void SetBanInfo(PlayerBanInfo banInfo)
+		self.SerializedBanInfo = banInfo:Serialize(false)
+	end
+
+	method PlayerBanInfo GetBanInfo()
+		local banInfo = PlayerBanInfo()
+		banInfo:Deserialize(self.SerializedBanInfo, false)
+		
+		return banInfo
+	end
+
+end

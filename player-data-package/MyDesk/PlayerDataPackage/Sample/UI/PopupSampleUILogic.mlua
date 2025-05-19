@@ -1,0 +1,91 @@
+@Logic
+script PopupSampleUILogic extends Logic
+
+	property string ModelName = "UIPopupConfirm"
+
+	property string UIPath = "/ui/SystemGroup"
+
+	property Entity UIEntity = nil
+
+	@ExecSpace("ClientOnly")
+	method Entity GetUI()
+		-- Retrieves the existing UI entity.
+		local entity = self.UIEntity
+		if not isvalid(entity) then
+			return nil
+		end
+		
+		return entity
+	end
+
+	@ExecSpace("ClientOnly")
+	method Entity ActiveUI()
+		-- Spawns the UI model or activates the existing UI entity.
+		local entity = self:GetUI()
+		if entity ~= nil then
+			entity.Enable = true
+			return entity
+		end
+		
+		entity = self:SpawnUI(self.ModelName, self.UIPath)
+		self.UIEntity = entity
+		
+		return entity
+	end
+
+	@ExecSpace("ClientOnly")
+	method Entity SpawnUI(string modelName, string parentUIPath)
+		-- Spawns the model corresponding to modelName as a child of ParentUIPath.
+		local modelId = _EntryService:GetModelIdByName(modelName)
+		if _Util:IsNilorEmptyString(modelId) then
+			log_error(string.format("Cannot find modelId with the name (%s)",  modelName))
+			return nil
+		end
+		
+		local parent = _EntityService:GetEntityByPath(parentUIPath)
+		if not isvalid(parent) then
+			log_error(string.format("Cannot find an entity with the path (%s)",  parentUIPath))
+			return nil
+		end
+		
+		local entity = _SpawnService:SpawnByModelId(modelId, modelName, Vector3.zero, parent)
+		if entity == nil then
+			log_error("SpawnByModelId Failed.")
+			return nil
+		end
+		
+		return entity
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OpenUI()
+		local entity = self:GetUI()
+		if entity ~= nil then
+			entity.Enable = true
+			return
+		end
+		
+		self:ActiveUI()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OpenPopupOneBtn(string title, string message, string confirmBtnText, any confirmCallback)
+		local entity = self:ActiveUI()
+		if entity == nil then
+			return
+		end
+		
+		entity.UIPopupConfirm:OpenOneBtn(title, message, confirmBtnText, confirmCallback)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OpenPopupTwoBtn(string title, string message, string okBtnText, string cancelBtnText, any okCallback, any cancelCallback)
+		local entity = self:ActiveUI()
+		if entity == nil then
+			return
+		end
+		
+		entity.UIPopupConfirm:OpenTwoBtn(title, message, okBtnText, cancelBtnText, okCallback, cancelCallback)
+	end
+
+end

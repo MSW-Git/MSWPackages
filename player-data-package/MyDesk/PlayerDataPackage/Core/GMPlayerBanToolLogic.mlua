@@ -1,0 +1,109 @@
+@Logic
+script GMPlayerBanToolLogic extends Logic
+
+	property string StorageName = "PlayerBan"
+
+	@ExecSpace("Server")
+	method void RequestKickUser(RequestKickUserEvent evt)
+		if not _AdminLogic:IsAdmin(senderUserId) then
+			return
+		end
+		
+		local code = _WorldInstanceService:RequestSendEventToAllWorldInstancesAndWait(evt)
+		if code ~= SendEventRequestResultCode.OK then
+			log_error("Send RequestKickUser Failed. ErrorCode : " .. tostring(code))
+			return
+		end
+		
+		log("Send RequestKickUser Success.")
+	end
+
+	@ExecSpace("Server")
+	method void RequestBanInfo(string profileCode, boolean isView)
+		if not _AdminLogic:IsAdmin(senderUserId) then
+			return
+		end
+		
+		local banInfo = PlayerBanInfo()
+		local err = _PlayerBanLogic:GetBanInfoAndWait(profileCode, true, banInfo)
+		if err ~= 0 then
+			return
+		end
+		
+		self:ResponseBanInfo(profileCode, banInfo, isView, senderUserId)
+	end
+
+	@ExecSpace("Client")
+	method void ResponseBanInfo(string profileCode, PlayerBanInfo banInfo, boolean isView)
+		local ui = _PlayerBanSampleUILogic:GetToolUI()
+		if not isvalid(ui) then
+			return
+		end
+		
+		if isView then
+			local page_view = ui.UIGMPlayerBanTool.Page_View
+			page_view.UIGMPlayerBanTool_View:Apply(profileCode, banInfo)
+		else
+			local page_edit = ui.UIGMPlayerBanTool.Page_Edit
+			page_edit.UIGMPlayerBanTool_Edit:Apply(profileCode, banInfo)
+		end
+	end
+
+	@ExecSpace("Server")
+	method void RequestEditBanInfo(table profileCodes, PlayerBanInfo banInfo)
+		if not _AdminLogic:IsAdmin(senderUserId) then
+			return
+		end
+		
+		if _Util:IsNilorEmptyTable(profileCodes) then
+			return
+		end
+		
+		if not banInfo:IsValid() then
+			return
+		end
+		
+		local keyValues = {}
+		local serailzedStr = banInfo:Serialize(true)
+		
+		for i = 1, #profileCodes do
+			local profileCode = profileCodes[i]
+			keyValues[profileCode] = serailzedStr
+		end
+		
+		local ds = _DataStorageService:GetGlobalDataStorage(_GMPlayerBanToolLogic.StorageName)
+		local err, resultsList = ds:BatchSetAndWait(keyValues)
+		if err ~= 0 then
+			local failedTable = {}
+			
+			for i = 1, #profileCodes do
+				local profileCode = profileCodes[i]
+				failedTable[profileCode] = true
+			end
+			
+			for i = 1, #resultsList do
+				local profileCode = resultsList[i]
+				failedTable[profileCode] = nil
+			end
+			
+			local failedList = table.keys(failedTable)
+			log_error(string.format("RequestBanUser SetAndWait Failed. ErrorCode : %d, Failed ProfileCodes : %s",
+				err, table.concat(failedList, ",")))
+			return
+		end
+		
+		local evt = RequestBanUserEvent()
+		evt.ProfileCodes = profileCodes
+		evt:SetBanInfo(banInfo)
+		
+		local code = _WorldInstanceService:RequestSendEventToAllWorldInstancesAndWait(evt)
+		if code ~= SendEventRequestResultCode.OK then
+			log_error(string.format("RequestBanUser Send RequestBanUserEvent Failed. ErrorCode : %s, ProfileCodes : %s",
+				tostring(code), table.concat(profileCodes, ",")))
+			return
+		end
+		
+		log("Send RequestBanUser Success.")
+	end
+
+end

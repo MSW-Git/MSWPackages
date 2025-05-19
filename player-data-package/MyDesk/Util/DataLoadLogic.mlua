@@ -1,0 +1,68 @@
+@Logic
+script DataLoadLogic extends Logic
+
+	property boolean IsLoadEnd = false
+
+	property boolean IsLoadSuccess = false
+
+	method void OnBeginPlay()
+		if not self:InitOnBeginPlay() then
+			return
+		end
+		
+		_TimerService:SetTimerOnce(self.Init, 0.1)
+	end
+
+	method boolean InitOnBeginPlay()
+		-- Initialize necessary elements in OnBeginPlay.
+		local success, result = pcall(function()
+			_DayOfWeekEnum:Init()
+			
+			if not _CycleEnum:Init() then
+				log_error("Init Enum Failed.")
+				return false
+			end
+			
+			return true
+		end)
+		
+		if not success then
+			log_error("InitOnBeginPlay Failed. " .. result)
+			return false
+		end
+		
+		return result
+	end
+
+	method boolean IsLoadSuccessAndWait()
+		while not self.IsLoadEnd do
+			wait(1)
+		end
+		
+		return self.IsLoadSuccess
+	end
+
+	method void Init()
+		local success, result = pcall(function()
+			-- Initialize DataSet and other processes using the wait() function.
+			return true
+		end)
+		self.IsLoadEnd = true
+		
+		if not success then
+			log_error("Init Failed. " .. result)
+			return
+		end
+		
+		if not result then
+			return	
+		end
+		
+		self.IsLoadSuccess = true
+		
+		if self:IsClient() then
+			_UserService.LocalPlayer.PlayerDBManager:NotifyWorldDataLoadCompleted()
+		end
+	end
+
+end

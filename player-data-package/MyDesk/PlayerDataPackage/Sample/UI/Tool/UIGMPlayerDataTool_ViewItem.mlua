@@ -1,0 +1,67 @@
+@Component
+script UIGMPlayerDataTool_ViewItem extends Component
+
+	property TextComponent Level = nil
+
+	property TextComponent Dia = nil
+
+	property TextComponent Meso = nil
+
+	property TextComponent LoginTime = nil
+
+	property TextComponent LogoutTime = nil
+
+	property TextComponent Extra = nil
+
+	property any Data = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		
+		self.Level = entity:GetChildByName("Text_Level").TextComponent
+		self.Dia = entity:GetChildByName("Text_Dia").TextComponent
+		self.Meso = entity:GetChildByName("Text_Meso").TextComponent
+		self.LoginTime = entity:GetChildByName("Text_LoginTime").TextComponent
+		self.LogoutTime = entity:GetChildByName("Text_LogoutTime").TextComponent
+		self.Extra = entity:GetChildByName("Text_Extra").TextComponent
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Set(PlayerBasicData s, integer timeOffset)
+		self.Data = s
+		
+		self.Level.Text = tostring(s.Level)
+		self.Dia.Text = tostring(s.Dia)
+		self.Meso.Text = tostring(s.Meso)
+		self.LoginTime.Text = _UtilGMTool:ElapsedTimeToString(s.LoginTime, timeOffset)
+		self.LogoutTime.Text = _UtilGMTool:ElapsedTimeToString(s.LogoutTime, timeOffset)
+		self.Extra.Text = s.Extra
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Invalidate(integer timeOffset)
+		---@type PlayerBasicData
+		local s = self.Data
+		if s == nil then
+			self:Clear()
+			return
+		end
+		
+		self.LoginTime.Text = _UtilGMTool:ElapsedTimeToString(s.LoginTime, timeOffset)
+		self.LogoutTime.Text = _UtilGMTool:ElapsedTimeToString(s.LogoutTime, timeOffset)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		self.Data = nil
+		
+		self.Level.Text = ""
+		self.Dia.Text = ""
+		self.Meso.Text = ""
+		self.LoginTime.Text = ""
+		self.LogoutTime.Text = ""
+		self.Extra.Text = ""
+	end
+
+end

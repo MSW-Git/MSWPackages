@@ -1,0 +1,94 @@
+@Component
+script PlayerData extends Component
+
+	@TargetUserSync
+	property integer Level = 0
+
+	@TargetUserSync
+	property integer Dia = 0
+
+	@TargetUserSync
+	property integer Meso = 0
+
+	property integer LoginTime = 0
+
+	property integer LogoutTime = 0
+
+	property string Extra = ""
+
+	property boolean IsFirstLogin = false
+
+	@TargetUserSync
+	property boolean IsInit = false
+
+	property boolean IsSaveDB = false
+
+	@ExecSpace("ServerOnly")
+	method void LoadFromDB(table loadKeys)
+		table.insert(loadKeys, _GMPlayerDataToolLogic.StorageName)
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean OnLoadedDataFromDB(table loadedData)
+		local userId = self.Entity.PlayerComponent.UserId
+		
+		---@type DataStorageItem
+		local sds = loadedData[_GMPlayerDataToolLogic.StorageName]
+		local sdsValue = sds.Value
+		
+		local basicData = PlayerBasicData()
+		basicData:Init()
+		
+		if not _Util:IsNilorEmptyString(sdsValue) then
+			local deserTable = _HttpService:JSONDecode(sdsValue)
+			if not basicData:Deserialize(deserTable) then
+				log_error("Deserialize Failed. ProfileCode : " .. self.Entity.PlayerComponent.ProfileCode)
+				return false
+			end
+			basicData:ToComponent(self)
+		else
+			basicData:ToComponent(self)	-- Init
+			
+			self.IsFirstLogin = true
+			self.IsSaveDB = true
+		end
+		
+		self.IsInit = true
+		return true
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean PostOnLoadedDataFromDB()
+		if self.IsFirstLogin then
+			-- Executes tasks on the first login.
+		end
+		
+		self.LoginTime = _DateTimeLogic:GetTimeElapsed()
+		self.IsSaveDB = true
+		
+		return true
+	end
+
+	@ExecSpace("ServerOnly")
+	method void SaveToDB(table saveData)
+		if not self.IsSaveDB then
+			return
+		end
+		
+		self.LogoutTime = _DateTimeLogic:GetTimeElapsed()
+		
+		local deserTable = {}
+		
+		local basicData = PlayerBasicData()
+		basicData:FromComponent(self)
+		basicData:Serialize(deserTable)
+		
+		local sds = ""
+		if not _Util:IsNilorEmptyTable(deserTable) then
+			sds = _HttpService:JSONEncode(deserTable)
+		end
+		
+		saveData[_GMPlayerDataToolLogic.StorageName] = sds
+	end
+
+end

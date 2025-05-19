@@ -1,0 +1,80 @@
+@Component
+script UIGMPlayerBanTool_Kick extends Component
+
+	property UIGMPlayerBanTool Parent = nil
+
+	property Entity Item = nil
+
+	property TextComponent Text_ProfileCodes = nil
+
+	property TextComponent Text_Message = nil
+
+	property Entity Btn_DirectKick = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		
+		local item = entity:GetChildByName("Panel"):GetChildByName("Item")
+		self.Text_ProfileCodes = item:GetChildByName("Text_ProfileCodes").TextComponent
+		self.Text_Message = item:GetChildByName("Text_Message").TextComponent
+		
+		local btn_directKick = entity:GetChildByName("Btn_DirectKick")
+		btn_directKick:ConnectEvent(ButtonClickEvent, self.OnClickBtn_DirectKick)
+		
+		local btn_kick = entity:GetChildByName("Btn_Kick")
+		btn_kick:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Kick)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_DirectKick()
+		local evt = self:GetEvent(true)
+		if evt == nil then
+			return
+		end
+		
+		_GMPlayerBanToolLogic:RequestKickUser(evt)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Kick()
+		local evt = self:GetEvent(false)
+		if evt == nil then
+			return
+		end
+		
+		_GMPlayerBanToolLogic:RequestKickUser(evt)
+	end
+
+	@ExecSpace("ClientOnly")
+	method RequestKickUserEvent GetEvent(boolean isDirectKick)
+		local profileCodesStr = self.Text_ProfileCodes.Text
+		if _Util:IsNilorEmptyString(profileCodesStr) then
+			return nil
+		end
+		
+		local profileCodes = {}
+		local splitTable = _UtilLogic:Split(profileCodesStr, ",")
+		for i = 1, #splitTable do
+			local profileCode = splitTable[i]
+			if _Util:IsNilorEmptyString(profileCode) then
+				continue
+			end
+			
+			table.insert(profileCodes, profileCode)
+		end
+		
+		if #profileCodes == 0 then
+			return nil
+		end
+		
+		local evt = RequestKickUserEvent()
+		evt.ProfileCodes = profileCodes
+		evt.Message = self.Text_Message.Text
+		evt.IsDirectKick = isDirectKick
+		evt.KickReasonStr = tostring(KickReason.WorldContent)
+		
+		return evt
+	end
+
+end

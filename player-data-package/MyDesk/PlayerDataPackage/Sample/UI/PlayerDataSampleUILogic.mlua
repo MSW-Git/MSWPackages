@@ -1,0 +1,85 @@
+@Logic
+script PlayerDataSampleUILogic extends Logic
+
+	property string ModelToolName = "UIGMPlayerDataTool"
+
+	property string ToolUIPath = "/ui/DefaultGroup"
+
+	property Entity ToolUIEntity = nil
+
+	@ExecSpace("ClientOnly")
+	method Entity GetToolUI()
+		-- Retrieves the existing ToolUI entity.
+		local entity = self.ToolUIEntity
+		if not isvalid(entity) then
+			return nil
+		end
+		
+		return entity
+	end
+
+	@ExecSpace("ClientOnly")
+	method Entity ActiveToolUI()
+		-- Spawns the ToolUI model or activates the existing ToolUI entity.
+		local entity = self:GetToolUI()
+		if entity ~= nil then
+			entity.Enable = true
+			return entity
+		end
+		
+		entity = self:SpawnUI(self.ModelToolName, self.ToolUIPath)
+		self.ToolUIEntity = entity
+		
+		return entity
+	end
+
+	@ExecSpace("ClientOnly")
+	method Entity SpawnUI(string modelName, string parentUIPath)
+		-- Spawns the model corresponding to modelName as a child of ParentUIPath.
+		local modelId = _EntryService:GetModelIdByName(modelName)
+		if _Util:IsNilorEmptyString(modelId) then
+			log_error(string.format("Cannot find modelId with the name (%s)",  modelName))
+			return nil
+		end
+		
+		local parent = _EntityService:GetEntityByPath(parentUIPath)
+		if not isvalid(parent) then
+			log_error(string.format("Cannot find an entity with the path (%s)",  parentUIPath))
+			return nil
+		end
+		
+		local entity = _SpawnService:SpawnByModelId(modelId, modelName, Vector3.zero, parent)
+		if entity == nil then
+			log_error("GMMessageLogic SpawnByModelId Failed.")
+			return nil
+		end
+		
+		return entity
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OpenToolUI()
+		if not _AdminLogic:IsAdminLocalPlayer() then
+			return
+		end
+		
+		local entity = self:GetToolUI()
+		if entity ~= nil then
+			entity.Enable = true
+			return
+		end
+		
+		self:ActiveToolUI()
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("Service", "InputService")
+	handler HandleKeyDownEvent(KeyDownEvent event)
+		local key = event.key
+		
+		if key == KeyboardKey.F3 then
+			self:OpenToolUI()
+		end
+	end
+
+end

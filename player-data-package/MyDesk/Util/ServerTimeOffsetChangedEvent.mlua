@@ -1,0 +1,6 @@
+@Event
+script ServerTimeOffsetChangedEvent extends EventType
+
+	property integer ServerTimeOffset = 0
+
+end

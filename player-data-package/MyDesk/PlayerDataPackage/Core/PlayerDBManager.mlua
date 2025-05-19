@@ -1,0 +1,223 @@
+@Component
+script PlayerDBManager extends Component
+
+	property integer TimerId = 0
+
+	property boolean IsLoadAttempted = false
+
+	@TargetUserSync
+	property boolean IsLoadSuccess = false
+
+	@ExecSpace("ServerOnly")
+	method boolean LoadFromDB()
+		local playerEntity = self.Entity
+		local userId = playerEntity.PlayerComponent.UserId
+		local profileCode = playerEntity.PlayerComponent.ProfileCode
+		
+		-- BanInfo is loaded first, and if the player is banned, no further data will be loaded.
+		if self:CheckAndKickIfBanned(profileCode, userId) then
+			return false
+		end
+		
+		-- The remaining data will be loaded.
+		local loadKey = {}
+		local loadedData = {}
+		-------------------------------------------------------------------
+		playerEntity.PlayerData:LoadFromDB(loadKey)
+		-------------------------------------------------------------------
+		if not self:BatchGetAndWait(profileCode, loadKey, loadedData) then
+		    self:SendErrorToClient(_ErrorCodeEnum.DBLoad_Fail, userId)
+		    return false
+		end
+		
+		local errorCode = self:OnLoadedDataFromDB(loadedData)
+		if errorCode ~= _ErrorCodeEnum.Success then
+		    self:SendErrorToClient(errorCode, userId)
+		    return false
+		end
+		
+		if not self:PostOnLoadedDataFromDB() then
+			self:SendErrorToClient(_ErrorCodeEnum.DBLoad_Fail, userId)
+			return false
+		end
+		
+		return true
+	end
+
+	@ExecSpace("ServerOnly")
+	method integer OnLoadedDataFromDB(table datas)
+		local playerEntity = self.Entity
+		
+		-------------------------------------------------------------------
+		local success, result = pcall(function() return playerEntity.PlayerData:OnLoadedDataFromDB(datas) end)
+		if not success or not result then log_error(result) return _ErrorCodeEnum.DBLoad_PlayerData_Fail end
+		-------------------------------------------------------------------
+		
+		return _ErrorCodeEnum.Success
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean PostOnLoadedDataFromDB()
+		-- This function ensures that the tasks are performed only after all other data has been fully loaded.
+		local playerEntity = self.Entity
+		
+		if not playerEntity.PlayerData:PostOnLoadedDataFromDB() then
+			log_error("PlayerData PostOnLoadedDataFromDB Failed.")
+			return false
+		end
+		
+		return true
+	end
+
+	@ExecSpace("ServerOnly")
+	method void SaveToDB(boolean isLeaving)
+		if not self.IsLoadSuccess then
+			return
+		end
+		
+		local saveData = {}
+		-------------------------------------------------------------------
+		local playerEntity = self.Entity
+		playerEntity.PlayerData:SaveToDB(saveData)
+		-------------------------------------------------------------------
+		
+		local profileCode = self.Entity.PlayerComponent.ProfileCode
+		local ds = _DataStorageService:GetUserDataStorage(profileCode)
+		if isLeaving == true then
+			ds:BatchSetAndWait(saveData)
+		else
+			local callback = function(errorCode, values)
+				if errorCode == 0 then
+					return
+				end
+				
+				-- Error handling
+			end
+			ds:BatchSetAsync(saveData, callback)
+		end
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean BatchGetAndWait(string profileCode, table loadKey, table outLoadedData)
+		local ds = _DataStorageService:GetUserDataStorage(profileCode)
+		local code, itemPages = ds:BatchGetAndWait(loadKey)
+		if code ~= 0 then
+			log_error(string.format("BatchGetAndWait Failed. ErrorCode : %d", code))
+			return false
+		end
+		
+		while true do
+			local datas = itemPages:GetCurrentPageDatas()
+			if datas == nil then
+				break
+			end
+			
+			for i=1, #datas do
+				outLoadedData[datas[i].KeyInfo.Key] = datas[i]
+			end
+			
+			if itemPages.IsLastPage == true then
+				break
+			end
+			
+			itemPages:MoveToNextPageAndWait()
+		end
+		
+		return true
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean CheckAndKickIfBanned(string profileCode, string userId)
+		-- Returns true if the player was successfully kicked.
+		local banInfo = PlayerBanInfo()
+		local errCode = _PlayerBanLogic:GetBanInfoAndWait(profileCode, false, banInfo)
+		if errCode ~= 0 then
+			return false
+		end
+		
+		return self:HandleBanInfoAndKickIfBanned(profileCode, banInfo)
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean HandleBanInfoAndKickIfBanned(string profileCode, PlayerBanInfo banInfo)
+		-- Returns true if the player was successfully kicked.
+		_PlayerBanLogic:ClearKickTimer(profileCode)
+		_PlayerBanLogic:ClearReservedBanInfo(profileCode)
+		
+		local curElpased = _DateTimeLogic:GetTimeElapsed()
+		if banInfo:IsBanned(curElpased) then
+			_PlayerBanLogic:SendBanInfo(profileCode, banInfo, KickReason.WorldContent)
+			return true
+		end
+		
+		if banInfo:IsReservationNeeded(curElpased) then
+			_PlayerBanLogic:ReserveBanInfo(profileCode, banInfo)
+			return false
+		end
+		
+		return false
+	end
+
+	@ExecSpace("Server")
+	method void NotifyWorldDataLoadCompleted()
+		if self.IsLoadAttempted then
+			return
+		end
+		self.IsLoadAttempted = true
+		
+		if not _DataLoadLogic:IsLoadSuccessAndWait() then
+			log_error("World DataLoad Failed.")
+			self:SendErrorToClient(_ErrorCodeEnum.DBLoad_WorldError, senderUserId)
+			return
+		end
+		
+		if not self:LoadFromDB() then
+			return
+		end
+		
+		if Environment:IsMakerPlay() then
+		-- Wait added to test the loading screen. Please remove wait.
+			wait(1)
+		end
+		
+		self.IsLoadSuccess = true
+		self:NofifyWorldDataLoadCompletedToClient(senderUserId)
+		
+		-- Database save interval
+		local period = 300
+		
+		local dbfunction = function()
+			self:SaveToDB(false)
+		end
+		
+		self.TimerId = _TimerService:SetTimerRepeat(dbfunction, period, period)
+	end
+
+	@ExecSpace("Client")
+	method void NofifyWorldDataLoadCompletedToClient()
+		_LoadingUILogic:FadeOut()
+	end
+
+	@ExecSpace("Client")
+	method void SendErrorToClient(integer errorCode)
+		local title = "Notification"
+		local message = string.format("Failed to enter world. Error code: %d", errorCode)
+		
+		_PopupSampleUILogic:OpenPopupOneBtn(title, message, "OK", function()
+			local kickReasonStr = tostring(KickReason.WorldError)
+			_PlayerBanLogic:RequestKickSelf(kickReasonStr)
+		end)
+	end
+
+	@ExecSpace("ServerOnly")
+	@EventSender("Service", "UserService")
+	handler HandleUserLeaveEvent(UserLeaveEvent event)
+		local UserId = event.UserId
+		
+		if UserId == self.Entity.PlayerComponent.UserId then
+			_TimerService:ClearTimer(self.TimerId)
+			self:SaveToDB(true)
+		end
+	end
+
+end

@@ -1,0 +1,56 @@
+@Component
+script UILoading extends Component
+
+	property any FadeInTweener = nil
+
+	property any FadeOutTweener = nil
+
+	property number Duration = 1
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		local canvasGroupComp = self.Entity.CanvasGroupComponent
+		local tweenFunc = function(val)
+			canvasGroupComp.GroupAlpha = val
+		end
+		
+		local fadeInTweener = _TweenLogic:MakeTween(0, 1, self.Duration, EaseType.Linear, tweenFunc)
+		fadeInTweener.AutoDestroy = false
+		self.FadeInTweener = fadeInTweener
+		
+		local fadeOutTweener = _TweenLogic:MakeTween(1, 0, self.Duration, EaseType.Linear, tweenFunc)
+		fadeOutTweener.AutoDestroy = false
+		fadeOutTweener:SetOnEndCallback(function()
+			entity.Enable = false
+		end)
+		self.FadeOutTweener = fadeOutTweener
+	end
+
+	@ExecSpace("ClientOnly")
+	method void FadeIn()
+		local entity = self.Entity
+		local canvasGroupComp = self.Entity.CanvasGroupComponent
+		
+		canvasGroupComp.GroupAlpha = 0
+		entity.Enable = true
+		
+		---@type Tweener
+		local tweener = self.FadeInTweener
+		tweener:Play()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void FadeOut()
+		local entity = self.Entity
+		local canvasGroupComp = self.Entity.CanvasGroupComponent
+		
+		canvasGroupComp.GroupAlpha = 1
+		entity.Enable = true
+		
+		---@type Tweener
+		local tweener = self.FadeOutTweener
+		tweener:Play()
+	end
+
+end

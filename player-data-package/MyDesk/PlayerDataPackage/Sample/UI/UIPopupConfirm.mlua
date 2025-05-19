@@ -1,0 +1,121 @@
+@Component
+script UIPopupConfirm extends Component
+
+	property Entity Panel = nil
+
+	property TextComponent Text_Title = nil
+
+	property TextComponent Text_Message = nil
+
+	property Entity Panel_OneBtn = nil
+
+	property Entity Btn_Confirm = nil
+
+	property Entity Panel_TwoBtn = nil
+
+	property Entity Btn_OK = nil
+
+	property Entity Btn_Cancel = nil
+
+	property any ConfirmCallback = nil
+
+	property any OkCallback = nil
+
+	property any CancelCallback = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local panel = self.Entity:GetChildByName("Panel")
+		self.Text_Title = panel:GetChildByName("Text_Title").TextComponent
+		
+		local bg = panel:GetChildByName("Img_BG")
+		
+		self.Text_Message = bg:GetChildByName("Text_Message").TextComponent
+		
+		local panel_oneBtn = bg:GetChildByName("Panel_OneBtn")
+		self.Panel_OneBtn = panel_oneBtn
+		
+		self.Btn_Confirm = panel_oneBtn:GetChildByName("Btn_Confirm")
+		self.Btn_Confirm:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Confirm)
+		
+		local panel_twoBtn = bg:GetChildByName("Panel_TwoBtn")
+		self.Panel_TwoBtn = panel_twoBtn
+		
+		self.Btn_OK = panel_twoBtn:GetChildByName("Btn_OK")
+		self.Btn_OK:ConnectEvent(ButtonClickEvent, self.OnClickBtn_OK)
+		
+		self.Btn_Cancel = panel_twoBtn:GetChildByName("Btn_Cancel")
+		self.Btn_Cancel:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Cancel)
+	end
+
+	@ExecSpace("ClientOnly")
+	method boolean Shut()
+		if self.Panel_OneBtn.Enable then
+			self:OnClickBtn_Confirm()
+		else
+			self:OnClickBtn_Cancel()
+		end
+		
+		return true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OpenOneBtn(string title, string message, string confirmBtnText, any confirmCallback)
+		self.Panel_OneBtn.Enable = true
+		self.Panel_TwoBtn.Enable = false
+		
+		self.Text_Title.Text = title
+		self.Text_Message.Text = message
+		self.Btn_Confirm.TextComponent.Text = confirmBtnText
+		
+		self.ConfirmCallback = confirmCallback
+		self.OkCallback = nil
+		self.CancelCallback = nil
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OpenTwoBtn(string title, string message, string okBtnText, string cancelBtnText, any okCallback, any cancelCallback)
+		self.Panel_OneBtn.Enable = false
+		self.Panel_TwoBtn.Enable = true
+		
+		self.Text_Title.Text = title
+		self.Text_Message.Text = message
+		self.Btn_OK.TextComponent.Text = okBtnText
+		self.Btn_Cancel.TextComponent.Text = cancelBtnText
+		
+		self.ConfirmCallback = nil
+		self.OkCallback = okCallback
+		self.CancelCallback = cancelCallback
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Confirm()
+		self.Entity.Enable = false
+		
+		local callback = self.ConfirmCallback
+		if callback ~= nil then
+			callback()
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_OK()
+		self.Entity.Enable = false
+		
+		local callback = self.OkCallback
+		if callback ~= nil then
+			callback()
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Cancel()
+		self.Entity.Enable = false
+		
+		local callback = self.CancelCallback
+		if callback ~= nil then
+			callback()
+		end
+	end
+
+end

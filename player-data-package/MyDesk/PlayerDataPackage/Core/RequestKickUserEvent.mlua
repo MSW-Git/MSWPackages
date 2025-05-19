@@ -1,0 +1,12 @@
+@Event
+script RequestKickUserEvent extends EventType
+
+	property table ProfileCodes = {}
+
+	property string Message = ""
+
+	property boolean IsDirectKick = false
+
+	property string KickReasonStr = ""
+
+end
