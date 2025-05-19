@@ -25,6 +25,7 @@ See the README file in each package for detailed usage information.
 | maplestory-toast | Provides functionality similar to the toast feature in the game MapleStory. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/maplestory-toast-package/maplestory-toast-package.modpackage)|
 | ranking-basic | Provides ranking(basic) feature to creators. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/ranking-basic-package/ranking-basic-package.modpackage)|
 | ranking-advanced | Provides ranking(Advanced) feature to creators. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/ranking-advanced-package/ranking-advanced-package.modpackage)|
+| resource | A game resource system that manages standard and rechargeable resources. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/resource-package/resource-package.modpackage)|
 
 
 ## License
