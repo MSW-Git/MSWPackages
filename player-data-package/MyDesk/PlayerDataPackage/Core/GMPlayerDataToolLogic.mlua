@@ -47,6 +47,10 @@ script GMPlayerDataToolLogic extends Logic
 
 	@ExecSpace("Server")
 	method void RequestEditPlayerData(string profileCode, table deserTable)
+		if not _AdminLogic:IsAdmin(senderUserId) then
+			return
+		end
+		
 		local sds = ""
 		if not _Util:IsNilorEmptyTable(deserTable) then
 			sds = _HttpService:JSONEncode(deserTable)
