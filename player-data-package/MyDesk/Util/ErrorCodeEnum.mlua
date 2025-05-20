@@ -3,14 +3,14 @@ script ErrorCodeEnum extends Logic
 
 	property integer Success = 0
 
-	property integer User_Banned = 100
+	property integer DBLoad_WorldError = 100
 
-	property integer DBLoad_WorldError = 200
+	property integer DBLoad_GetKey_Fail = 200
 
-	property integer DBLoad_RuleViolation = 201
+	property integer DBLoad_PostLoad_Fail = 201
 
-	property integer DBLoad_Fail = 202
+	property integer DBLoad_GetAndWait_Fail = 202
 
-	property integer DBLoad_PlayerData_Fail = 210
+	property integer DBLoad_PlayerData_Fail = 300
 
 end

@@ -7,9 +7,9 @@ script UIGMPlayerDataTool_ViewItem extends Component
 
 	property TextComponent Meso = nil
 
-	property TextComponent LoginTime = nil
+	property TextComponent FirstLoginTime = nil
 
-	property TextComponent LogoutTime = nil
+	property TextComponent LastUpdateTime = nil
 
 	property TextComponent Extra = nil
 
@@ -22,34 +22,34 @@ script UIGMPlayerDataTool_ViewItem extends Component
 		self.Level = entity:GetChildByName("Text_Level").TextComponent
 		self.Dia = entity:GetChildByName("Text_Dia").TextComponent
 		self.Meso = entity:GetChildByName("Text_Meso").TextComponent
-		self.LoginTime = entity:GetChildByName("Text_LoginTime").TextComponent
-		self.LogoutTime = entity:GetChildByName("Text_LogoutTime").TextComponent
+		self.FirstLoginTime = entity:GetChildByName("Text_FirstLoginTime").TextComponent
+		self.LastUpdateTime = entity:GetChildByName("Text_LastUpdateTime").TextComponent
 		self.Extra = entity:GetChildByName("Text_Extra").TextComponent
 	end
 
 	@ExecSpace("ClientOnly")
-	method void Set(PlayerBasicData s, integer timeOffset)
+	method void Set(PlayerBasicInfo s, integer timeOffset)
 		self.Data = s
 		
 		self.Level.Text = tostring(s.Level)
 		self.Dia.Text = tostring(s.Dia)
 		self.Meso.Text = tostring(s.Meso)
-		self.LoginTime.Text = _UtilGMTool:ElapsedTimeToString(s.LoginTime, timeOffset)
-		self.LogoutTime.Text = _UtilGMTool:ElapsedTimeToString(s.LogoutTime, timeOffset)
+		self.FirstLoginTime.Text = _UtilGMTool:ElapsedTimeToString(s.FirstLoginTime, timeOffset)
+		self.LastUpdateTime.Text = _UtilGMTool:ElapsedTimeToString(s.LastUpdateTime, timeOffset)
 		self.Extra.Text = s.Extra
 	end
 
 	@ExecSpace("ClientOnly")
 	method void Invalidate(integer timeOffset)
-		---@type PlayerBasicData
+		---@type PlayerBasicInfo
 		local s = self.Data
 		if s == nil then
 			self:Clear()
 			return
 		end
 		
-		self.LoginTime.Text = _UtilGMTool:ElapsedTimeToString(s.LoginTime, timeOffset)
-		self.LogoutTime.Text = _UtilGMTool:ElapsedTimeToString(s.LogoutTime, timeOffset)
+		self.FirstLoginTime.Text = _UtilGMTool:ElapsedTimeToString(s.FirstLoginTime, timeOffset)
+		self.LastUpdateTime.Text = _UtilGMTool:ElapsedTimeToString(s.LastUpdateTime, timeOffset)
 	end
 
 	@ExecSpace("ClientOnly")
@@ -59,8 +59,8 @@ script UIGMPlayerDataTool_ViewItem extends Component
 		self.Level.Text = ""
 		self.Dia.Text = ""
 		self.Meso.Text = ""
-		self.LoginTime.Text = ""
-		self.LogoutTime.Text = ""
+		self.FirstLoginTime.Text = ""
+		self.LastUpdateTime.Text = ""
 		self.Extra.Text = ""
 	end
 

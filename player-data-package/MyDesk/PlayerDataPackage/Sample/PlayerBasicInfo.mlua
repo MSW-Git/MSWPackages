@@ -1,5 +1,5 @@
 @Struct
-script PlayerBasicData
+script PlayerBasicInfo
 
 	property integer Level = 0
 
@@ -7,9 +7,9 @@ script PlayerBasicData
 
 	property integer Meso = 0
 
-	property integer LoginTime = 0
+	property integer FirstLoginTime = 0
 
-	property integer LogoutTime = 0
+	property integer LastUpdateTime = 0
 
 	property string Extra = ""
 
@@ -24,8 +24,8 @@ script PlayerBasicData
 		t["Level"] = self.Level
 		t["Dia"] = self.Dia
 		t["Meso"] = self.Meso
-		t["LoginTime"] = self.LoginTime
-		t["LogoutTime"] = self.LogoutTime
+		t["FirstLoginTime"] = self.FirstLoginTime
+		t["LastUpdateTime"] = self.LastUpdateTime
 		t["Extra"] = self.Extra
 		
 		return true
@@ -46,11 +46,11 @@ script PlayerBasicData
 		local meso = t["Meso"]
 		self.Meso = meso or 0
 		
-		local loginTime = t["LoginTime"]
-		self.LoginTime = loginTime or 0
+		local firstLoginTime = t["FirstLoginTime"]
+		self.FirstLoginTime = firstLoginTime or 0
 		
-		local logoutTime = t["LogoutTime"]
-		self.LogoutTime = logoutTime or 0
+		local lastUpdateTime = t["LastUpdateTime"]
+		self.LastUpdateTime = lastUpdateTime or 0
 		
 		local extra = t["Extra"]
 		self.Extra = extra or ""
@@ -62,8 +62,8 @@ script PlayerBasicData
 		comp.Level = self.Level
 		comp.Dia = self.Dia
 		comp.Meso = self.Meso
-		comp.LoginTime = self.LoginTime
-		comp.LogoutTime = self.LogoutTime
+		comp.FirstLoginTime = self.FirstLoginTime
+		comp.LastUpdateTime = self.LastUpdateTime
 		comp.Extra = self.Extra
 	end
 
@@ -71,8 +71,8 @@ script PlayerBasicData
 		self.Level = comp.Level
 		self.Dia = comp.Dia
 		self.Meso = comp.Meso
-		self.LoginTime = comp.LoginTime
-		self.LogoutTime = comp.LogoutTime
+		self.FirstLoginTime = comp.FirstLoginTime
+		self.LastUpdateTime = comp.LastUpdateTime
 		self.Extra = comp.Extra
 	end
 

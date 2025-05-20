@@ -29,6 +29,8 @@ script UILoading extends Component
 
 	@ExecSpace("ClientOnly")
 	method void FadeIn()
+		self:StopAllFadeTweener()
+		
 		local entity = self.Entity
 		local canvasGroupComp = self.Entity.CanvasGroupComponent
 		
@@ -37,11 +39,14 @@ script UILoading extends Component
 		
 		---@type Tweener
 		local tweener = self.FadeInTweener
+		tweener:Rewind()
 		tweener:Play()
 	end
 
 	@ExecSpace("ClientOnly")
 	method void FadeOut()
+		self:StopAllFadeTweener()
+		
 		local entity = self.Entity
 		local canvasGroupComp = self.Entity.CanvasGroupComponent
 		
@@ -50,7 +55,23 @@ script UILoading extends Component
 		
 		---@type Tweener
 		local tweener = self.FadeOutTweener
+		tweener:Rewind()
 		tweener:Play()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void StopAllFadeTweener()
+		---@type Tweener
+		local fadeInTweener = self.FadeInTweener
+		if fadeInTweener.IsPlaying then
+			fadeInTweener:Stop()
+		end
+		
+		---@type Tweener
+		local fadeoutTweener = self.FadeOutTweener
+		if fadeoutTweener.IsPlaying then
+			fadeoutTweener:Stop()
+		end
 	end
 
 end

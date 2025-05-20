@@ -7,9 +7,9 @@ script UIGMPlayerDataTool_EditItem extends Component
 
 	property TextComponent Meso = nil
 
-	property TextComponent LoginTime = nil
+	property TextComponent FirstLoginTime = nil
 
-	property TextComponent LogoutTime = nil
+	property TextComponent LastUpdateTime = nil
 
 	property TextComponent Extra = nil
 
@@ -24,29 +24,29 @@ script UIGMPlayerDataTool_EditItem extends Component
 		self.Level = entity:GetChildByName("Text_Level").TextComponent
 		self.Dia = entity:GetChildByName("Text_Dia").TextComponent
 		self.Meso = entity:GetChildByName("Text_Meso").TextComponent
-		self.LoginTime = entity:GetChildByName("Text_LoginTime").TextComponent
-		self.LoginTime.Entity:ConnectEvent(TextInputEndEditEvent, self.OnEndEdit_LoginTime)
-		self.LogoutTime = entity:GetChildByName("Text_LogoutTime").TextComponent
-		self.LogoutTime.Entity:ConnectEvent(TextInputEndEditEvent, self.OnEndEdit_LogoutTime)
+		self.FirstLoginTime = entity:GetChildByName("Text_FirstLoginTime").TextComponent
+		self.FirstLoginTime.Entity:ConnectEvent(TextInputEndEditEvent, self.OnEndEdit_FirstLoginTime)
+		self.LastUpdateTime = entity:GetChildByName("Text_LastUpdateTime").TextComponent
+		self.LastUpdateTime.Entity:ConnectEvent(TextInputEndEditEvent, self.OnEndEdit_LastUpdateTime)
 		self.Extra = entity:GetChildByName("Text_Extra").TextComponent
 	end
 
 	@ExecSpace("ClientOnly")
-	method void Set(PlayerBasicData s, integer timeOffset)
+	method void Set(PlayerBasicInfo s, integer timeOffset)
 		self.Data = s
 		self.TimeOffset = timeOffset
 		
 		self.Level.Text = tostring(s.Level)
 		self.Dia.Text = tostring(s.Dia)
 		self.Meso.Text = tostring(s.Meso)
-		self.LoginTime.Text = _UtilGMTool:ElapsedTimeToString(s.LoginTime, timeOffset)
-		self.LogoutTime.Text = _UtilGMTool:ElapsedTimeToString(s.LogoutTime, timeOffset)
+		self.FirstLoginTime.Text = _UtilGMTool:ElapsedTimeToString(s.FirstLoginTime, timeOffset)
+		self.LastUpdateTime.Text = _UtilGMTool:ElapsedTimeToString(s.LastUpdateTime, timeOffset)
 		self.Extra.Text = s.Extra
 	end
 
 	@ExecSpace("ClientOnly")
-	method PlayerBasicData Get()
-		---@type PlayerBasicData
+	method PlayerBasicInfo Get()
+		---@type PlayerBasicInfo
 		local data = self.Data
 		if data == nil then
 			return nil
@@ -74,8 +74,8 @@ script UIGMPlayerDataTool_EditItem extends Component
 		data.Meso = meso
 		
 		local timeOffset = self.TimeOffset
-		data.LoginTime = _UtilGMTool:StringToElapsedTime(self.LoginTime.Text, timeOffset)
-		data.LogoutTime = _UtilGMTool:StringToElapsedTime(self.LogoutTime.Text, timeOffset)
+		data.FirstLoginTime = _UtilGMTool:StringToElapsedTime(self.FirstLoginTime.Text, timeOffset)
+		data.LastUpdateTime = _UtilGMTool:StringToElapsedTime(self.LastUpdateTime.Text, timeOffset)
 		data.Extra = self.Extra.Text
 		
 		return data
@@ -85,14 +85,14 @@ script UIGMPlayerDataTool_EditItem extends Component
 	method void Invalidate(integer timeOffset)
 		self.TimeOffset = timeOffset
 		
-		---@type PlayerBasicData
+		---@type PlayerBasicInfo
 		local data = self.Data
 		if data == nil then
 			return
 		end
 		
-		self.LoginTime.Text = _UtilGMTool:ElapsedTimeToString(data.LoginTime, timeOffset)
-		self.LogoutTime.Text = _UtilGMTool:ElapsedTimeToString(data.LogoutTime, timeOffset)
+		self.FirstLoginTime.Text = _UtilGMTool:ElapsedTimeToString(data.FirstLoginTime, timeOffset)
+		self.LastUpdateTime.Text = _UtilGMTool:ElapsedTimeToString(data.LastUpdateTime, timeOffset)
 	end
 
 	@ExecSpace("ClientOnly")
@@ -102,46 +102,46 @@ script UIGMPlayerDataTool_EditItem extends Component
 		self.Level.Text = ""
 		self.Dia.Text = ""
 		self.Meso.Text = ""
-		self.LoginTime.Text = ""
-		self.LogoutTime.Text = ""
+		self.FirstLoginTime.Text = ""
+		self.LastUpdateTime.Text = ""
 		self.Extra.Text = ""
 	end
 
 	@ExecSpace("ClientOnly")
-	method void OnEndEdit_LoginTime(TextInputEndEditEvent evt)
-		---@type PlayerBasicData
+	method void OnEndEdit_FirstLoginTime(TextInputEndEditEvent evt)
+		---@type PlayerBasicInfo
 		local data = self.Data
 		if data == nil then
 			return
 		end
 		
 		local success, result = pcall(function()
-			data.LoginTime = _UtilGMTool:StringToElapsedTime(self.LoginTime.Text, self.TimeOffset)
+			data.FirstLoginTime = _UtilGMTool:StringToElapsedTime(self.FirstLoginTime.Text, self.TimeOffset)
 		end)
 		
 		-- Rollback Text
 		if not success then
-			local prevStr = _UtilGMTool:ElapsedTimeToString(data.LoginTime, self.TimeOffset)
-			self.LoginTime.Entity.TextInputComponent.Text = prevStr
+			local prevStr = _UtilGMTool:ElapsedTimeToString(data.FirstLoginTime, self.TimeOffset)
+			self.FirstLoginTime.Entity.TextInputComponent.Text = prevStr
 		end
 	end
 
 	@ExecSpace("ClientOnly")
-	method void OnEndEdit_LogoutTime(TextInputEndEditEvent evt)
-		---@type PlayerBasicData
+	method void OnEndEdit_LastUpdateTime(TextInputEndEditEvent evt)
+		---@type PlayerBasicInfo
 		local data = self.Data
 		if data == nil then
 			return
 		end
 		
 		local success, result = pcall(function()
-			data.LogoutTime = _UtilGMTool:StringToElapsedTime(self.LogoutTime.Text, self.TimeOffset)
+			data.LastUpdateTime = _UtilGMTool:StringToElapsedTime(self.LastUpdateTime.Text, self.TimeOffset)
 		end)
 		
 		-- Rollback Text
 		if not success then
-			local prevStr = _UtilGMTool:ElapsedTimeToString(data.LogoutTime, self.TimeOffset)
-			self.LogoutTime.Entity.TextInputComponent.Text = prevStr
+			local prevStr = _UtilGMTool:ElapsedTimeToString(data.LastUpdateTime, self.TimeOffset)
+			self.LastUpdateTime.Entity.TextInputComponent.Text = prevStr
 			return
 		end
 	end

@@ -37,7 +37,7 @@ script UIGMPlayerDataTool_View extends Component
 		
 		self.Text_Name.Text = "ProfileCode : " .. self.ProfileCode
 		
-		local basicData = PlayerBasicData()
+		local basicData = PlayerBasicInfo()
 		if not basicData:Deserialize(self.DeserTable) then
 			log_error("Deserialize Failed.")
 			return

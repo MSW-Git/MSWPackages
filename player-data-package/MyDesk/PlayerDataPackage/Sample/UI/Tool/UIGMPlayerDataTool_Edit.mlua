@@ -47,7 +47,7 @@ script UIGMPlayerDataTool_Edit extends Component
 
 	@ExecSpace("ClientOnly")
 	method void InitItem()
-		local basicData = PlayerBasicData()
+		local basicData = PlayerBasicInfo()
 		if not basicData:Deserialize(self.DeserTable) then
 			log_error("Deserialize Failed.")
 			return

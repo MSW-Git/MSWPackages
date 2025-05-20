@@ -10,22 +10,20 @@ script PlayerData extends Component
 	@TargetUserSync
 	property integer Meso = 0
 
-	property integer LoginTime = 0
+	property integer FirstLoginTime = 0
 
-	property integer LogoutTime = 0
+	property integer LastUpdateTime = 0
 
 	property string Extra = ""
 
 	property boolean IsFirstLogin = false
 
-	@TargetUserSync
-	property boolean IsInit = false
-
 	property boolean IsSaveDB = false
 
 	@ExecSpace("ServerOnly")
-	method void LoadFromDB(table loadKeys)
+	method boolean LoadFromDB(table loadKeys)
 		table.insert(loadKeys, _GMPlayerDataToolLogic.StorageName)
+		return true
 	end
 
 	@ExecSpace("ServerOnly")
@@ -36,7 +34,7 @@ script PlayerData extends Component
 		local sds = loadedData[_GMPlayerDataToolLogic.StorageName]
 		local sdsValue = sds.Value
 		
-		local basicData = PlayerBasicData()
+		local basicData = PlayerBasicInfo()
 		basicData:Init()
 		
 		if not _Util:IsNilorEmptyString(sdsValue) then
@@ -49,11 +47,11 @@ script PlayerData extends Component
 		else
 			basicData:ToComponent(self)	-- Init
 			
+			self.FirstLoginTime = _DateTimeLogic:GetTimeElapsed()
 			self.IsFirstLogin = true
 			self.IsSaveDB = true
 		end
 		
-		self.IsInit = true
 		return true
 	end
 
@@ -62,9 +60,6 @@ script PlayerData extends Component
 		if self.IsFirstLogin then
 			-- Executes tasks on the first login.
 		end
-		
-		self.LoginTime = _DateTimeLogic:GetTimeElapsed()
-		self.IsSaveDB = true
 		
 		return true
 	end
@@ -75,11 +70,11 @@ script PlayerData extends Component
 			return
 		end
 		
-		self.LogoutTime = _DateTimeLogic:GetTimeElapsed()
+		self.LastUpdateTime = _DateTimeLogic:GetTimeElapsed()
 		
 		local deserTable = {}
 		
-		local basicData = PlayerBasicData()
+		local basicData = PlayerBasicInfo()
 		basicData:FromComponent(self)
 		basicData:Serialize(deserTable)
 		
@@ -89,6 +84,31 @@ script PlayerData extends Component
 		end
 		
 		saveData[_GMPlayerDataToolLogic.StorageName] = sds
+		self.IsSaveDB = false
+	end
+
+	@ExecSpace("ServerOnly")
+	method void SetLevel(integer level)
+		self.Level = level
+		self.IsSaveDB = true
+	end
+
+	@ExecSpace("ServerOnly")
+	method void SetDia(integer dia)
+		self.Dia = dia
+		self.IsSaveDB = true
+	end
+
+	@ExecSpace("ServerOnly")
+	method void TryModifyMeso(integer meso)
+		self.Meso = meso
+		self.IsSaveDB = true
+	end
+
+	@ExecSpace("ServerOnly")
+	method void SetExtra(string extra)
+		self.Extra = extra
+		self.IsSaveDB = true
 	end
 
 end

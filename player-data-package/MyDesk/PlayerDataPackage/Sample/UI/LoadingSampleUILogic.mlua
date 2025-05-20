@@ -1,5 +1,5 @@
 @Logic
-script LoadingUILogic extends Logic
+script LoadingSampleUILogic extends Logic
 
 	property string UIName = "UILoading"
 
@@ -41,6 +41,17 @@ script LoadingUILogic extends Logic
 		end
 		
 		uiEntity.UILoading:FadeOut()
+	end
+
+	@EventSender("Service", "InputService")
+	handler HandleKeyDownEvent(KeyDownEvent event)
+		-- Test script for fade-in and fade-out
+		local key = event.key
+		if key == KeyboardKey.F5 then
+			self:FadeIn()
+		elseif key == KeyboardKey.F6 then
+			self:FadeOut()
+		end
 	end
 
 end

@@ -22,11 +22,16 @@ script PlayerDBManager extends Component
 		-- The remaining data will be loaded.
 		local loadKey = {}
 		local loadedData = {}
+		
 		-------------------------------------------------------------------
-		playerEntity.PlayerData:LoadFromDB(loadKey)
+		if not playerEntity.PlayerData:LoadFromDB(loadKey) then
+		    self:SendErrorToClient(_ErrorCodeEnum.DBLoad_GetKey_Fail, userId)
+			return false
+		end
 		-------------------------------------------------------------------
+		
 		if not self:BatchGetAndWait(profileCode, loadKey, loadedData) then
-		    self:SendErrorToClient(_ErrorCodeEnum.DBLoad_Fail, userId)
+		    self:SendErrorToClient(_ErrorCodeEnum.DBLoad_GetAndWait_Fail, userId)
 		    return false
 		end
 		
@@ -37,7 +42,7 @@ script PlayerDBManager extends Component
 		end
 		
 		if not self:PostOnLoadedDataFromDB() then
-			self:SendErrorToClient(_ErrorCodeEnum.DBLoad_Fail, userId)
+			self:SendErrorToClient(_ErrorCodeEnum.DBLoad_PostLoad_Fail, userId)
 			return false
 		end
 		
@@ -61,10 +66,12 @@ script PlayerDBManager extends Component
 		-- This function ensures that the tasks are performed only after all other data has been fully loaded.
 		local playerEntity = self.Entity
 		
+		-------------------------------------------------------------------
 		if not playerEntity.PlayerData:PostOnLoadedDataFromDB() then
 			log_error("PlayerData PostOnLoadedDataFromDB Failed.")
 			return false
 		end
+		-------------------------------------------------------------------
 		
 		return true
 	end
@@ -76,6 +83,7 @@ script PlayerDBManager extends Component
 		end
 		
 		local saveData = {}
+		
 		-------------------------------------------------------------------
 		local playerEntity = self.Entity
 		playerEntity.PlayerData:SaveToDB(saveData)
@@ -195,7 +203,7 @@ script PlayerDBManager extends Component
 
 	@ExecSpace("Client")
 	method void NofifyWorldDataLoadCompletedToClient()
-		_LoadingUILogic:FadeOut()
+		_LoadingSampleUILogic:FadeOut()
 	end
 
 	@ExecSpace("Client")
