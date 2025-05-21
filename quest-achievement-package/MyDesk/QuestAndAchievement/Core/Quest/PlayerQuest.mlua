@@ -55,6 +55,8 @@ script PlayerQuest extends Component
 		end
 		
 		saveData[_GMQuestToolLogic.StorageName] = sds
+		self.IsSaveDB = true
+		
 		return true
 	end
 

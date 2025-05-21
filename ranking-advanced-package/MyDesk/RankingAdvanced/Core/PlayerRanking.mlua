@@ -32,6 +32,8 @@ script PlayerRanking extends Component
 		end
 		
 		saveData[_RankingDataStorageLogic.UserDSName] = sds
+		self.IsSaveDB = false
+		
 		return true
 	end
 
