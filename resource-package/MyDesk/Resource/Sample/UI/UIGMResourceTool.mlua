@@ -7,6 +7,8 @@ script UIGMResourceTool extends Component
 
 	property Entity ViewUI = nil
 
+	property Entity Text_TimeOffset = nil
+
 	@ExecSpace("ClientOnly")
 	method void OnBeginPlay()
 		local entity = self.Entity
@@ -17,6 +19,17 @@ script UIGMResourceTool extends Component
 		
 		local btnClose = title:GetChildByName("Btn_Exit")
 		btnClose:ConnectEvent(ButtonClickEvent, function(evt) self:OnClose()  end)
+		
+		self.Text_TimeOffset = title:GetChildByName("Text_UserTimeOffset")
+		self.Text_TimeOffset:ConnectEvent(TextInputEndEditEvent, function(evt) self:OnChanged_TimeOffset(evt)  end)
+		self.Text_TimeOffset.TextComponent.Text = string.format("+%d", 0)
+		self.Text_TimeOffset.TextInputComponent.Text = string.format("+%d", 0)
+		
+		local tooltip = self.Text_TimeOffset:GetChildByName("Btn_Tooltip")
+		local tooltipPanel = tooltip:GetChildByName("Panel_TooTip")
+		tooltip:ConnectEvent(ButtonClickEvent, function(evt)
+			tooltipPanel.Enable = not tooltipPanel.Enable
+		end)
 		
 		-- TargetUser
 		local targetUser = panel:GetChildByName("TargetUser")
@@ -36,6 +49,7 @@ script UIGMResourceTool extends Component
 
 	@ExecSpace("ClientOnly")
 	method void Open()
+		self:SetTimeOffset(0)
 		self.Entity:SetEnable(true)
 	end
 
@@ -58,6 +72,19 @@ script UIGMResourceTool extends Component
 		self.TargetUserID = targetUserId
 		
 		self.ViewUI.UIGMResourceTool_Page:Refresh()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnChanged_TimeOffset(TextInputEndEditEvent evt)
+		local timeOffset = tonumber(evt.text)
+		self:SetTimeOffset(timeOffset)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetTimeOffset(integer timeOffset)
+		self.Text_TimeOffset.TextInputComponent.Text = string.format("+%d", timeOffset)
+		
+		self.ViewUI.UIGMResourceTool_Page:SetTimeOffset(timeOffset)
 	end
 
 end

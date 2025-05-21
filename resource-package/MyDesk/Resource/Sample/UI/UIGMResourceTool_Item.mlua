@@ -11,6 +11,12 @@ script UIGMResourceTool_Item extends Component
 
 	property any onChangedValue = nil
 
+	property boolean IsRechargeable = false
+
+	property integer LastSaveTimeInSeconds = 0
+
+	property Entity PedictedValue = nil
+
 	@ExecSpace("ClientOnly")
 	method void OnBeginPlay()
 		self.Type = self.Entity:GetChildByName("Text_Type")
@@ -19,12 +25,14 @@ script UIGMResourceTool_Item extends Component
 		self.Value = self.Entity:GetChildByName("Text_Value")
 		self.Value:ConnectEvent(TextInputEndEditEvent, function(evt) self:OnChangedValue(evt) end)
 		
+		self.PedictedValue = self.Entity:GetChildByName("Text_PedictedValue")
+		
 		self.NextRechargeTime = self.Entity:GetChildByName("Text_NextRechargeTime")
 		self.NextRechargeTime:ConnectEvent(TextInputEndEditEvent, function(evt) self:OnChangedNextRechargeTime(evt) end)
 	end
 
 	@ExecSpace("ClientOnly")
-	method void Apply(table data, integer index)
+	method void Apply(table data, integer index, integer lastSaveTimeInSeconds)
 		if data == nil then
 			log_error("Apply data is nil")
 			return
@@ -33,6 +41,7 @@ script UIGMResourceTool_Item extends Component
 		local type = data.Type
 		local value = data.Value
 		self.Index = index
+		self.LastSaveTimeInSeconds = lastSaveTimeInSeconds
 		
 		local nextRechargeTime = data.NextRechargeServerTime
 		if type == nil or value == nil then
@@ -48,12 +57,15 @@ script UIGMResourceTool_Item extends Component
 			return
 		end
 		
-		local isRechargeable = tblData.IsRechargeable
+		self.IsRechargeable = tblData.IsRechargeable 
+		local isRechargeable = self.IsRechargeable
 		if isRechargeable then
 			self.NextRechargeTime.TextComponent.Text = tostring(nextRechargeTime)
 		else
 			self.NextRechargeTime.TextComponent.Text = ""
 		end
+		
+		self.PedictedValue.TextComponent.Text = ""
 		self.NextRechargeTime.TextInputComponent.Enable = isRechargeable
 	end
 
@@ -62,6 +74,8 @@ script UIGMResourceTool_Item extends Component
 		self.Type.TextComponent.Text = ""
 		self.Value.TextComponent.Text = ""
 		self.NextRechargeTime.TextComponent.Text = ""
+		self.PedictedValue.TextComponent.Text = ""
+		self.IsRechargeable = false
 	end
 
 	@ExecSpace("ClientOnly")
@@ -92,6 +106,61 @@ script UIGMResourceTool_Item extends Component
 		if self.onChangedValue ~= nil then
 			self.onChangedValue(self.Index, type, value, evt.text)
 		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnUpdate(number delta)
+		if not self.IsRechargeable then
+			return
+		end
+		
+		local value = self:CalcPedictedValue()
+		if value == nil then
+			return
+		end
+		
+		self.PedictedValue.TextComponent.Text = tostring(value)
+	end
+
+	@ExecSpace("ClientOnly")
+	method integer CalcPedictedValue()
+		local type = tonumber(self.Type.TextComponent.Text)
+		if type == nil then
+			return nil
+		end
+		
+		local value = tonumber(self.Value.TextComponent.Text)
+		if value == nil then
+			return nil
+		end
+		
+		local tblData = _ResourceDataSetLogic:GetData(type)
+		if tblData == nil then
+			return nil
+		end
+		
+		local nextRechargeServerTime = tonumber(self.NextRechargeTime.TextComponent.Text)
+		if value >= tblData.MaxValue then
+			return nil
+		end
+		
+		local elapsedSecondsSinceLastSave = math.floor(_DateTimeLogic:GetTimeElapsed() / 1000) - self.LastSaveTimeInSeconds
+		if elapsedSecondsSinceLastSave < 0 then
+			elapsedSecondsSinceLastSave = 0
+		end
+		
+		local rechargeTimeLeft = nextRechargeServerTime
+		if elapsedSecondsSinceLastSave < rechargeTimeLeft then
+			return nil
+		end
+		
+		local rechargeCount = math.floor(((tblData.RechargeInterval - rechargeTimeLeft) + elapsedSecondsSinceLastSave) / tblData.RechargeInterval)
+		
+		if rechargeCount >= 999999 then
+			return tblData.MaxValue
+		end
+		
+		return math.min(tblData.MaxValue, value + (rechargeCount * tblData.RechargeValue))
 	end
 
 end

@@ -11,6 +11,10 @@ script UIGMResourceTool_Page extends Component
 
 	property boolean CanEdit = false
 
+	property integer TimeOffset = 0
+
+	property integer LastSaveTimeInSeconds = 0
+
 	@ExecSpace("ClientOnly")
 	method void OnBeginPlay()
 		local entity = self.Entity
@@ -39,6 +43,7 @@ script UIGMResourceTool_Page extends Component
 		self.GridView.GridViewComponent.TotalCount = 0
 		self.GridView.GridViewComponent:Refresh()
 		self.LastSaveTime.TextComponent.Text = ""
+		self.TimeOffset = 0
 		self.CanEdit = false
 	end
 
@@ -59,17 +64,12 @@ script UIGMResourceTool_Page extends Component
 		
 			table.insert(self.PlayerData, {Type = type, Value = value, NextRechargeServerTime = nextRechargeServerTime})
 		end
+		self.LastSaveTimeInSeconds = lastSaveTime
 		
 		self.GridView.GridViewComponent.TotalCount = #self.PlayerData
 		self.GridView.GridViewComponent:Refresh(false, true)
 		
-		if lastSaveTime > 0 then
-			local dateTime = DateTime(lastSaveTime * 1000)
-			self.LastSaveTime.TextComponent.Text = string.format("마지막 저장 시간 :\n %s", dateTime:ToFormattedString("yyyy-MM-dd HH:mm:ss"))
-		else
-			self.LastSaveTime.TextComponent.Text = "마지막 저장 시간 :\n 없음"
-		end
-		
+		self:SetLastSaveTime(self.TimeOffset, self.LastSaveTimeInSeconds)
 		self.CanEdit = true
 	end
 
@@ -88,7 +88,7 @@ script UIGMResourceTool_Page extends Component
 			entity.UIGMResourceTool_Item.onChangedValue = function(index, strType, strValue, strNextRechargeTime) self:OnChangedValue(index, strType, strValue, strNextRechargeTime) end
 		end
 		
-		entity.UIGMResourceTool_Item:Apply(data, tableIndex)
+		entity.UIGMResourceTool_Item:Apply(data, tableIndex, self.LastSaveTimeInSeconds)
 	end
 
 	@ExecSpace("ClientOnly")
@@ -200,6 +200,27 @@ script UIGMResourceTool_Page extends Component
 		end
 		
 		self:Refresh()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetTimeOffset(integer timeOffset)
+		self.TimeOffset = timeOffset
+		
+		-- 마지막 저장 시간 갱신
+		if not _Util:IsNilorEmptyString(self.Parent.TargetUserID) then
+			self:SetLastSaveTime(timeOffset, self.LastSaveTimeInSeconds)
+		end
+		
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetLastSaveTime(integer timeOffset, integer lastSaveTime)
+		if lastSaveTime > 0 then
+			local dateTime = DateTime(lastSaveTime * 1000 + timeOffset * 60 * 60 * 1000)
+			self.LastSaveTime.TextComponent.Text = string.format("마지막 저장 시간 :\n %s", dateTime:ToFormattedString("yyyy-MM-dd HH:mm:ss"))
+		else
+			self.LastSaveTime.TextComponent.Text = "마지막 저장 시간 :\n 없음"
+		end
 	end
 
 	@ExecSpace("ClientOnly")

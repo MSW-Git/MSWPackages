@@ -43,7 +43,7 @@ script ResourceAdminLogic extends Logic
 						local rechargeableResource = resourceStruct
 		
 						-- Admin tool queries the time remaining until next recharge.
-						rechargeableResource.NextRechargeServerTime -= _UtilLogic.ServerElapsedSeconds
+						rechargeableResource.NextRechargeServerTime = math.max(0, rechargeableResource.NextRechargeServerTime - _UtilLogic.ServerElapsedSeconds)
 					end
 					
 					result[type] = resourceStruct
@@ -125,7 +125,7 @@ script ResourceAdminLogic extends Logic
 		
 				---@type RechargeableResource
 				local rechargeableResource = newStruct
-				rechargeableResource.NextRechargeServerTime = nextRechargeTime
+				rechargeableResource.NextRechargeServerTime = nextRechargeTime + _UtilLogic.ServerElapsedSeconds
 			end
 		
 			local newData = {}

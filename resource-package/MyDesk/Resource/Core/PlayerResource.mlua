@@ -30,7 +30,6 @@ script PlayerResource extends Component
 					continue
 				end
 				
-		
 				local resourceStruct = _ResourceFactoryLogic:CreateResourceStruct(type)
 				resourceStruct:Deserialize(data, self.Entity)
 				
@@ -64,6 +63,7 @@ script PlayerResource extends Component
 		resourceData["LS"] = math.floor(_DateTimeLogic:GetTimeElapsedWithoutOffset() / 1000)
 		
 		local resourceTable = {}
+		
 		for type, r in pairs(self.Resources) do
 			local data = {}
 			---@type ResourceBase
@@ -187,7 +187,7 @@ script PlayerResource extends Component
 		self.IsSaveDB = true
 		self.Entity:SendEvent(evt)
 		
-		self:SyncResourceValueChangedEvent(evt)
+		self:SyncResourceValueChangedEvent(evt, self.Entity.PlayerComponent.UserId)
 	end
 
 	@ExecSpace("Client")
@@ -207,6 +207,19 @@ script PlayerResource extends Component
 		end
 		
 		self.Entity:SendEvent(evt)
+	end
+
+	@ExecSpace("ServerOnly")
+	method void OnEndPlay()
+		for type, r in pairs(self.Resources) do
+			---@type ResourceBase
+			local resource = r
+			if resource:IsRechargeable() then
+				---@type RechargeableResource
+				local rechargeableResource = resource
+				rechargeableResource:ClearRechargeTimer()
+			end
+		end
 	end
 
 end
