@@ -1,4 +1,0 @@
-@Event
-script ResourceInitEvent extends EventType
-
-end

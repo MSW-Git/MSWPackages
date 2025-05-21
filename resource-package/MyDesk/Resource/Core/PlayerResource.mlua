@@ -30,6 +30,7 @@ script PlayerResource extends Component
 					continue
 				end
 				
+		
 				local resourceStruct = _ResourceFactoryLogic:CreateResourceStruct(type)
 				resourceStruct:Deserialize(data, self.Entity)
 				
@@ -105,45 +106,47 @@ script PlayerResource extends Component
 	@ExecSpace("Client")
 	method void SyncInitialDataToClient(table resources)
 		self.Resources = resources
-				
-		local evt = ResourceInitEvent()
+		
+		local evt = ClientResourceInitializedEvent()
 		self.Entity:SendEvent(evt)
+	end
+
+	method ResourceBase GetResource(integer type)
+		return self.Resources[type]
+	end
+
+	@ExecSpace("Server")
+	method void RequestCreateResource(integer type)
+		if not self:CreateResource(type) then
+			log_error(string.format("Resource create failed. Type : %d", type))
+			return
+		end
 	end
 
 	@ExecSpace("ServerOnly")
-	method void SendResourceValueChangedEvent(ResourceValueChangedEvent evt)
-		self.IsSaveDB = true
-		self.Entity:SendEvent(evt)
+	method boolean CreateResource(integer type)
+		local resourceStruct = _ResourceFactoryLogic:CreateResource(type, self.Entity)
+		if resourceStruct == nil then
+			return false
+		end
 		
-		self:SyncResourceValueChangedEvent(evt)
+		self.Resources[type] = resourceStruct
+		self:SyncNewResource(type, resourceStruct, self.Entity.PlayerComponent.UserId)
+		return true
 	end
 
 	@ExecSpace("Client")
-	method void SyncResourceValueChangedEvent(ResourceValueChangedEvent evt)
-		local resource = self:GetResource(evt.Type)
-		if resource == nil then
-			log_error(string.format("Resource not found. Type : %d", evt.Type))
-			return
-		end
+	method void SyncNewResource(integer type, ResourceBase resource)
+		self.Resources[type] = resource
 		
-		resource.Value = evt.CurValue
-		
-		if resource:IsRechargeable() then
-			---@type RechargeableResource
-			local rechargeResource = resource	
-			rechargeResource.NextRechargeServerTime = evt.NextRechargeServerTime
-		end
-		
+		local evt = ClientResourceTypeRegisteredEvent()
+		evt.Type = type
 		self.Entity:SendEvent(evt)
 	end
 
 	@ExecSpace("Server")
 	method void RequestAddResource(integer type, integer value)
 		self:AddResource(type, value)
-	end
-
-	method ResourceBase GetResource(integer type)
-		return self.Resources[type]
 	end
 
 	@ExecSpace("ServerOnly")
@@ -177,6 +180,33 @@ script PlayerResource extends Component
 			log_error(string.format("Resource consume failed. Type : %d, Value : %d", type, value))
 			return
 		end
+	end
+
+	@ExecSpace("ServerOnly")
+	method void SendResourceValueChangedEvent(ResourceValueChangedEvent evt)
+		self.IsSaveDB = true
+		self.Entity:SendEvent(evt)
+		
+		self:SyncResourceValueChangedEvent(evt)
+	end
+
+	@ExecSpace("Client")
+	method void SyncResourceValueChangedEvent(ResourceValueChangedEvent evt)
+		local resource = self:GetResource(evt.Type)
+		if resource == nil then
+			log_error(string.format("Resource not found. Type : %d", evt.Type))
+			return
+		end
+		
+		resource.Value = evt.CurValue
+		
+		if resource:IsRechargeable() then
+			---@type RechargeableResource
+			local rechargeResource = resource	
+			rechargeResource.NextRechargeServerTime = evt.NextRechargeServerTime
+		end
+		
+		self.Entity:SendEvent(evt)
 	end
 
 end

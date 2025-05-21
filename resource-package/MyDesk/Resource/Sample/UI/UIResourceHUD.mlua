@@ -1,19 +1,76 @@
 @Component
 script UIResourceHUD extends Component
 
+	property boolean IsInit = false
+
 	@ExecSpace("ClientOnly")
-	method void OnBeginPlay()
+	method void Create()
+		if self.IsInit then
+			return
+		end
+		
+		local accountComponent = _UserService.LocalPlayer.PlayerResource
+		local dataList = accountComponent.Resources
+		
+		for type, r in pairs(dataList) do
+			---@type ResourceBase
+			local resource = r
+			local value = 0
+			local nextRechargeServerTime = 0
+			if resource ~= nil then
+				value = resource.Value
+				
+				if resource:IsRechargeable() then
+					---@type RechargeableResource
+					local rechargeData = resource
+					
+					nextRechargeServerTime = rechargeData.NextRechargeServerTime
+				end
+			end
+			
+			local modelId = _EntryService:GetModelIdByName("Model_UIResourceItem")
+			local item = _SpawnService:SpawnByModelId(modelId, "Item", Vector3.zero, self.Entity)
+			item.UIResourceItem:Apply(type, value, nextRechargeServerTime)
+		end
+		
+		self.IsInit = true
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("LocalPlayer")
+	handler HandleClientResourceInitializedEvent(ClientResourceInitializedEvent event)
 		self:Create()
 	end
 
 	@ExecSpace("ClientOnly")
-	method void Create()
-		local data = _ResourceDataSetLogic.TableData
-		for type, d in pairs(data) do
-			local modelId = _EntryService:GetModelIdByName("Model_UIResourceItem")
-			local item = _SpawnService:SpawnByModelId(modelId, "Item", Vector3.zero, self.Entity)
-			item.UIResourceItem:Apply(type, 0, 0)
+	@EventSender("LocalPlayer")
+	handler HandleClientResourceTypeRegisteredEvent(ClientResourceTypeRegisteredEvent event)
+		-- Parameters
+		local Type = event.Type
+		---------------------------------------------------------
+		
+		local accountComponent = _UserService.LocalPlayer.PlayerResource
+		local resource = accountComponent:GetResource(Type)
+		if resource == nil then
+			return
 		end
+		
+		local value = 0
+		local nextRechargeServerTime = 0
+		if resource ~= nil then
+			value = resource.Value
+			
+			if resource:IsRechargeable() then
+				---@type RechargeableResource
+				local rechargeData = resource
+					
+				nextRechargeServerTime = rechargeData.NextRechargeServerTime
+			end
+		end
+		
+		local modelId = _EntryService:GetModelIdByName("Model_UIResourceItem")
+		local item = _SpawnService:SpawnByModelId(modelId, "Item", Vector3.zero, self.Entity)
+		item.UIResourceItem:Apply(Type, value, nextRechargeServerTime)
 	end
 
 end

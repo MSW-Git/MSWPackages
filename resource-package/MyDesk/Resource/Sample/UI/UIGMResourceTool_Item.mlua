@@ -14,13 +14,13 @@ script UIGMResourceTool_Item extends Component
 	@ExecSpace("ClientOnly")
 	method void OnBeginPlay()
 		self.Type = self.Entity:GetChildByName("Text_Type")
-		self.Type:ConnectEvent(TextInputSubmitEvent, function(evt) self:OnChangedType(evt) end)
+		self.Type:ConnectEvent(TextInputEndEditEvent, function(evt) self:OnChangedType(evt) end)
 		
 		self.Value = self.Entity:GetChildByName("Text_Value")
-		self.Value:ConnectEvent(TextInputSubmitEvent, function(evt) self:OnChangedValue(evt) end)
+		self.Value:ConnectEvent(TextInputEndEditEvent, function(evt) self:OnChangedValue(evt) end)
 		
 		self.NextRechargeTime = self.Entity:GetChildByName("Text_NextRechargeTime")
-		self.NextRechargeTime:ConnectEvent(TextInputSubmitEvent, function(evt) self:OnChangedNextRechargeTime(evt) end)
+		self.NextRechargeTime:ConnectEvent(TextInputEndEditEvent, function(evt) self:OnChangedNextRechargeTime(evt) end)
 	end
 
 	@ExecSpace("ClientOnly")
@@ -65,32 +65,32 @@ script UIGMResourceTool_Item extends Component
 	end
 
 	@ExecSpace("ClientOnly")
-	method void OnChangedType(TextInputSubmitEvent evt)
+	method void OnChangedType(TextInputEndEditEvent evt)
 		local value = self.Value.TextComponent.Text
 		local nextRechargeTime = self.NextRechargeTime.TextComponent.Text
 		
 		if self.onChangedValue ~= nil then
-			self.onChangedValue(self.Index, evt.Text, value, nextRechargeTime)
+			self.onChangedValue(self.Index, evt.text, value, nextRechargeTime)
 		end
 	end
 
 	@ExecSpace("ClientOnly")
-	method void OnChangedValue(TextInputSubmitEvent evt)
+	method void OnChangedValue(TextInputEndEditEvent evt)
 		local type = self.Type.TextComponent.Text
 		local nextRechargeTime = self.NextRechargeTime.TextComponent.Text
 		
 		if self.onChangedValue ~= nil then
-			self.onChangedValue(self.Index, type, evt.Text, nextRechargeTime)
+			self.onChangedValue(self.Index, type, evt.text, nextRechargeTime)
 		end
 	end
 
 	@ExecSpace("ClientOnly")
-	method void OnChangedNextRechargeTime(TextInputSubmitEvent evt)
+	method void OnChangedNextRechargeTime(TextInputEndEditEvent evt)
 		local type = self.Type.TextComponent.Text
 		local value = self.Value.TextComponent.Text
 		
 		if self.onChangedValue ~= nil then
-			self.onChangedValue(self.Index, type, value, evt.Text)
+			self.onChangedValue(self.Index, type, value, evt.text)
 		end
 	end
 

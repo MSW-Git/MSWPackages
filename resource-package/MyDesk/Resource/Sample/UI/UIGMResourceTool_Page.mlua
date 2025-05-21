@@ -121,7 +121,6 @@ script UIGMResourceTool_Page extends Component
 			local nextRechargeTime = tonumber(strNextRechargeTime)
 			if nextRechargeTime == nil then
 				nextRechargeTime = 0
-				return
 			end
 		
 			data.NextRechargeServerTime = nextRechargeTime

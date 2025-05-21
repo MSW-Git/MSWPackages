@@ -1,0 +1,6 @@
+@Event
+script ClientResourceTypeRegisteredEvent extends EventType
+
+	property integer Type = 0
+
+end

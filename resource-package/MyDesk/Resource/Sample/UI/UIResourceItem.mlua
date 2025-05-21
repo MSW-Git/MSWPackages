@@ -33,7 +33,6 @@ script UIResourceItem extends Component
 		self.Value.TextComponent.Text = tostring(value)
 		self.NextRechargeServerTime = nextRechargeServerTime
 		
-		--log(string.format("type : %d, value : %d, time : %f", self.Type, value, self.NextRechargeServerTime))
 		if nextRechargeServerTime > 0 then
 			local remainSeconds = self.NextRechargeServerTime - _UtilLogic.ServerElapsedSeconds
 		
@@ -86,34 +85,15 @@ script UIResourceItem extends Component
 		local CurValue = event.CurValue
 		local NextRechargeServerTime = event.NextRechargeServerTime
 		---------------------------------------------------------
+		if not self.Entity.Enable then
+			return
+		end
 		
 		if self.Type ~= Type then
 			return
 		end
 		
 		self:Apply(Type, CurValue, NextRechargeServerTime)
-	end
-
-	@ExecSpace("ClientOnly")
-	@EventSender("LocalPlayer")
-	handler HandleResourceInitEvent(ResourceInitEvent event)
-		local accountComponent = _UserService.LocalPlayer.PlayerResource
-		local data = accountComponent:GetResource(self.Type)
-		
-		local value = 0
-		local nextRechargeServerTime = 0
-		if data ~= nil then
-			value = data.Value
-			
-			if data:IsRechargeable() then
-				---@type RechargeableResource
-				local rechargeData = data
-				
-				nextRechargeServerTime = rechargeData.NextRechargeServerTime
-			end
-		end
-		
-		self:Apply(self.Type, value, nextRechargeServerTime)
 	end
 
 end
