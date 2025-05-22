@@ -49,6 +49,8 @@ script ActionConditionEnum extends Logic
 			strToEnumTable[enumStr] = enum
 			structTable[enum] = struct
 		end
+		
+		return true
 	end
 
 	method string EnumToString(integer enum)
