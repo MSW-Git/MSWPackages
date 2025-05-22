@@ -131,6 +131,8 @@ script PlayerResource extends Component
 		end
 		
 		self.Resources[type] = resourceStruct
+		self.IsSaveDB = true
+		
 		self:SyncNewResource(type, resourceStruct, self.Entity.PlayerComponent.UserId)
 		return true
 	end
