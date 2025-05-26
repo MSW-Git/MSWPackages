@@ -100,7 +100,7 @@ script PlayerData extends Component
 	end
 
 	@ExecSpace("ServerOnly")
-	method void TryModifyMeso(integer meso)
+	method void SetMeso(integer meso)
 		self.Meso = meso
 		self.IsSaveDB = true
 	end
