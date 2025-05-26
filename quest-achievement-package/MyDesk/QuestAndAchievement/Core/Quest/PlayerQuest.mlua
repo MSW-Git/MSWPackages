@@ -55,7 +55,7 @@ script PlayerQuest extends Component
 		end
 		
 		saveData[_GMQuestToolLogic.StorageName] = sds
-		self.IsSaveDB = true
+		self.IsSaveDB = false
 		
 		return true
 	end
@@ -322,7 +322,7 @@ script PlayerQuest extends Component
 			local data = _QuestDataSetLogic:GetData(id)
 			
 			local userData = self:GetOrCreateUserData(id)
-			if not userData:IsAbandonable(data, elapsed) then
+			if not userData:IsAbandonable(data) then
 				continue
 			end
 			
@@ -420,7 +420,7 @@ script PlayerQuest extends Component
 				continue
 			end
 			
-			if userData:UpdateValues(userEntity, data, curElpased) then
+			if userData:UpdateValues(userEntity, data) then
 				dirty = true
 			end
 		end

@@ -53,7 +53,7 @@ script PlayerAchievement extends Component
 		end
 		
 		saveData[_GMAchievementToolLogic.StorageName] = sds
-		self.IsSaveDB = true
+		self.IsSaveDB = false
 		
 		return true
 	end
