@@ -31,7 +31,7 @@ script ActionConditionData_StaminaChange extends ActionConditionData
 		end
 	end
 
-	method number GetNextUserValue(Entity userEntity, ActionEvent evt, integer userValue, integer condValue)
+	method integer GetNextUserValue(Entity userEntity, ActionEvent evt, integer userValue, integer condValue)
 		local evtArgs = evt.Args
 		local prevStamina = evtArgs[1]
 		local curStamina = evtArgs[2]

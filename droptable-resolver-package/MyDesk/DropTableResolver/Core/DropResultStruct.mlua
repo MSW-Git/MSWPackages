@@ -1,0 +1,8 @@
+@Struct
+script DropResultStruct
+
+	property integer ItemId = 0
+
+	property integer Count = 0
+
+end

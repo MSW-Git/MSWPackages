@@ -1,0 +1,41 @@
+@Logic
+script ItemRankEnum extends Logic
+
+	property integer None = 0
+
+	property integer Rare = 1
+
+	property integer Epic = 2
+
+	property integer Unique = 3
+
+	property integer Legendary = 4
+
+	property table FrontEffectTable = {}
+
+	property table BackEffectTable = {}
+
+	method void Init()
+		local front = self.FrontEffectTable
+		front[self.Rare] = "d34928c15afc497d90a408c4afb98ec3"
+		front[self.Epic] = "1cb15f4942284e4f91c647b5bdb0b936"
+		front[self.Unique] = "ecd128f219bd42f39cd0413e5165229b"
+		front[self.Legendary] = "5bf130a85ea144578885c0ff00f0b827"
+		
+		local back = self.BackEffectTable
+		back[self.Rare] = "4d744ffeb1c4448fbdc208a9af477f6d"
+		back[self.Epic] = "1d9ca3975e5949aaadad63f64f884928"
+		back[self.Unique] = "61a46d3af5df4be9aa4703fb7acadbdc"
+		back[self.Legendary] = "b1c4f7f2a013426187054a461bc2e306"
+		
+	end
+
+	method string GetFrontEffect(integer rank)
+		return self.FrontEffectTable[rank] or ""
+	end
+
+	method string GetBackEffect(integer rank)
+		return self.BackEffectTable[rank] or ""
+	end
+
+end

@@ -1,0 +1,80 @@
+@Logic
+script DroppedItemSampleLogic extends Logic
+
+	property Entity Parent = nil
+
+	property table Pool = {}
+
+	property any InvisiblePosition = FastVector3(99999,99999,0)
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		-- When a DroppedItem entity is returned to the pool, it is reparented under Common.
+		self.Parent = _EntityService:GetEntityByPath("/common")
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SpawnResultItems(table resultList)
+		-- Spawns the DroppedItems at the LocalPlayer's position.
+		---@type table<DropResultStruct>
+		local list = resultList
+		local count = #list
+		if count == 0 then
+			return
+		end
+		
+		local gap = 0.4
+		local playerPos = _UserService.LocalPlayer.TransformComponent:PositionAsFastVector3()
+		local pos = FastVector3(playerPos.x, playerPos.y + 0.3, 0)
+		local force = FastVector2(-gap / 2 * (count - 1), 4.5)
+		
+		for i = 1, count do
+			local s = list[i]
+			
+			local itemData = _ItemDataTableLogic:GetData(s.ItemId)
+			if itemData == nil then
+				continue
+			end
+			
+			local item = self:GetOrCreateEntity(pos)
+			item.DroppedItem:SetItem(itemData.RUID, itemData.RUIDOffset, itemData.RUIDScale, itemData.Scale, itemData.IsRotate)
+			item.Enable = true
+			
+			item.RigidbodyComponent:SetForce(force)
+			force.x += gap
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method Entity GetOrCreateEntity(any pos)
+		local currentMap = _UserService.LocalPlayer.CurrentMap
+		
+		local pool = self.Pool
+		if #pool ~= 0 then
+			---@type Entity
+			local entity = table.remove(pool)
+			entity:AttachTo(currentMap)
+			entity.TransformComponent.WorldPosition = pos
+			return entity
+		end
+		
+		local modelId = _EntryService:GetModelIdByName("DroppedItem")
+		if _Util:IsNilorEmptyString(modelId) then
+			log_error("Cannot find model.")
+			return nil
+		end
+		
+		return _SpawnService:SpawnByModelId(modelId, "Item", pos, currentMap)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ReturnToPool(Entity item)
+		local pool = self.Pool
+		pool[#pool + 1] = item
+		
+		item:AttachTo(self.Parent)
+		item.TransformComponent.WorldPosition = self.InvisiblePosition 
+		item.Enable = false
+	end
+
+end

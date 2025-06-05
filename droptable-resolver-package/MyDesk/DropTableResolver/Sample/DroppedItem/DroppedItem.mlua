@@ -1,0 +1,178 @@
+@Component
+script DroppedItem extends Component
+
+	property Entity Rotate = nil
+
+	property Entity Image = nil
+
+	property Entity Front = nil
+
+	property Entity Back = nil
+
+	property any FloatingTweener = nil
+
+	property integer FloatCount = 2
+
+	property boolean IsFloating = false
+
+	property any ScaleVector = nil
+
+	property boolean IsRotate = false
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		
+		self.Rotate = entity:GetChildByName("Rotate")
+		self.Image = self.Rotate:GetChildByName("Image")
+		self.Front = entity:GetChildByName("Front")
+		self.Back = entity:GetChildByName("Back")
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetItem(string ruid, any ruidOffset, number ruidScale, number scale, boolean isRotate)
+		--[[
+		Configures the drop item entity.
+		
+		ruid        : Image RUID
+		ruidOffset  : Image offset
+		ruidScale   : Image scale
+		scale       : Entity scale
+		isRotate    : Whether the entity rotates while dropping
+		]]
+		
+		self.FloatCount = 2
+		self.IsRotate = isRotate
+		
+		local image = self.Image
+		image.SpriteRendererComponent.SpriteRUID = ruid
+		image.SpriteRendererComponent.TiledSize = FastVector2(ruidScale, ruidScale)
+		
+		local pixelPerUnit = 100
+		local imageTransform = image.TransformComponent
+		imageTransform.Position.x = ruidOffset.x * ruidScale / pixelPerUnit
+		imageTransform.Position.y = ruidOffset.y * ruidScale / pixelPerUnit
+		imageTransform.Scale = FastVector3(ruidScale, ruidScale, 1)
+		
+		local scaleVector = FastVector3(scale, scale, 1)
+		self.ScaleVector = scaleVector
+		
+		local entity = self.Entity
+		entity.TransformComponent.Scale = scaleVector
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnUpdate(number delta)
+		if self.IsFloating or not self.IsRotate then
+			return
+		end
+		
+		self.Rotate.TransformComponent.ZRotation += 360 * 3.5 * delta
+	end
+
+	@ExecSpace("ClientOnly")
+	method void StartFloating()
+		if self.IsFloating then
+			return
+		end
+		self.IsFloating = true
+		self.Rotate.TransformComponent.ZRotation = 0
+		
+		local entity = self.Entity
+		entity.RigidbodyComponent.Enable = false
+		
+		local transformComp = entity.TransformComponent
+		
+		local worldPos = transformComp:WorldPositionAsFastVector3()
+		local destPos = FastVector2(worldPos.x, worldPos.y + 0.1)
+		
+		local tweener = _TweenLogic:MoveTo(entity, destPos, 1, EaseType.Linear)
+		tweener.AutoDestroy = false
+		tweener:SetOnEndCallback(self.OnTweenEndCallback)
+		self.FloatingTweener = tweener
+		
+		local renderer = entity.SpriteRendererComponent
+		local ownerOrder = renderer.OrderInLayer
+		local sortingLayer = renderer.SortingLayer
+		
+		local image = self.Image
+		image.SpriteRendererComponent.OrderInLayer = ownerOrder + 3
+		image.SpriteRendererComponent.SortingLayer = sortingLayer
+		
+		local rank = _UtilLogic:RandomIntegerRange(0, 4)
+		if rank > 0 then
+			local frontRenderer = self.Front.SpriteRendererComponent
+			frontRenderer.SpriteRUID = _ItemRankEnum:GetFrontEffect(rank)
+			frontRenderer.SortingLayer = sortingLayer
+			frontRenderer.OrderInLayer = ownerOrder + 2
+			self.Front.Enable = true
+			
+			local backRenderer = self.Back.SpriteRendererComponent
+			backRenderer.SpriteRUID = _ItemRankEnum:GetBackEffect(rank)
+			backRenderer.SortingLayer = sortingLayer
+			backRenderer.OrderInLayer = ownerOrder + 1
+			self.Back.Enable = true
+		end
+		
+		if rank >= 3 then
+			local destPosVec3 = FastVector3(destPos.x, destPos.y, 0)
+			_EffectService:PlayEffect("1cd1cf304c7f45afad842032585f46a1", entity, destPosVec3, 0, self.ScaleVector, false)	
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnTweenEndCallback()
+		if self.FloatCount > 0 then
+			---@type Tweener
+			local tweener = self.FloatingTweener
+			tweener:Reverse()
+			tweener:Restart()
+			self.FloatCount -= 1
+			return
+		end
+		
+		self:PlayGainEffect()
+		self:Clear()
+		_DroppedItemSampleLogic:ReturnToPool(self.Entity)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void PlayGainEffect()
+		local worldPos = self.Entity.TransformComponent:WorldPositionAsFastVector3()
+		local effectPos = FastVector3(worldPos.x, worldPos.y, 0)
+		
+		_SoundService:PlaySound("205510b33adf4509b1565ccd4c77d98b", 1)
+		
+		_EffectService:PlayEffect('12995a48d4f3453b8518a9f5085a48bb', _UserService.LocalPlayer, effectPos, 0, self.ScaleVector)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnEndPlay()
+		self:Clear()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		self.IsFloating = false
+		self.Front.Enable = false
+		self.Back.Enable = false
+		
+		---@type Tweener
+		local tweener = self.FloatingTweener
+		if tweener ~= nil then
+			tweener:SetOnEndCallback(nil)
+			tweener:Destroy()
+			self.FloatingTweener = nil
+		end
+		
+		self.Entity.RigidbodyComponent.Enable = true
+		self.Rotate.TransformComponent.ZRotation = 0
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("Self")
+	handler HandleFootholdCollisionEvent(FootholdCollisionEvent event)
+		self:StartFloating()
+	end
+
+end

@@ -1,0 +1,49 @@
+@Struct
+script DropSingleData
+	
+	property integer Id = 0
+	
+	property integer GroupId = 0
+	
+	property number GroupRate = 0
+	
+	method boolean Load(any dataRow)
+		---@type UserDataRow
+		local row = dataRow
+		
+		local id = math.tointeger(tonumber(row:GetItem("Id")))
+		if id == nil or id == 0 then
+			log_error("Id is nil or 0.")
+			return false
+		end
+		self.Id = id
+		
+		local groupId = math.tointeger(tonumber(row:GetItem("GroupId")))
+		if groupId == nil or groupId == 0 then
+			log_error(string.format("GroupId is nil or 0. Id : %d", id))
+			return false
+		end
+		self.GroupId = groupId
+		
+		local groupRate = tonumber(row:GetItem("GroupRate"))
+		if groupRate == nil or groupRate <= 0 then
+			log_error(string.format("GroupRate is invalid. Id : %d, GroupId : %d", id, groupId))
+			return false
+		end
+		self.GroupRate = groupRate
+		
+		return true
+	end
+	
+	method integer GetWeightSum()
+		local totalWeight = 0
+		
+		---@type table<DropSingleGroupData>
+		local groupDataList = _DropSingleGroupDataSetLogic:GetDataList(self.GroupId)
+		for i = 1, #groupDataList do
+			totalWeight += groupDataList[i].Weight
+		end
+		
+		return totalWeight
+	end
+end

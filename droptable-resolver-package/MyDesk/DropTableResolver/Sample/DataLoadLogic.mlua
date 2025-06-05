@@ -1,0 +1,30 @@
+@Logic
+script DataLoadLogic extends Logic
+
+	method void OnBeginPlay()
+		-- DataSets must be loaded in order due to interdependencies.
+
+		_ItemRankEnum:Init()
+		
+		if not _ItemDataTableLogic:Load() then
+			return
+		end
+		
+		if not _DropSingleGroupDataSetLogic:Load() then
+			return
+		end
+		
+		if not _DropSingleDataSetLogic:Load() then
+			return
+		end
+		
+		if not _DropMultiGroupDataSetLogic:Load() then
+			return
+		end
+		
+		if not _DropMultiDataSetLogic:Load() then
+			return
+		end
+	end
+
+end

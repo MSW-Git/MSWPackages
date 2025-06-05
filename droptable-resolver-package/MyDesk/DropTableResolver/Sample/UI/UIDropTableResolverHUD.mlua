@@ -1,0 +1,118 @@
+@Component
+script UIDropTableResolverHUD extends Component
+
+	property Entity Btn_Single = nil
+
+	property Entity Btn_Multi = nil
+
+	property TextComponent Text_Id = nil
+
+	property TextComponent Text_RollCount = nil
+
+	property TextComponent Text_RateMul = nil
+
+	property TextComponent Text_CountMul = nil
+
+	property boolean IsSingleMode = false
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		local panel = entity:GetChildByName("Panel")
+		
+		self.Text_Id = panel:GetChildByName("Text_Id").TextComponent
+		self.Text_RollCount = panel:GetChildByName("Text_RollCount").TextComponent
+		self.Text_RateMul = panel:GetChildByName("Text_RateMul").TextComponent
+		self.Text_CountMul = panel:GetChildByName("Text_CountMul").TextComponent
+		
+		local Btn_Single = panel:GetChildByName("Btn_Single")
+		Btn_Single:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Single)
+		self.Btn_Single = Btn_Single
+		
+		local Btn_Multi = panel:GetChildByName("Btn_Multi")
+		Btn_Multi:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Multi)
+		self.Btn_Multi = Btn_Multi
+		
+		local Btn_Simulate = panel:GetChildByName("Btn_Simulate")
+		Btn_Simulate:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Simulate)
+		
+		local Btn_Roll = panel:GetChildByName("Btn_Roll")
+		Btn_Roll:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Roll)
+		
+		local Btn_Exit = panel:GetChildByName("Btn_Exit")
+		Btn_Exit:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Exit)
+		
+		self:OnClickBtn_Single()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetEnableButton(Entity entity, boolean enable)
+		local spriteGUIComp = entity.SpriteGUIRendererComponent
+		local textComp = entity.TextComponent
+		
+		if enable then
+			spriteGUIComp.ImageRUID = "e22dca176e7c48b39d5b40554b546e22"
+			textComp.FontColor = Color.FromHexCode("#653122")
+		else
+			spriteGUIComp.ImageRUID = "9bb8e4d004fb46bb9c1b528b3c1ebf9f"
+			textComp.FontColor = Color.FromHexCode("#ffe398")
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Single()
+		self.IsSingleMode = true
+		self:SetEnableButton(self.Btn_Single, true)
+		self:SetEnableButton(self.Btn_Multi, false)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Multi()
+		self.IsSingleMode = false
+		self:SetEnableButton(self.Btn_Single, false)
+		self:SetEnableButton(self.Btn_Multi, true)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Simulate()
+		local id = math.tointeger(tonumber(self.Text_Id.Text))
+		local rollCount = math.tointeger(tonumber(self.Text_RollCount.Text))
+		local rateMul = tonumber(self.Text_RateMul.Text)
+		local countMul = math.tointeger(tonumber(self.Text_CountMul.Text))
+		
+		if self.IsSingleMode then
+			_DropLogic:SimulateDropSingle(id, rollCount, rateMul, countMul)
+		else
+			_DropLogic:SimulateDropMulti(id, rollCount, rateMul, countMul)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Roll()
+		local id = math.tointeger(tonumber(self.Text_Id.Text))
+		local rollCount = math.tointeger(tonumber(self.Text_RollCount.Text))
+		local rateMul = tonumber(self.Text_RateMul.Text)
+		local countMul = math.tointeger(tonumber(self.Text_CountMul.Text))
+		
+		---@type table<DropResultStruct>
+		local outResultList = {}
+		
+		if self.IsSingleMode then
+			if not _DropLogic:DropSingle(id, rollCount, rateMul, countMul, outResultList) then
+				return
+			end
+		else
+			if not _DropLogic:DropMulti(id, rollCount, rateMul, countMul, outResultList) then
+				return
+			end
+		end
+
+		_DroppedItemSampleLogic:SpawnResultItems(outResultList)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Exit()
+		self.Entity.Enable = false
+	end
+
+end

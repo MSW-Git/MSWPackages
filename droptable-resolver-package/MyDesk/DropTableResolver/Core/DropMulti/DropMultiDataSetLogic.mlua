@@ -1,0 +1,53 @@
+@Logic
+script DropMultiDataSetLogic extends Logic
+
+	property table DataTable = {}
+
+	method boolean Load()
+		---@type table<integer, DropMultiData>
+		local dataTable = self.DataTable
+		local rows = _DataService:GetTable("DropMultiDataSet"):GetAllRow()
+		for i = 1, #rows do
+			local row = rows[i]
+			local data = DropMultiData()
+			if not data:Load(row) then
+				return false
+			end
+		
+			local id = data.Id
+			if dataTable[id] ~= nil then
+				log_error(string.format("This ID already exists. ID : %d", id))
+				return false
+			end
+		
+			dataTable[id] = data
+		end
+		
+		if not self:IsValid() then
+			return false
+		end
+		
+		return true
+	end
+
+	method boolean IsValid()
+		-- Verifies that the data corresponding to the ID used in the DataSet exists.
+		---@type table<integer, DropMultiData>
+		local dataTable = self.DataTable
+		for id, data in pairs(dataTable) do
+			for _, groupId in pairs(data.GroupIds) do
+				if _DropMultiGroupDataSetLogic:GetDataList(groupId) == nil then
+					log_error(string.format("Invalid groupId. Id : %d, GroupId : %d", id, groupId))
+					return false
+				end
+			end
+		end
+		
+		return true
+	end
+
+	method DropMultiData GetData(integer dropId)
+		return self.DataTable[dropId]
+	end
+
+end

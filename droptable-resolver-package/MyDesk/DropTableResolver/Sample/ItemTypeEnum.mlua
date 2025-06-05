@@ -1,0 +1,10 @@
+@Logic
+script ItemTypeEnum extends Logic
+
+	property integer None = 0
+
+	property integer Currency = 1
+
+	property integer Gear = 2
+
+end

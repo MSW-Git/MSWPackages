@@ -1,0 +1,518 @@
+@Logic
+script DropLogic extends Logic
+	
+	property number Epsilon = 0.000001
+	
+	property integer MaxRollCount = 100
+	
+	method boolean DropSingle(integer dropId, integer rollCount, number rateMul, integer countMul, table outResultList)
+		--[[
+		Determines the items to drop using the DropSingle DataSet.
+		
+		dropId    : DataSet ID
+		rollCount : Number of drop attempts
+		rateMul   : Drop rate multiplier (default: 1.0)
+		countMul  : Quantity multiplier (default: 1)
+		]]
+		
+		---@type table<DropSingleData>
+		local dataList = _DropSingleDataSetLogic:GetDataList(dropId)
+		if dataList == nil then
+			log_warning(string.format("Cannot find drop data. Id : %d", dropId))
+			return false
+		end
+		
+		if outResultList == nil then
+			log_warning(string.format("Param outResultList is nil. Id : %d", dropId))
+			return false
+		end
+		
+		if rollCount == nil or rollCount <= 0 then
+			log_warning(string.format("RollCount must be a positive value. Id : %d", dropId))
+			return false
+		end
+		
+		if rollCount > self.MaxRollCount then
+			log_warning(string.format("RollCount is too large. Id : %d", dropId))
+			return false
+		end
+		
+		if rateMul == nil then
+			rateMul = 1
+		elseif rateMul <= 0 then
+			log_warning(string.format("RateMul is zero or negative value. Id : %d", dropId))
+			return false
+		end
+		
+		if countMul == nil then
+			countMul = 1
+		elseif countMul <= 0 then
+			log_warning(string.format("CountMul is zero or negative value. Id : %d", dropId))
+			return false
+		end
+		
+		local epsilon = self.Epsilon
+		for i = 1, #dataList do
+			local data = dataList[i]
+			local groupId = data.GroupId
+			local rate = data.GroupRate * rateMul + epsilon
+			
+			for loop = 1, rollCount do
+				local pickValue = _UtilLogic:RandomDouble()
+				if rate < pickValue then
+					continue
+				end
+				
+				local count = 0
+				local groupData = _DropSingleGroupDataSetLogic:Pick(groupId)
+				local itemId = groupData.ItemId
+				local minCount = groupData.MinCount
+				local maxCount = groupData.MaxCount
+				
+				if minCount == maxCount then
+					count = minCount
+				else
+					count = _UtilLogic:RandomIntegerRange(minCount, maxCount)
+				end
+				
+				for cf = 1, countMul do
+					local s = DropResultStruct()
+					s.ItemId = itemId
+					s.Count = count
+					outResultList[#outResultList + 1] = s
+				end
+			end
+		end
+		
+		return true
+	end
+	
+	method boolean DropMulti(integer dropId, integer rollCount, number rateMul, integer countMul, table outResultList)
+		--[[
+		Determines the items to drop using the DropMulti DataSet.
+		
+		dropId    : DataSet ID
+		rollCount : Number of drop attempts
+		rateMul   : Drop rate multiplier (default: 1.0)
+		countMul  : Quantity multiplier (default: 1)
+		]]
+		
+		local dropData = _DropMultiDataSetLogic:GetData(dropId)
+		if dropData == nil then
+			log_warning(string.format("Cannot find drop data. Id : %d", dropId))
+			return false
+		end
+		
+		if outResultList == nil then
+			log_warning(string.format("Param outResultList is nil. Id : %d", dropId))
+			return false
+		end
+		
+		if rollCount == nil or rollCount <= 0 then
+			log_warning(string.format("RollCount must be a positive value. Id : %d", dropId))
+			return false
+		end
+		
+		if rollCount > self.MaxRollCount then
+			log_warning(string.format("RollCount is too large. Id : %d", dropId))
+			return false
+		end
+		
+		if rateMul == nil then
+			rateMul = 1
+		elseif rateMul <= 0 then
+			log_warning(string.format("RateMul is zero or negative value. Id : %d", dropId))
+			return false
+		end
+		
+		if countMul == nil then
+			countMul = 1
+		elseif countMul <= 0 then
+			log_warning(string.format("CountMul is zero or negative value. Id : %d", dropId))
+			return false
+		end
+		
+		local epsilon = self.Epsilon
+		for _, groupId in pairs(dropData.GroupIds) do
+			---@type table<DropMultiGroupData>
+			local groupDataList = _DropMultiGroupDataSetLogic:GetDataList(groupId)
+			
+			for i = 1, #groupDataList do
+				local groupData = groupDataList[i]
+				local rate = groupData.Rate * rateMul + epsilon
+				
+				for loop = 1, rollCount do
+					local pickValue = _UtilLogic:RandomDouble()
+					if rate < pickValue then
+						continue
+					end
+					
+					local count = 0
+					local itemId = groupData.ItemId
+					local minCount = groupData.MinCount
+					local maxCount = groupData.MaxCount
+					
+					if minCount == maxCount then
+						count = minCount
+					else
+						count = _UtilLogic:RandomIntegerRange(minCount, maxCount)
+					end
+					
+					for cf = 1, countMul do
+						local s = DropResultStruct()
+						s.ItemId = itemId
+						s.Count = count
+						outResultList[#outResultList + 1] = s
+					end
+				end
+			end
+		end
+		
+		return true
+	end
+	
+	method void SimulateDropSingle(integer dropId, integer rollCount, number rateMul, integer countMul)
+		--[[
+		Simulates drops using the DropSingle DataSet and logs the results along with the data.
+		
+		-- Output description
+		Index         : Order of the DataSet row
+		ItemId        : Item ID (from Data)
+		Weight        : Weight (from Data)
+		Rate          : Pick probability (from Data)
+		ResultRate    : Actual resulting probability from the simulation
+		PickCount     : Number of times the item was picked in the simulation
+		MinCount      : Minimum quantity (from Data)
+		MaxCount      : Maximum quantity (from Data)
+		ExpectedCount : Expected item quantity
+		ResultCount   : Actual item quantity from the simulation
+		]]
+		
+		---@type table<DropSingleData>
+		local dataList = _DropSingleDataSetLogic:GetDataList(dropId)
+		if dataList == nil then
+			log_warning(string.format("Cannot find drop data. Id : %d", dropId))
+			return
+		end
+		
+		if rollCount <= 0 then
+			log_warning(string.format("RollCount is zero or negative value. Id : %d", dropId))
+			return
+		end
+		
+		if rateMul == nil then
+			rateMul = 1
+		elseif rateMul <= 0 then
+			log_warning(string.format("RateMul is zero or negative value. Id : %d", dropId))
+			return
+		end
+		
+		if countMul == nil then
+			countMul = 1
+		elseif countMul <= 0 then
+			log_warning(string.format("CountMul is zero or negative value. Id : %d", dropId))
+			return
+		end
+		
+		local resultList = {}
+		resultList[#resultList + 1] = string.format("======== SingleDrop Test ========\nDropId : %d, RollCount : %d\nRateMul : %f, CountMul : %f",
+			dropId, rollCount, rateMul, countMul)
+		
+		local epsilon = self.Epsilon
+		for i = 1, #dataList do
+			local data = dataList[i]
+			local groupId = data.GroupId
+			local dataRate = math.min(data.GroupRate * rateMul, 1.0)
+			local rate = dataRate + epsilon
+			local columnStr = "Index,ItemId,Weight,Rate,ResultRate,PickCount,MinCount,MaxCount,ExptectedCount,ResultCount"
+			
+			local groupPickCount = 0
+			local indexPickCounts = {}
+			local indexItemCounts = {}
+			
+			for loop = 1, rollCount do
+				local pickValue = _UtilLogic:RandomDouble()
+				if rate < pickValue then
+					continue
+				end
+				groupPickCount += 1
+				
+				local count = 0
+				local groupData = _DropSingleGroupDataSetLogic:Pick(groupId)
+				local index = groupData.Index
+				if indexPickCounts[index] == nil then
+					indexPickCounts[index] = 1
+				else
+					indexPickCounts[index] += 1
+				end
+				
+				local minCount = groupData.MinCount
+				local maxCount = groupData.MaxCount
+				
+				if minCount == maxCount then
+					count = minCount
+				else
+					count = _UtilLogic:RandomIntegerRange(minCount, maxCount)
+				end
+				count = math.floor(count * countMul + 0.5) -- round
+				
+				if indexItemCounts[index] == nil then
+					indexItemCounts[index] = count
+				else
+					indexItemCounts[index] += count
+				end
+			end
+			
+			local resultGroupRate = groupPickCount / rollCount
+			resultList[#resultList + 1] = string.format("----- GroupID : %d -----", groupId)
+			resultList[#resultList + 1] = string.format("Rate : %f, ResultRate : %f, PickCount : %d", dataRate, resultGroupRate, groupPickCount)
+			resultList[#resultList + 1] = columnStr
+			
+			---@type table<DropSingleGroupData>
+			local groupDataList = _DropSingleGroupDataSetLogic:GetDataList(groupId)
+			local weightSum = data:GetWeightSum()
+			for k = 1, #groupDataList do
+				local groupData = groupDataList[k]
+				local itemId = groupData.ItemId
+				local weight = groupData.Weight
+				local minCount = groupData.MinCount
+				local maxCount = groupData.MaxCount
+				
+				local pickCount = indexPickCounts[k] or 0
+				local resultCount = indexItemCounts[k] or 0
+				
+				local indexRate = weight / weightSum
+				local resultRate = 0
+				if groupPickCount ~= 0 then
+					resultRate = pickCount / groupPickCount
+				end
+				local expectedCount = rollCount * dataRate * indexRate * (minCount + maxCount) / 2 * countMul
+				
+				local str = string.format("%d,%d,%d,%f,%f,%d,%d,%d,%.1f,%d",
+					k, itemId, weight, indexRate, resultRate, pickCount, minCount, maxCount, expectedCount, resultCount)
+				
+				resultList[#resultList + 1] = str
+			end
+		end
+		
+		log(table.concat(resultList, "\n"))
+	end
+	
+	method void SimulateDropMulti(integer dropId, integer rollCount, number rateMul, integer countMul)
+		--[[
+		Simulates drops using the DropMulti DataSet and logs the results along with the data.
+		
+		-- Output description
+		Index         : Order of the DataSet row
+		ItemId        : Item ID (from Data)
+		Rate          : Pick probability (from Data)
+		ResultRate    : Actual resulting probability from the simulation
+		PickCount     : Number of times the item was picked in the simulation
+		MinCount      : Minimum quantity (from Data)
+		MaxCount      : Maximum quantity (from Data)
+		ExpectedCount : Expected item quantity
+		ResultCount   : Actual item quantity from the simulation
+		]]
+		
+		---@type table<string>
+		local resultList = {}
+		
+		local dropData = _DropMultiDataSetLogic:GetData(dropId)
+		if dropData == nil then
+			log_warning(string.format("Cannot find drop data. Id : %d", dropId))
+			return
+		end
+		
+		if rollCount <= 0 then
+			log_warning(string.format("RollCount is zero or negative value. Id : %d", dropId))
+			return
+		end
+		
+		if rateMul == nil then
+			rateMul = 1
+		elseif rateMul <= 0 then
+			log_warning(string.format("RateMul is zero or negative value. Id : %d", dropId))
+			return
+		end
+		
+		if countMul == nil then
+			countMul = 1
+		elseif countMul <= 0 then
+			log_warning(string.format("CountMul is zero or negative value. Id : %d", dropId))
+			return
+		end
+		
+		resultList[#resultList + 1] = string.format("======== MultiDrop Test ========\nDropId : %d, RollCount : %d\nRateMul : %f, CountMul : %f",
+			dropId, rollCount, rateMul, countMul)
+		
+		local columnStr = "Index,ItemId,Rate,ResultRate,PickCount,MinCount,MaxCount,ExptectedCount,ResultCount"
+		local epsilon = self.Epsilon
+		for _, groupId in pairs(dropData.GroupIds) do
+			resultList[#resultList + 1] = string.format("--------Group ID : %d--------", groupId)
+			resultList[#resultList + 1] = columnStr
+			
+			---@type table<DropMultiGroupData>
+			local groupDataList = _DropMultiGroupDataSetLogic:GetDataList(groupId)
+			
+			for i = 1, #groupDataList do
+				local groupData = groupDataList[i]
+				
+				local itemId = groupData.ItemId
+				local dataRate = math.min(groupData.Rate * rateMul, 1.0)
+				local rate = dataRate + epsilon
+				local minCount = groupData.MinCount
+				local maxCount = groupData.MaxCount
+				
+				local pick = 0
+				local resultCount = 0
+				local expectedCount = dataRate * rollCount * (minCount + maxCount) / 2 * countMul
+				
+				for loop = 1, rollCount do
+					local pickValue = _UtilLogic:RandomDouble()
+					if rate < pickValue then
+						continue
+					end
+					pick += 1
+					
+					local count = 0
+					if minCount == maxCount then
+						count = minCount
+					else
+						count = _UtilLogic:RandomIntegerRange(minCount, maxCount)
+					end
+					count = math.floor(count * countMul + 0.5) -- round
+					
+					resultCount += count
+				end
+				
+				local resultRate = pick / rollCount
+				local str = string.format("%d,%d,%f,%f,%d,%d,%d,%d,%d",
+					i, itemId, dataRate, resultRate, pick, minCount, maxCount, expectedCount, resultCount)
+				
+				resultList[#resultList + 1] = str
+			end
+		end
+		
+		log(table.concat(resultList, "\n"))
+	end
+	
+	method boolean RandomDropSingle(integer dropSingleGroupId, integer rollCount, table outResultList)
+		--[[
+		Determines the items to drop using the DropSingleGroup DataSet.
+		Among the candidate items for the given GroupId, exactly one item is always picked.
+		This can be used for random boxes that grant a random item.
+		
+		-- Input parameters
+		dropSingleGroupId : DataSet ID
+		rollCount         : Number of drop attempts
+		]]
+		
+		local groupId = dropSingleGroupId
+		
+		local groupDataList = _DropSingleGroupDataSetLogic:GetDataList(groupId)
+		if groupDataList == nil then
+			log_warning(string.format("Cannot find dropSingleGroup data. GroupId : %d", groupId))
+			return false
+		end
+		
+		if outResultList == nil then
+			log_warning(string.format("Param outResultList is nil. GroupId : %d", groupId))
+			return false
+		end
+		
+		if rollCount == nil or rollCount <= 0 then
+			log_warning(string.format("RollCount must be a positive value. GroupId : %d", groupId))
+			return false
+		end
+		
+		if rollCount > self.MaxRollCount then
+			log_warning(string.format("RollCount is too large. GroupId : %d", groupId))
+			return false
+		end
+		
+		for loop = 1, rollCount do
+			local count = 0
+			local groupData = _DropSingleGroupDataSetLogic:Pick(groupId)
+			local itemId = groupData.ItemId
+			local minCount = groupData.MinCount
+			local maxCount = groupData.MaxCount
+			
+			if minCount == maxCount then
+				count = minCount
+			else
+				count = _UtilLogic:RandomIntegerRange(minCount, maxCount)
+			end
+			
+			local s = DropResultStruct()
+			s.ItemId = itemId
+			s.Count = count
+			outResultList[#outResultList + 1] = s
+		end
+		
+		return true
+	end
+	
+	method boolean SelectDropSingle(integer dropSingleGroupId, integer index, integer openCount, boolean outResultList)
+		--[[
+		Determines the item to drop using the DropSingleGroup DataSet.
+		Picks the item corresponding to the given <GroupId, Index>.
+		This can be used for selection boxes that grant a specific chosen item.
+		
+		-- Input parameters
+		dropSingleGroupId : DataSet ID
+		index             : DataSet row index
+		countFactor       : Quantity multiplier (default: 1)
+		]]
+		
+		local groupId = dropSingleGroupId
+		
+		---@type table<DropSingleGroupData>
+		local groupDataList = _DropSingleGroupDataSetLogic:GetDataList(groupId)
+		if groupDataList == nil then
+			log_warning(string.format("Cannot find dropSingleGroup data. GroupId : %d", groupId))
+			return false
+		end
+		
+		local groupData = groupDataList[index]
+		if groupData == nil then
+			log_warning(string.format("Cannot find dropSingleGroup data. GroupId : %d, Index : %d", groupId, index))
+			return false
+		end
+		
+		if outResultList == nil then
+			log_warning(string.format("Param outResultList is nil. GroupId : %d", groupId))
+			return false
+		end
+		
+		if openCount == nil or openCount <= 0 then
+			log_warning(string.format("RollCount must be a positive value. GroupId : %d", groupId))
+			return false
+		end
+		
+		if openCount > self.MaxRollCount then
+			log_warning(string.format("OpenCount is too large. GroupId : %d", groupId))
+			return false
+		end
+		
+		for loop = 1, openCount do
+			local count = 0
+			local itemId = groupData.ItemId
+			local minCount = groupData.MinCount
+			local maxCount = groupData.MaxCount
+			
+			if minCount == maxCount then
+				count = minCount
+			else
+				count = _UtilLogic:RandomIntegerRange(minCount, maxCount)
+			end
+			
+			local s = DropResultStruct()
+			s.ItemId = itemId
+			s.Count = count
+			outResultList[#outResultList + 1] = s
+		end
+		
+		return true
+	end
+	
+end

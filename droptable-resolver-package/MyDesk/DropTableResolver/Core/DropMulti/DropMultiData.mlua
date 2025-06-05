@@ -1,0 +1,39 @@
+@Struct
+script DropMultiData
+
+	property integer Id = 0
+
+	property table GroupIds = {}
+
+	method boolean Load(any dataRow)
+		---@type UserDataRow
+		local row = dataRow
+		
+		local id = math.tointeger(tonumber(row:GetItem("Id")))
+		if id == nil or id == 0 then
+			log_error("Id is nil or 0.")
+			return false
+		end
+		self.Id = id
+		
+		local groupIdsStr = row:GetItem("GroupIds")
+		if _Util:IsNilorEmptyString(groupIdsStr) then
+			log_error(string.format("Empty GroupIds. Id : %d", id))
+			return false
+		end
+		
+		local groupIds = self.GroupIds
+		local groupIdStrs = _UtilLogic:Split(groupIdsStr, ",")
+		for i = 1, #groupIdStrs do
+			local groupId = math.tointeger(tonumber((groupIdStrs[i])))
+			if groupId == nil then
+				log_error(string.format("GroupId is nil. Id : %d", id))
+				return false
+			end
+			table.insert(groupIds, groupId)
+		end
+		
+		return true
+	end
+
+end

@@ -1,0 +1,12 @@
+﻿Id,ItemType,ItemName,RUID,RUIDOffset,RUIDScale,Scale,IsRotate
+1000,1,Bronze Mesos,a724200c454c4fcf878b0a3cdbb706d6,-16.5|-16.0,,1.2,
+1001,1,Silver Mesos,7b417b1a1b0b40469077a4a261b00cbf,-16.5|-17.0,,1.2,
+1002,1,Gold Mesos,b60c3cbbf52c40709f2fd886d98fe2d9,-16.5|-16.0,,1.2,
+1003,1,Mesos Bundle,c3fe3ffa606f41069ce8b36278e9e7e8,-16.5|-17.0,,1.2,
+1004,1,Mesos Pouch,f0aa7764ff5344848d59accafa2dbf6e,-16.0|-16.5,,1.2,
+2000,2,armor0,thumbnail://4566a7ef3f4e46fca4c1751c499fec84,,0.5,,1
+2001,2,armor1,thumbnail://ad76497733c74828b4e6aaeff251c35d,,0.5,,1
+2002,2,armor2,thumbnail://9885f9d8ee00456e842d0b19b1caae1f,,0.5,,1
+2003,2,armor3,thumbnail://1cd3d12f6c184166a97ebbdd74bce6a1,,0.5,,1
+2004,2,armor4,a6f7b7e5e269499e9e59526b95d01ee5,-16.0|-15.5,,,1
+2005,2,armor5,thumbnail://ce77ce2811b64f7b99d24fc9358a56da,,0.5,,1

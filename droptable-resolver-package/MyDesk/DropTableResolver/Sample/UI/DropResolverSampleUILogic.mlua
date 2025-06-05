@@ -1,0 +1,85 @@
+@Logic
+script DropResolverSampleUILogic extends Logic
+
+	property string ModelHUDName = "UIDropTableResolverHUD"
+
+	property string HUDUIPath = "/ui/DefaultGroup"
+
+	property Entity HUDUIEntity = nil
+
+	@ExecSpace("ClientOnly")
+	method Entity GetHUDUI()
+		-- Retrieves the existing HUDUIEntity entity.
+		local entity = self.HUDUIEntity
+		if not isvalid(entity) then
+			return nil
+		end
+		
+		return entity
+	end
+
+	@ExecSpace("ClientOnly")
+	method Entity ActiveHUDUI()
+		-- Spawns the HUDUI model or activates the existing HUDUI entity.
+		local entity = self:GetHUDUI()
+		if entity ~= nil then
+			entity.Enable = true
+			return entity
+		end
+		
+		entity = self:SpawnUI(self.ModelHUDName, self.HUDUIPath)
+		self.HUDUIEntity = entity
+		
+		return entity
+	end
+
+	@ExecSpace("ClientOnly")
+	method Entity SpawnUI(string modelName, string parentUIPath)
+		-- Spawns the model corresponding to modelName as a child of ParentUIPath.
+		local modelId = _EntryService:GetModelIdByName(modelName)
+		if _Util:IsNilorEmptyString(modelId) then
+			log_error(string.format("Cannot find modelId with the name (%s)",  modelName))
+			return nil
+		end
+		
+		local parent = _EntityService:GetEntityByPath(parentUIPath)
+		if not isvalid(parent) then
+			log_error(string.format("Cannot find an entity with the path (%s)",  parentUIPath))
+			return nil
+		end
+		
+		local entity = _SpawnService:SpawnByModelId(modelId, modelName, Vector3.zero, parent)
+		if entity == nil then
+			log_error("GMMessageLogic SpawnByModelId Failed.")
+			return nil
+		end
+		
+		return entity
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OpenHUDUI()
+		if not _AdminLogic:IsAdminLocalPlayer() then
+			return
+		end
+		
+		local entity = self:GetHUDUI()
+		if entity ~= nil then
+			entity.Enable = true
+			return
+		end
+		
+		self:ActiveHUDUI()
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("Service", "InputService")
+	handler HandleKeyDownEvent(KeyDownEvent event)
+		local key = event.key
+		
+		if key == KeyboardKey.F2 then
+			self:OpenHUDUI()
+		end
+	end
+
+end

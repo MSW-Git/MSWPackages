@@ -1,0 +1,55 @@
+@Logic
+script DropMultiGroupDataSetLogic extends Logic
+
+	property table DataTable = {}
+
+	method boolean Load()
+		---@type table<integer, table<DropMultiGroupData>>
+		local dataTable = self.DataTable
+		local rows = _DataService:GetTable("DropMultiGroupDataSet"):GetAllRow()
+		for i = 1, #rows do
+			local row = rows[i]
+			local data = DropMultiGroupData()
+			if not data:Load(row) then
+				return false
+			end
+		
+			local id = data.Id
+			local dataList = dataTable[id]
+			if dataList == nil then
+				dataList = {}
+				dataTable[id] = dataList
+			end
+		
+			dataList[#dataList + 1] = data
+		end
+		
+		if not self:IsValid() then
+			return false
+		end
+		
+		return true
+	end
+
+	method boolean IsValid()
+		---@type table<integer, table<DropMultiGroupData>>
+		local dataTable = self.DataTable
+		for groupId, dataList in pairs(dataTable) do
+			for i = 1, #dataList do
+				local data = dataList[i]
+				local itemId = data.ItemId
+				if _ItemDataTableLogic:GetData(itemId) == nil then
+					log_error(string.format("ItemId is not valid. GroupId : %d, ItemId : %d", groupId, itemId))	
+					return false
+				end
+			end
+		end
+		
+		return true
+	end
+
+	method table GetDataList(integer groupId)
+		return self.DataTable[groupId]
+	end
+
+end

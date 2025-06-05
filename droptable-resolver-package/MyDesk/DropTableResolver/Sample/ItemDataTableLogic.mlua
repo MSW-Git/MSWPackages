@@ -1,0 +1,31 @@
+@Logic
+script ItemDataTableLogic extends Logic
+	property table DataTable = {}
+	
+	method boolean Load()
+		---@type table<integer, ItemData>
+		local dataTable = self.DataTable
+		local rows = _DataService:GetTable("ItemDataTable"):GetAllRow()
+		for i = 1, #rows do
+			local row = rows[i]
+			local data = ItemData()
+			if not data:Load(row) then
+				return false
+			end
+			
+			local id = data.Id
+			if dataTable[id] ~= nil then
+				log_error(string.format("Id already exist. Id : %d", id))
+				return false
+			end
+			
+			dataTable[id] = data
+		end
+		
+		return true
+	end
+	
+	method ItemData GetData(integer itemId)
+		return self.DataTable[itemId]
+	end
+end

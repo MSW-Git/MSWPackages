@@ -1,0 +1,61 @@
+@Struct
+script DropSingleGroupData
+
+	property integer Id = 0
+
+	property integer ItemId = 0
+
+	property integer Weight = 0
+
+	property integer MinCount = 0
+
+	property integer MaxCount = 0
+
+	property integer Index = 0
+
+	method boolean Load(any dataRow)
+		---@type UserDataRow
+		local row = dataRow
+		
+		local Id = math.tointeger(tonumber(row:GetItem("Id")))
+		if Id == nil or Id == 0 then
+			log_error("GroupId is nil or 0")
+			return false
+		end
+		self.Id = Id
+		
+		local itemId = math.tointeger(tonumber(row:GetItem("ItemId")))
+		if itemId == nil or itemId == 0 then
+			log_error(string.format("ItemId is nil or 0. GroupId : %d", Id))
+			return false
+		end
+		self.ItemId = itemId
+		
+		local weight = math.tointeger(tonumber(row:GetItem("Weight")))
+		if weight == nil or weight <= 0 then
+			log_error(string.format("Weight is invalid. GroupId : %d, ItemId : %d, ", Id, itemId))
+			return false
+		end
+		self.Weight = weight
+		
+		local minCount = math.tointeger(tonumber(row:GetItem("MinCount")))
+		if minCount == nil then
+			minCount = 1
+		end
+		self.MinCount = minCount
+		
+		local maxCount = math.tointeger(tonumber(row:GetItem("MaxCount")))
+		if maxCount == nil then
+			maxCount = 1
+		end
+		self.MaxCount = maxCount
+		
+		if minCount <= 0 or maxCount <= 0 or minCount > maxCount then
+			log_error(string.format("Min/Max Count Error. Percent is 0. GroupId : %d, ItemId : %d, MinCount : %d, MaxCount : %d", Id, itemId, minCount, maxCount))
+			return false
+		end
+		
+		return true
+	end
+
+end

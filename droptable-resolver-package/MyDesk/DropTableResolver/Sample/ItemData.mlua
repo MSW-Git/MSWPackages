@@ -1,0 +1,69 @@
+@Struct
+script ItemData
+
+	property integer Id = 0
+
+	property string ItemName = ""
+
+	property integer ItemType = 0
+
+	property string RUID = ""
+
+	property any RUIDOffset = FastVector2(0,0)
+
+	property number RUIDScale = 1
+
+	property number Scale = 1
+
+	property boolean IsRotate = false
+
+	method boolean Load(any dataRow)
+		---@type UserDataRow
+		local row = dataRow
+		
+		local id = math.tointeger(tonumber(row:GetItem("Id")))
+		if id == nil or id == 0 then
+			log_error("Id is invalid.")
+			return false
+		end
+		self.Id = id
+		
+		self.ItemName = row:GetItem("ItemName")
+		
+		local itemType = math.tointeger(tonumber(row:GetItem("ItemType")))
+		if itemType == nil or itemType == 0 then
+			log_error(string.format("ItemType is invalid. Id : %d", id))
+		end
+		
+		self.RUID = row:GetItem("RUID")
+		
+		local ruidOffsetStr = row:GetItem("RUIDOffset")
+		if not _Util:IsNilorEmptyString(ruidOffsetStr) then
+			local strs = _UtilLogic:Split(ruidOffsetStr, "|")
+			if #strs ~= 2 then
+				log_error(string.format("RUIDOffset is invalid. Id : %d", id))
+				return false
+			end
+			
+			self.RUIDOffset.x = tonumber(strs[1]) or 0
+			self.RUIDOffset.y = tonumber(strs[2]) or 0
+		end
+		
+		local ruidScale = tonumber(row:GetItem("RUIDScale"))
+		if ruidScale ~= nil and ruidScale >= 0 then
+			self.RUIDScale = ruidScale
+		end
+		
+		local scale = tonumber(row:GetItem("Scale"))
+		if scale ~= nil and scale >= 0 then
+			self.Scale = scale
+		end
+		
+		if not _Util:IsNilorEmptyString(row:GetItem("IsRotate")) then
+			self.IsRotate = true
+		end
+		
+		return true
+	end
+
+end
