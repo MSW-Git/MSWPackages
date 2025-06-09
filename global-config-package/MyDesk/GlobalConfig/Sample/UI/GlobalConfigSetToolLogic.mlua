@@ -1,0 +1,143 @@
+@Logic
+script GlobalConfigSetToolLogic extends Logic
+
+	property string ModelToolName = "UIGlobalConfigSetTool"
+
+	property string TestButtonName = "UIButtonTestWorldBoss"
+
+	property string ParentUIPath = "/ui/DefaultGroup"
+
+	property string ParentUIToolPath = "/ui/DefaultGroup"
+
+	property Entity UIEntity = nil
+
+	property Entity UIToolEntity = nil
+
+	@ExecSpace("Server")
+	method void RequestOpenUITool()
+		if not _AdminLogic:IsAdmin(senderUserId) then
+			return
+		end
+		
+		---@type table<integer, GlobalConfigDataStruct>
+		local dataTable = _GlobalConfigLogic.DataTable
+		
+		local dbItems = {}
+		for _, s in pairs(dataTable) do
+			local dbItem = s:Serialize()
+			table.insert(dbItems, dbItem)
+		end
+		
+		local dbItemsStr = ""
+		if #dbItems ~= 0 then
+			dbItemsStr = _HttpService:JSONEncode(dbItems)
+		end
+		
+		self:ResponseOpenUITool(dbItemsStr, senderUserId)
+	end
+
+	@ExecSpace("Client")
+	method void ResponseOpenUITool(string dbItemsStr)
+		local dataTable = {}
+		
+		if not _Util:IsNilorEmptyString(dbItemsStr) then
+			local dbItems = _HttpService:JSONDecode(dbItemsStr)
+			for i = 1, #dbItems do
+				local s = GlobalConfigDataStruct()
+				s:Deserialize(dbItems[i])
+				table.insert(dataTable, s)
+			end
+		end
+		
+		local uiEntity = self:ActiveUITool()
+		if uiEntity == nil then
+			return
+		end
+		
+		uiEntity.UIGlobalConfigSetTool:SetDataTable(dataTable)
+	end
+
+	@ExecSpace("Client")
+	method void SetDataToUITool(GlobalConfigDataStruct struct)
+		local uiEntity = self:GetUITool()
+		if uiEntity == nil then
+			return
+		end
+		
+		uiEntity.UIGlobalConfigSetTool:SetData(struct)
+	end
+
+	@ExecSpace("ClientOnly")
+	method Entity ActiveUITool()
+		-- Spawns the UIGlobalConfigSetTool model or activates the existing UI entity.
+		local entity = self:GetUITool()
+		if entity ~= nil then
+			entity.Enable = true
+			return entity
+		end
+		
+		--Spawn TestButton
+		self:Inner_SpawnUI(self.TestButtonName, self.ParentUIToolPath)
+		
+		entity = self:Inner_SpawnUI(self.ModelToolName, self.ParentUIToolPath)
+		self.UIToolEntity = entity
+		
+		return entity
+	end
+
+	@ExecSpace("ClientOnly")
+	method Entity GetUITool()
+		-- Retrieves the existing UIGlobalConfigSetTool entity.
+		local entity = self.UIToolEntity
+		if not isvalid(entity) then
+			return nil
+		end
+		
+		return entity
+	end
+
+	@ExecSpace("ClientOnly")
+	method Entity Inner_SpawnUI(string modelName, string parentUIPath)
+		-- Spawns the model corresponding to modelName as a child of ParentUIPath.
+		local modelId = _EntryService:GetModelIdByName(modelName)
+		if _Util:IsNilorEmptyString(modelId) then
+			log_error(string.format("Cannot find modelId with the name (%s)",  modelName))
+			return nil
+		end
+		
+		local parent = _EntityService:GetEntityByPath(parentUIPath)
+		if not isvalid(parent) then
+			log_error(string.format("Cannot find an entity with the path (%s)",  parentUIPath))
+			return nil
+		end
+		
+		local entity = _SpawnService:SpawnByModelId(modelId, modelName, Vector3.zero, parent)
+		if entity == nil then
+			log_error("GlobalConfigLogic SpawnByModelId Failed.")
+			return nil
+		end
+		
+		return entity
+	end
+
+	@EventSender("Service", "InputService")
+	handler HandleKeyDownEvent(KeyDownEvent event)
+		--------------- Native Event Sender Info ----------------
+		-- Sender: InputService
+		-- Space: Client
+		---------------------------------------------------------
+		if event.key == KeyboardKey.F9 then
+			local uiEntity = self:GetUITool()
+			
+			-- Open
+			if uiEntity == nil or uiEntity.Enable == false then
+				self:RequestOpenUITool()
+				return
+			end
+			
+			-- Close
+			uiEntity.Enable = false
+		end
+	end
+
+end

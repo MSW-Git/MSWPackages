@@ -1,0 +1,8 @@
+@Event
+script GlobalConfigChangeEvent extends EventType
+
+	property any GlobalConfigStruct = nil
+
+	property integer ActionEnum = 1
+
+end

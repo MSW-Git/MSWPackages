@@ -1,0 +1,263 @@
+@Logic
+script GlobalConfigLogic extends Logic
+
+	property string GlobalConfig = "GlobalConfig"
+
+	property table DataTable = {}
+
+	property boolean IsInitialized = false
+
+	property any GlobalConfigStorage = nil
+
+	method void OnBeginPlay()
+		_GlobalConfigIdEnumLogic:Init()
+		_GlobalConfigActionEnumLogic:Init()
+		
+		if self:IsServer() then
+			self:Init()
+		end
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean Init()
+		self.GlobalConfigStorage = _DataStorageService:GetGlobalDataStorage(self.GlobalConfig)
+		
+		if self.GlobalConfigStorage == nil then
+			return false
+		end
+		
+		---@type GlobalDataStorage
+		local globalConfigStorage = self.GlobalConfigStorage
+		
+		local keyList = table.keys(_GlobalConfigIdEnumLogic:GetKeyList())
+		local keys = {}
+		
+		for _, key in ipairs(keyList) do
+			table.insert(keys, tostring(key))
+		end
+		
+		local errorCode, pages = globalConfigStorage:BatchGetAndWait(keys)
+		
+		if errorCode ~= 0 then
+			return false
+		end
+		
+		while true do
+			local datas = pages:GetCurrentPageDatas()
+			
+			for _, data in pairs(datas) do
+				local key = math.tointeger(tonumber(data.KeyInfo.Key))
+				
+				local s = _GlobalConfigIdEnumLogic.GlobalConfigDefaultTable[key]:Copy()
+				
+				if data.Value ~= nil then
+					s.DefaultValue = data.Value
+					
+					for i = 1, #keyList do
+						if keyList[i] == key then
+							table.remove(keyList, i)
+							break
+						end
+					end
+				end
+				
+				self:SetConfig(s)
+			end
+				
+			if pages.IsLastPage == true then
+				break
+			end
+				     
+			local loadResultCode = pages:LoadNextPageAndWait()
+			if loadResultCode ~= 0 then
+				break
+			end
+				     
+			pages:MoveToNextPageAndWait()
+		end
+		
+		--Data that exists in the DataSet but not in GlobalDataStorage will be initialized with its default value.
+		for _, key in pairs(keyList) do
+			local s = _GlobalConfigIdEnumLogic.GlobalConfigDefaultTable[key]
+			
+			self:SetConfig(s)
+			
+			self:SaveGlobalConfigToDataStorage(s)
+		end
+		
+		self.IsInitialized = true
+		
+		return true
+	end
+
+	@ExecSpace("ServerOnly")
+	method void SyncAllDataTable(string EnteredUserId)
+		for key, data in pairs(self.DataTable) do
+			if data.ClientSync then
+				self:SyncDataTable(data, EnteredUserId)
+			end
+		end
+		
+		self:SyncFinish(EnteredUserId)
+	end
+
+	@ExecSpace("Client")
+	method void SyncFinish()
+		self.IsInitialized = true
+	end
+
+	method string GetValue(integer id)
+		if not self.IsInitialized then
+			log_error("Not initialized yet.")
+			return nil
+		end
+		
+		if self.DataTable[id] == nil then 
+			log_error("Key : " .. tostring(id) .. " Data not found.")
+			return nil 
+		end
+		
+		return self.DataTable[id].DefaultValue
+	end
+
+	@ExecSpace("Server")
+	method void RequestLoadGlobalConfigValue(integer Id)
+		if not _AdminLogic:IsAdmin(senderUserId) then
+			return
+		end
+		
+		---@type GlobalDataStorage
+		local globalConfigStorage = self.GlobalConfigStorage
+		
+		local errorCode, value = globalConfigStorage:GetAndWait(tostring(Id))
+		
+		if errorCode ~= 0 then
+			return
+		end
+		
+		local struct =  _GlobalConfigIdEnumLogic.GlobalConfigDefaultTable[Id]:Copy()
+		
+		if not _Util:IsNilorEmptyString(value) then
+			struct.DefaultValue = value
+		end
+		
+		_GlobalConfigSetToolLogic:SetDataToUITool(struct, senderUserId)
+	end
+
+	@ExecSpace("Server")
+	method void RequestSaveGlobalConfigValue(GlobalConfigDataStruct struct)
+		if not _AdminLogic:IsAdmin(senderUserId) then
+			return
+		end
+		
+		self:SaveGlobalConfigToDataStorage(struct)
+		
+		_GlobalConfigSetToolLogic:SetDataToUITool(struct, senderUserId)
+		
+		self:SendWorldEvent(struct, _GlobalConfigActionEnumLogic.Save)
+	end
+
+	@ExecSpace("ServerOnly")
+	method void SetConfig(GlobalConfigDataStruct struct)
+		self:SetToDataTable(struct)
+			
+		if struct.ClientSync then
+			self:SyncDataTable(struct)
+		end
+	end
+
+	method void SetToDataTable(GlobalConfigDataStruct struct)
+		self.DataTable[struct.Id] = struct:Copy()
+	end
+
+	@ExecSpace("Client")
+	method void SyncDataTable(GlobalConfigDataStruct struct)
+		self:SetToDataTable(struct)
+	end
+
+	@ExecSpace("ServerOnly")
+	method void SaveGlobalConfigToDataStorage(GlobalConfigDataStruct data)
+		---@type GlobalDataStorage
+		local globalConfigStorage = self.GlobalConfigStorage
+		
+		self.DataTable[data.Id] = data:Copy()
+		
+		local errorCode = globalConfigStorage:SetAndWait(tostring(data.Id), self.DataTable[data.Id].DefaultValue)
+		
+		if errorCode ~= 0 then
+			log("Save Data Id " .. tostring(data.Id) .. " error, Code : " .. tostring(errorCode))
+			return
+		end
+	end
+
+	@ExecSpace("Server")
+	method void SendWorldEvent(GlobalConfigDataStruct struct, number action)
+		if not _AdminLogic:IsAdmin(senderUserId) then
+			return
+		end
+		
+		local event = GlobalConfigChangeWorldEvent()
+		event.GlobalConfigString = _HttpService:JSONEncode(struct:Serialize())
+		event.ActionEnum = action
+		
+		_WorldInstanceService:RequestSendEventToAllWorldInstancesAndWait(event)
+	end
+
+	@ExecSpace("ServerOnly")
+	method void ReceiveConfigChangeWorldEvent(GlobalConfigChangeWorldEvent event)
+		local struct = GlobalConfigDataStruct()
+		struct:Deserialize(_HttpService:JSONDecode(event.GlobalConfigString))
+		
+		if event.ActionEnum == _GlobalConfigActionEnumLogic.Save then
+			self:SetConfig(struct)
+		--Works only in the management tool.
+		--elseif ActionEnum == _GlobalConfigActionEnumLogic.Load then
+		--elseif ActionEnum == _GlobalConfigActionEnumLogic.Reset then
+		end
+	end
+
+	@ExecSpace("ServerOnly")
+	@EventSender("Service", "UserService")
+	handler HandleUserEnterEvent(UserEnterEvent event)
+		--------------- Native Event Sender Info ----------------
+		-- Sender: UserService
+		-- Space: Server
+		---------------------------------------------------------
+		
+		-- Parameters
+		-- local ProfileCode = event.ProfileCode
+		local UserId = event.UserId
+		---------------------------------------------------------
+		if not self.IsInitialized then
+			wait(0.5)
+		end
+		
+		if self.DataTable ~= nil then
+			self:SyncAllDataTable(UserId)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("Logic", "GlobalConfigLogic")
+	handler HandleGlobalConfigChangeEvent(GlobalConfigChangeEvent event)
+		if self.IsInitialized == false then
+			wait(0.5)
+		end
+		
+		---@type GlobalConfigDataStruct
+		local struct = event.GlobalConfigStruct
+		
+		if event.ActionEnum == _GlobalConfigActionEnumLogic.Load then
+			self:RequestLoadGlobalConfigValue(struct.Id)
+		elseif event.ActionEnum == _GlobalConfigActionEnumLogic.Save then
+			self:RequestSaveGlobalConfigValue(struct)
+		end
+	end
+
+	@ExecSpace("ServerOnly")
+	@EventSender("Service", "WorldInstanceService")
+	handler HandleGlobalConfigChangeWorldEvent(GlobalConfigChangeWorldEvent event)
+		self:ReceiveConfigChangeWorldEvent(event)
+	end
+
+end

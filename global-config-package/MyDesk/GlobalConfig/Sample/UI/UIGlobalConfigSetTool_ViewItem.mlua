@@ -1,0 +1,113 @@
+@Component
+script UIGlobalConfigSetTool_ViewItem extends Component
+
+	property TextComponent Id = nil
+
+	property TextComponent Name = nil
+
+	property TextComponent Value = nil
+
+	property TextComponent Sync = nil
+
+	property Entity LoadBtn = nil
+
+	property Entity SaveBtn = nil
+
+	property Entity ResetBtn = nil
+
+	property UIGlobalConfigSetTool_View View = nil
+
+	property integer Index = 0
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		self.Id = entity:GetChildByName("Text_Id").TextComponent
+		self.Name = entity:GetChildByName("Text_Name").TextComponent
+		self.Value = entity:GetChildByName("Text_Value").TextComponent
+		self.Sync = entity:GetChildByName("Text_Sync").TextComponent
+		
+		self.LoadBtn = entity:GetChildByName("Button_Load")
+		self.LoadBtn:ConnectEvent(ButtonClickEvent, self.OnClickLoadBtn)
+		self.SaveBtn = entity:GetChildByName("Button_Save")
+		self.SaveBtn:ConnectEvent(ButtonClickEvent, self.OnClickSaveBtn)
+		self.ResetBtn = entity:GetChildByName("Button_Reset")
+		self.ResetBtn:ConnectEvent(ButtonClickEvent, self.OnClickResetBtn)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Set(GlobalConfigDataStruct struct, integer index)
+		if struct.Id > 0 then
+			self.Id.Text = tostring(struct.Id)
+			self.Name.Text = struct.Name
+			self.Value.Text = struct.DefaultValue
+			self.Sync.Text = struct.ClientSync and "O" or "X"
+		else
+			self:Clear()
+		end
+		
+		self.Index = index
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		self.Id.Text = ""
+		self.Name.Text = ""
+		self.Value.Text = ""
+		self.Sync.Text = ""
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickLoadBtn()
+		self.View:LoadData(self.Index)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickSaveBtn()
+		local keyId = math.tointeger(tonumber(self.Id.Text))
+		
+		if keyId <= 0 then
+			log_error("Invalid id " .. keyId)
+			return
+		end
+		
+		local keyString = self.Name.Text
+		
+		if _Util:IsNilorEmptyString(keyString) then
+			log_error("Name cannot be blank.")
+			return
+		end
+		
+		local value = self.Value.Text
+		
+		local sync = self.Sync.Text
+		
+		if sync ~= "O" and sync ~= "X" then
+			log_error("Invalid Sync State. Please enter O or X.")
+			return
+		end
+		
+		local s = GlobalConfigDataStruct()
+		s.Id = keyId
+		s.Name = keyString
+		s.DefaultValue = value
+		s.ClientSync = sync == "O" and true or false
+		
+		local result = self.View:SaveData(self.Index, s)
+		
+		if not result then return end
+		
+		_UIToast:ShowMessage(string.format("Set %s to %s", keyString, value))
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickResetBtn()
+		local keyId = math.tointeger(tonumber(self.Id.Text))
+		local default = _GlobalConfigIdEnumLogic.GlobalConfigDefaultTable[keyId]
+		
+		self:Set(default, self.Index)
+		
+		_UIToast:ShowMessage(string.format("Reset %s", self.Name.Text))
+	end
+
+end

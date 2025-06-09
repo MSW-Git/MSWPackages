@@ -1,0 +1,38 @@
+@Logic
+script GlobalConfigIdEnumLogic extends Logic
+
+	property table GlobalConfigDefaultTable = {}
+
+	property table ToStringList = {}
+
+	property table ToIntList = {}
+
+	method void Init()
+		local configTable = _DataService:GetTable("GlobalConfigDataSet")
+		
+		local rowCount = configTable:GetRowCount()
+		
+		for i = 1, rowCount do
+			local data = GlobalConfigDataStruct()
+			
+			if data:Init(configTable:GetRow(i)) then
+				self.ToStringList[data.Id] = data.Name
+				self.ToIntList[data.Name] = data.Id
+				self.GlobalConfigDefaultTable[data.Id] = data
+			end
+		end
+	end
+
+	method table GetKeyList()
+		return self.ToStringList
+	end
+
+	method integer ToInt(string key)
+		return self.ToIntList[key]
+	end
+
+	method string ToString(integer key)
+		return self.ToStringList[key]
+	end
+
+end

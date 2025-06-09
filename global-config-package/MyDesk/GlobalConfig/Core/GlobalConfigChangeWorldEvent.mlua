@@ -1,0 +1,8 @@
+@Event
+script GlobalConfigChangeWorldEvent extends EventType
+
+	property string GlobalConfigString = ""
+
+	property integer ActionEnum = 1
+
+end

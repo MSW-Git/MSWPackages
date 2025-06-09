@@ -1,0 +1,36 @@
+@Logic
+script GlobalConfigActionEnumLogic extends Logic
+
+	property integer Load = 1
+
+	property integer Save = 2
+
+	property integer Reset = 3
+
+	property table ToEnumTable = {}
+
+	property table ToNameTable = {}
+
+	method void Init()
+		self.ToEnumTable = {
+			["Load"] = self.Load,
+			["Save"] = self.Save,
+			["Delete"] = self.Reset,
+		}
+		
+		self.ToNameTable = {}
+		
+		for str, int in pairs(self.ToEnumTable) do
+			self.ToNameTable[int] = str
+		end
+	end
+
+	method string ToName(integer i)
+		return self.ToNameTable[i]
+	end
+
+	method integer ToEnum(string s)
+		return self.ToEnumTable[s]
+	end
+
+end

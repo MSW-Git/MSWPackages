@@ -1,0 +1,64 @@
+@Struct
+script GlobalConfigDataStruct
+
+	property integer Id = 0
+
+	property string Name = ""
+
+	property string DefaultValue = ""
+
+	property boolean ClientSync = false
+
+	method boolean Init(any DataRow)
+		---@type UserDataRow
+		local data = DataRow
+		
+		local id = math.tointeger(tonumber(data:GetItem("Id")))
+		
+		if id == nil or id == 0 then
+			return false
+		end
+		
+		self.Id = id
+		
+		local name = data:GetItem("Name")
+		self.Name = name
+		
+		local defaultValue = data:GetItem("DefaultValue")
+		self.DefaultValue = defaultValue
+		
+		local clientSync = data:GetItem("ClientSync")
+		self.ClientSync = clientSync == "1" and true or false
+		
+		return true
+	end
+
+	method boolean Deserialize(table dbItem)
+		self.Id = dbItem["id"]
+		self.DefaultValue = dbItem["DefaultValue"]
+		self.ClientSync = dbItem["ClientSync"]
+		
+		return true
+	end
+
+	method table Serialize()
+		local dbItem = {}
+		dbItem["id"] = self.Id
+		dbItem["DefaultValue"] = self.DefaultValue
+		dbItem["ClientSync"] = self.ClientSync
+		
+		return dbItem
+	end
+
+	method GlobalConfigDataStruct Copy()
+		local s = GlobalConfigDataStruct()
+		
+		s.Id = self.Id
+		s.Name = self.Name
+		s.DefaultValue = self.DefaultValue
+		s.ClientSync = self.ClientSync
+		
+		return s
+	end
+
+end

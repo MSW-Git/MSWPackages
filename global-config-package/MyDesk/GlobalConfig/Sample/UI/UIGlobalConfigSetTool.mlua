@@ -1,0 +1,32 @@
+@Component
+script UIGlobalConfigSetTool extends Component
+
+	property UIGlobalConfigSetTool_View View = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		local panel = entity:GetChildByName("Panel")
+		
+		-- Title
+		local title = panel:GetChildByName("Title")
+		
+		local btn_Exit = title:GetChildByName("Btn_Exit")
+		btn_Exit:ConnectEvent(ButtonClickEvent, function() self.Entity.Enable = false end)
+		
+		local page_view = panel:GetChildByName("View")
+		self.View = page_view.UIGlobalConfigSetTool_View
+		self.View.Parent = self
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetDataTable(table dataTable)
+		self.View:SetDataTable(dataTable)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetData(GlobalConfigDataStruct struct)
+		self.View:SetData(struct)
+	end
+
+end

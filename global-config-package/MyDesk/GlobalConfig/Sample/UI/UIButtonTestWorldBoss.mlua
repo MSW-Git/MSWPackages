@@ -1,0 +1,27 @@
+@Component
+script UIButtonTestWorldBoss extends Component
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		self.Entity:ConnectEvent(ButtonClickEvent, self.CheckWorldBoss)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void CheckWorldBoss()
+		local key = 1
+		
+		local value = _GlobalConfigLogic:GetValue(key)
+		
+		if value == nil then
+			log_error("Invalid key : " .. key)
+			return
+		end
+			
+		if value == "false" then
+			_UIToast:ShowMessage("World Boss not Enabled now.")
+		else
+			_UIToast:ShowMessage("World Boss Enabled.")
+		end
+	end
+
+end

@@ -1,0 +1,4 @@
+﻿Id,Name,DefaultValue,ClientSync
+1,WorldBossEnable,true,1
+2,GlobalConfigData1,555,0
+4,SampleName,SampleValue,1

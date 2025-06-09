@@ -1,0 +1,143 @@
+@Component
+script UIGlobalConfigSetTool_View extends Component
+
+	property UIGlobalConfigSetTool Parent = nil
+
+	property GridViewComponent GridViewComp = nil
+
+	property Entity Item = nil
+
+	property table DataTable = {}
+
+	property any SortFunc = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		
+		local item = entity:GetChildByName("Item")
+		self.Item = item
+		
+		local gridViewComp = entity:GetChildByName("GridView").GridViewComponent
+		gridViewComp.ItemEntity = item
+		gridViewComp.ItemEntity.UIGlobalConfigSetTool_ViewItem.View = self
+		gridViewComp.OnRefresh = self.OnRefresh
+		gridViewComp.OnClear = self.OnClear
+		self.GridViewComp = gridViewComp
+		
+		entity:GetChildByName("Button_LoadAll"):ConnectEvent(ButtonClickEvent, function() 
+			for i = 1, #self.DataTable do
+				self:LoadData(i)
+			end
+		 end)
+		
+		---@param a GlobalConfigDataStruct
+		---@param b GlobalConfigDataStruct
+		local function sortFunc(a, b)
+			return a.Id < b.Id
+		end
+		self.SortFunc = sortFunc
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetDataTable(table dataTable)
+		table.sort(dataTable, self.SortFunc)
+		
+		self.DataTable = dataTable
+		self.GridViewComp.TotalCount = #dataTable
+		self.GridViewComp:Refresh(true, true)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetData(GlobalConfigDataStruct struct)
+		local index = 0
+		
+		for i = 1, #self.DataTable do
+			---@type GlobalConfigDataStruct
+			local data = self.DataTable[i]
+			
+			if data.Id == struct.Id then
+				self.DataTable[i] = struct
+				index = i
+				break
+			end
+		end
+		
+		if index ~= 0 then
+			self.GridViewComp:RefreshIndex(index - 1)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnRefresh(integer index, Entity entity)
+		index += 1
+		
+		---@type GlobalConfigDataStruct
+		local struct = self.DataTable[index]
+		struct.Name = _GlobalConfigIdEnumLogic:ToString(struct.Id)
+		
+		entity.UIGlobalConfigSetTool_ViewItem:Set(struct, index)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClear(integer index, Entity entity)
+		entity.UIGlobalConfigSetTool_ViewItem:Clear()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Invalidate()
+		table.sort(self.DataTable, self.SortFunc)
+		self.GridViewComp.TotalCount = #self.DataTable
+		self.GridViewComp:Refresh(true, true)
+	end
+
+	@ExecSpace("ClientOnly")
+	method boolean OnAddItem(GlobalConfigDataStruct struct)
+		local index = #self.DataTable + 1
+		
+		return self:SaveData(index, struct)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void LoadData(integer index)
+		local event = GlobalConfigChangeEvent()
+		event.GlobalConfigStruct = self.DataTable[index]
+		event.ActionEnum = _GlobalConfigActionEnumLogic.Load
+		
+		_GlobalConfigLogic:SendEvent(event)
+	end
+
+	@ExecSpace("ClientOnly")
+	method boolean SaveData(integer index, GlobalConfigDataStruct struct)
+		if not self:CheckDuplicate(index, struct) then
+			return false
+		end
+		
+		local event = GlobalConfigChangeEvent()
+		event.GlobalConfigStruct = struct
+		event.ActionEnum = _GlobalConfigActionEnumLogic.Save
+		
+		_GlobalConfigLogic:SendEvent(event)
+		
+		return true
+	end
+
+	@ExecSpace("ClientOnly")
+	method boolean CheckDuplicate(integer index, GlobalConfigDataStruct struct)
+		--Check for duplicate IDs when saving data
+		for i, data in ipairs(self.DataTable) do
+			if i ~= index then
+				if data.Id == struct.Id then
+					log_error("Duplicated Id " .. struct.Id)
+					return false
+				elseif data.Name == struct.Name then
+					log_error("Duplicated Name " .. struct.Name)
+					return false
+				end
+			end
+		end
+		
+		return true
+	end
+
+end
