@@ -108,7 +108,7 @@ script GMRankingToolLogic extends Logic
 			data.Tag = item.KeyInfo.Tag
 		end
 		
-		self:ResponseRankingData(id, cycleIndex, profileCode, data)
+		self:ResponseRankingData(id, cycleIndex, profileCode, data, senderUserId)
 	end
 
 	@ExecSpace("Client")
