@@ -1,0 +1,83 @@
+@Component
+script UIGMGameEventToolEditUserItem extends Component
+
+	property TextComponent Id = nil
+
+	property TextComponent DefId = nil
+
+	property TextComponent Value = nil
+
+	property TextComponent UpdateDate = nil
+
+	property any EditData = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		
+		self.Id = entity:GetChildByName("Text_Id").TextComponent
+		self.DefId = entity:GetChildByName("Text_DefId").TextComponent
+		self.Value = entity:GetChildByName("Text_Value").TextComponent
+		self.UpdateDate = entity:GetChildByName("Text_UpdateDate").TextComponent
+		
+		local Btn_Edit = entity:GetChildByName("Btn_Edit")
+		Btn_Edit:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Edit)
+	
+		local Btn_Delete = entity:GetChildByName("Btn_Delete")
+		Btn_Delete:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Delete)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Set(UserGameEventData s, integer timeOffset)
+		self.EditData = s
+		
+		self.Id.Text = tostring(s.Id)
+		self.DefId.Text = tostring(s.DefId)
+		
+		local isValueExist = false
+		if not _Util:IsNilorEmptyTable(s.Value) then
+			local success, result = pcall(_HttpService.JSONEncode, _HttpService, s.Value)
+			if success then
+				self.Value.Text = result				
+				isValueExist = true
+			else
+				log_error(string.format("JSONEncode Error. Id : %d, DefId : %d, Error : %s", s.Id, s.DefId, result))
+			end 
+		end
+
+		if not isValueExist then
+			self.Value.Text = ""
+		end
+			
+		self.UpdateDate.Text = _UtilGMTool:ElapsedTimeToString(s.UpdateTime, timeOffset)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		self.EditData = nil
+		
+		self.Id.Text = ""
+		self.DefId.Text = ""
+		self.Value.Text = ""
+		self.UpdateDate.Text = ""
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Edit()
+		local evt = ChildUIEvent()
+		evt.Entity = self.Entity
+		evt.Arg = 1
+		
+		self.Entity.Parent:SendEvent(evt)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Delete()
+		local evt = ChildUIEvent()
+		evt.Entity = self.Entity
+		evt.Arg = 2
+		
+		self.Entity.Parent:SendEvent(evt)
+	end
+
+end

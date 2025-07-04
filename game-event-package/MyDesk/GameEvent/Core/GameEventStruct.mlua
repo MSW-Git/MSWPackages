@@ -1,0 +1,55 @@
+@Struct
+script GameEventStruct
+
+	property integer ScheduleId = 0
+
+	property any ScheduleData = nil
+
+	property integer DefId = 0
+
+	property integer Status = 0
+
+	property integer NextTransitionTime = 0
+
+	method void Init(GameEventScheduleData data)
+		self.ScheduleData = data
+		self.ScheduleId = data.Id
+		self.DefId = data.DefId
+	end
+
+	method GameEventDefData GetDefData()
+		return _GameEventDefDataSetLogic:GetData(self.DefId)
+	end
+
+	method integer GetDefEnum()
+		local defData = _GameEventDefDataSetLogic:GetData(self.DefId)
+		if defData == nil then
+			return _GameEventDefTypeEnum.None
+		end
+
+		return defData.TypeEnum
+	end
+
+	method integer GetStatusByData(integer curElapsed)
+		if curElapsed == nil then
+			curElapsed = _DateTimeLogic:GetTimeElapsed()
+		end
+
+		---@type GameEventScheduleData
+		local scheduleData = self.ScheduleData
+		if scheduleData == nil then
+			return _GameEventStatusEnum.None
+		end
+
+		return scheduleData:GetStatus(curElapsed)
+	end
+
+	method void OnLoadedUserData(Entity userEntity)
+		local defData = self:GetDefData()
+		if defData == nil then
+			return
+		end
+
+		defData:OnLoadedUserData(userEntity, self)
+	end
+end

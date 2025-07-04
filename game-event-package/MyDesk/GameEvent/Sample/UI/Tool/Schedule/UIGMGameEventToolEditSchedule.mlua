@@ -1,0 +1,175 @@
+@Component
+script UIGMGameEventToolEditSchedule extends Component
+
+	property UIGMGameEventTool Parent = nil
+
+	property GridViewComponent GridViewComp = nil
+
+	property Entity Item = nil
+
+	property table GridViewDataTable = {}
+
+	property any SortFunc = nil
+
+	property integer TimeOffset = 0
+
+	property boolean IsLoaded = false
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		
+		local item = entity:GetChildByName("Item")
+		self.Item = item
+		
+		local gridViewComp = entity:GetChildByName("GridView").GridViewComponent
+		gridViewComp.ItemEntity = item
+		gridViewComp.OnRefresh = self.OnRefresh
+		gridViewComp.OnClear = self.OnClear
+		gridViewComp.Entity:ConnectEvent(ChildUIEvent, self.OnChildUIEvent)
+		
+		self.GridViewComp = gridViewComp
+		
+		local Btn_Query = entity:GetChildByName("Btn_Query")
+		Btn_Query:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Query)
+		
+		local Btn_Add = entity:GetChildByName("Btn_Add")
+		Btn_Add:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Add)
+		
+		---@param a GameEventScheduleData
+		---@param b GameEventScheduleData
+		local function sortFunc(a, b)
+			if a.Id ~= b.Id then
+				return a.Id < b.Id
+			end
+			return a.DefId < b.DefId
+		end
+		self.SortFunc = sortFunc
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Apply(table dataTable)
+		local gridViewDataTable = self.GridViewDataTable
+		table.initialize(gridViewDataTable, dataTable)
+		table.sort(gridViewDataTable, self.SortFunc)
+		
+		self:Invalidate(true)
+		self.IsLoaded = true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Invalidate(boolean resetPos)
+		self.TimeOffset = self.Parent.TimeOffset
+		self.GridViewComp.TotalCount = #self.GridViewDataTable
+		self.GridViewComp:Refresh(resetPos, true)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnRefresh(integer index, Entity entity)
+		index += 1
+		local s = self.GridViewDataTable[index]
+		entity.UIGMGameEventToolEditScheduleItem:Set(s, self.TimeOffset)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClear(integer index, Entity entity)
+		entity.UIGMGameEventToolEditScheduleItem:Clear()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnSetData(GameEventScheduleData editData)
+		local isExist = false
+		---@type table<GameEventScheduleData>
+		local gridViewDataTable = self.GridViewDataTable
+		for i = 1, #gridViewDataTable do
+			local s = gridViewDataTable[i]
+			if s.Id == editData.Id then
+				gridViewDataTable[i] = editData
+				isExist = true
+				break
+			end
+		end
+		
+		if not isExist then
+			table.insert(gridViewDataTable, editData)
+		end
+		
+		table.sort(gridViewDataTable, self.SortFunc)
+		self:Invalidate(false)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnDeleteData(integer delId)
+		---@type table<GameEventScheduleData>
+		local gridViewDataTable = self.GridViewDataTable
+		for i = 1, #gridViewDataTable do
+			local s = gridViewDataTable[i]
+			if s.Id == delId then
+				table.remove(gridViewDataTable, i)
+				break
+			end
+		end
+		
+		table.sort(gridViewDataTable, self.SortFunc)
+		self:Invalidate(false)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnChildUIEvent(ChildUIEvent evt)
+		if evt.Arg == 1 then
+			self:OnClickBtn_Edit(evt)
+		elseif evt.Arg == 2 then
+			self:OnClickBtn_Delete(evt)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Edit(ChildUIEvent evt)
+		if not self.IsLoaded then
+			return
+		end
+		
+		---@type GameEventScheduleData
+		local editData = evt.Entity.UIGMGameEventToolEditScheduleItem.EditData
+		if editData == nil then
+			return
+		end
+		
+		self.Parent:OpenPopup_ScheduleEdit(editData)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Delete(ChildUIEvent evt)
+		if not self.IsLoaded then
+			return
+		end
+		
+		---@type GameEventScheduleData
+		local delData = evt.Entity.UIGMGameEventToolEditScheduleItem.EditData
+		if delData == nil then
+			return
+		end
+		
+		local id = delData.Id
+		if id == 0 or nil then
+			return
+		end
+		
+		self.Parent:OpenPopup_ScheduleDelete(id)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Add()
+		if not self.IsLoaded then
+			return
+		end
+		
+		self.Parent:OpenPopup_ScheduleAdd()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Query()
+		_GMGameEventToolLogic:RequestScheduleDataList(true)
+	end
+
+end

@@ -1,0 +1,181 @@
+@Component
+script PlayerGameEvent extends Component
+	
+	property table UserDataTable = {}
+	
+	property boolean IsSaveDB = false
+	
+	@ExecSpace("ServerOnly")
+	method boolean SaveToDB(table saveData)
+		if not self.IsSaveDB then
+			return true
+		end
+		
+		---@type table<integer, table<integer, UserGameEventData>>
+		local userDataTable = self.UserDataTable
+		local deserTable = {}
+		
+		for id, innerTable in pairs(userDataTable) do
+			for defId, userData in pairs(innerTable) do
+				local item = userData:Serialize()
+				if item == nil then
+					continue
+				end
+				
+				deserTable[#deserTable + 1] = item
+			end
+		end
+		
+		local sds = ""
+		if #deserTable ~= 0 then
+			sds = _HttpService:JSONEncode(deserTable)
+		end
+		
+		saveData[_GMGameEventToolLogic.UserDSName] = sds
+		self.IsSaveDB = false
+		
+		return true
+	end
+	
+	@ExecSpace("ServerOnly")
+	method void LoadFromDB(table loadKeys)
+		table.insert(loadKeys, _GMGameEventToolLogic.UserDSName)
+	end
+	
+	@ExecSpace("ServerOnly")
+	method boolean OnLoadedDataFromDB(table loadedData)
+		---@type DataStorageItem
+		local sds = loadedData[_GMGameEventToolLogic.UserDSName]
+		local sdsValue = sds.Value
+		
+		---@type table<integer, table<UserGameEventData>>
+		local dataTable = self.UserDataTable
+		
+		if not _Util:IsNilorEmptyString(sdsValue) then
+			local deserTable = _HttpService:JSONDecode(sdsValue)
+			if deserTable ~= nil then
+				for i = 1, #deserTable do
+					local userData = UserGameEventData()
+					if not userData:Deserialize(deserTable[i]) then
+						return false
+					end
+					
+					local id = userData.Id
+					local defId = userData.DefId
+					
+					if self:IsExpiredUserData(userData) then
+						continue
+					end
+					
+					local innerTable = dataTable[id]
+					if innerTable == nil then
+						innerTable = {}
+						dataTable[id] = innerTable
+					end
+					
+					innerTable[defId] = userData
+				end
+			end
+		end
+		
+		_GameEventLogic:InvokeSyncInitToClient(self.Entity.PlayerComponent.UserId)
+		return true
+	end
+	
+	@ExecSpace("ServerOnly")
+	method boolean PostOnLoadedDataFromDB()
+		local userEntity = self.Entity
+		
+		---@type table<GameEventStruct>
+		local list = _GameEventLogic:GetActiveStructList()
+		for i = 1, #list do
+			local s = list[i]
+			s:OnLoadedUserData(userEntity)
+		end
+		
+		return true
+	end
+	
+	@ExecSpace("ServerOnly")
+	method boolean IsExpiredUserData(UserGameEventData data)
+		--[[
+		Returns whether the UserData can be safely removed from DataStorage.
+		UserData is removed if its associated ScheduleData ID is missing.
+		You can customize this cleanup rule via this function.
+		]]
+		if _GameEventScheculeDataSetLogic:GetData(data.Id) ~= nil then
+			return false
+		end
+		
+		if _GMGameEventToolLogic:GetData(data.Id) ~= nil then
+			return false
+		end
+		
+		return true
+	end
+	
+	@ExecSpace("ServerOnly")
+	method UserGameEventData GetUserData(integer id, integer defId)
+		---@type table<integer, table<integer, UserGameEventData>>
+		local userDataTable = self.UserDataTable
+		local innerTable = userDataTable[id]
+		if innerTable == nil then
+			return nil
+		end
+		
+		return innerTable[defId]
+	end
+	
+	@ExecSpace("ServerOnly")
+	method UserGameEventData GetOrCreateUserData(integer id, integer defId)
+		local userData = self:GetUserData(id, defId)
+		if userData ~= nil then
+			return userData
+		end
+		
+		userData = UserGameEventData()
+		userData:Init(id, defId)
+		
+		---@type table<integer, table<integer, UserGameEventData>>
+		local userDataTable = self.UserDataTable
+		local innerTable = userDataTable[id]
+		if innerTable == nil then
+			innerTable = {}
+			userDataTable[id] = innerTable
+		end
+		
+		innerTable[defId] = userData
+		return userData
+	end
+	
+	@ExecSpace("ServerOnly")
+	method boolean SetValue(integer id, integer defId, table value)
+		if id == nil or id == 0 then
+			log_error("The id is nil or 0")
+			return false
+		end
+		
+		if defId == nil or defId == 0 then
+			log_error(string.format("The defId is nil or 0. Id : %d", id))
+			return false
+		end
+		
+		local userData = self:GetOrCreateUserData(id, defId)
+		userData:SetValue(value)
+		self.IsSaveDB = true
+		
+		return true
+	end
+	
+	@ExecSpace("ServerOnly")
+	method boolean SetDirty(integer id, integer defId)
+		local userData = self:GetUserData(id, defId)
+		if userData == nil then
+			return false
+		end
+		
+		userData:SetDirty()
+		self.IsSaveDB = true
+	end
+	
+end

@@ -1,0 +1,23 @@
+@Logic
+script GameEventStatusEnum extends Logic
+
+	property integer None = 0
+
+	property integer Awaiting = 1
+
+	property integer Preview = 2
+
+	property integer Active = 3
+
+	property integer Grace = 4
+
+	property integer Close = 5
+
+	method boolean IsVisible(integer status)
+		return _GameEventStatusEnum.Preview <= status and status <= _GameEventStatusEnum.Grace
+	end
+
+	method boolean IsActive(integer status)
+		return status == _GameEventStatusEnum.Active
+	end
+end

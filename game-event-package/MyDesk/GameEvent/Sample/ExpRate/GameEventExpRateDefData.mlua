@@ -1,0 +1,36 @@
+@Struct
+script GameEventExpRateDefData extends GameEventDefData
+	
+	property number ExpRate = 0
+	
+	method boolean Load(any dataRow)
+		if not __base:Load(dataRow) then
+			return false
+		end
+		
+		---@type UserDataRow
+		local row = dataRow
+		
+		local expRate = tonumber(row:GetItem("Arg1"))
+		if expRate == nil or expRate <= 0 then
+			log_error(string.format("ExpRate is nil or less equal than 0. DefId : %d", self.DefId))
+			return false
+		end
+		self.ExpRate = expRate
+
+		return true
+	end
+
+	method void OnActive(GameEventStruct s)
+		_GameEventExpRateLogic:Update()
+	end
+
+
+	method void OnGrace(GameEventStruct s)
+		_GameEventExpRateLogic:Update()
+	end
+
+	method void OnClose(GameEventStruct s)
+		_GameEventExpRateLogic:Update()
+	end
+end

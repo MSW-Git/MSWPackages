@@ -1,0 +1,63 @@
+@Component
+script UIGMGameEventToolEditUserPopupAdd extends Component
+
+	property UIGMGameEventTool Parent = nil
+
+	property TextComponent Id = nil
+
+	property TextComponent DefId = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		local panel = entity:GetChildByName("Panel")
+		
+		local item = panel:GetChildByName("Item")
+		self.Id = item:GetChildByName("Text_Id").TextComponent
+		self.DefId = item:GetChildByName("Text_DefId").TextComponent
+		
+		local Btn_OK = panel:GetChildByName("Btn_OK")
+		Btn_OK:ConnectEvent(ButtonClickEvent, self.OnClickBtn_OK)
+		
+		local Btn_Cancel = panel:GetChildByName("Btn_Cancel")
+		Btn_Cancel:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Cancel)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Open()
+		self.Entity.Enable = true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		self.Id.Text = ""
+		self.DefId.Text = ""
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_OK()
+		local id = math.tointeger(tonumber(self.Id.Text))
+		if id == nil or id == 0 then
+			log_error("Id is nil or 0.")
+			return
+		end
+
+		local defId = math.tointeger(tonumber(self.DefId.Text))
+		if defId == nil or defId == 0 then
+			log_error("DefId is nil or 0.")
+			return
+		end
+
+		if not self.Parent.Page_EditUser.UIGMGameEventToolEditUser:TryAddEditData(id, defId) then
+			return
+		end
+
+		self.Entity.Enable = false
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Cancel()
+		self.Entity.Enable = false
+	end
+
+end

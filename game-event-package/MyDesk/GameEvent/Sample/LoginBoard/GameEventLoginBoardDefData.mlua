@@ -1,0 +1,59 @@
+@Struct
+script GameEventLoginBoardDefData extends GameEventDefData
+	
+	property string ImgRUID = nil
+	
+	property string Title = nil
+
+	property table RewardList = {}
+	
+	method boolean Load(any dataRow)
+		if not __base:Load(dataRow) then
+			return false
+		end
+
+		---@type UserDataRow
+		local row = dataRow
+		
+		local strs = _UtilLogic:Split(row:GetItem("Arg1"), ",")
+		self.Title = strs[1]
+		self.ImgRUID = strs[2]
+		
+		if not self:LoadRewardList(row:GetItem("Arg2")) then
+			return false
+		end
+		
+		return true
+	end
+
+	method boolean LoadRewardList(string str)
+		if _Util:IsNilorEmptyString(str) then
+			return true
+		end
+		
+		local rewardList = self.RewardList
+		local strs = _UtilLogic:Split(str, ",")
+		for i = 1, #strs , 2 do
+			local itemId = strs[i]
+			local itemCount = strs[i + 1]
+
+			if itemId == nil or itemId == 0 then
+				log_error(string.format("ItemId is nil or 0. DefId : %d", self.DefId))
+				return false
+			end
+	
+			if itemCount == nil or itemCount == 0 then
+				log_error(string.format("ItemCount is nil or 0. DefId : %d", self.DefId))
+				return false
+			end
+
+			rewardList[#rewardList + 1] = {itemId, itemCount}
+		end
+
+		return true
+	end
+	
+	method void OnLoadedUserData(Entity userEntity, GameEventStruct s)
+		_GameEventLoginBoardLogic:OnLoadedUserData(userEntity, s)
+	end
+end

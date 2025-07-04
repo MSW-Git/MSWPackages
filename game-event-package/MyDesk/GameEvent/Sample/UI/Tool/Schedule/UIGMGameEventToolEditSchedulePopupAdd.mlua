@@ -1,0 +1,118 @@
+@Component
+script UIGMGameEventToolEditSchedulePopupAdd extends Component
+
+	property UIGMGameEventTool Parent = nil
+
+	property TextComponent Id = nil
+
+	property TextComponent DefId = nil
+
+	property TextComponent PreviewDate = nil
+
+	property TextComponent StartDate = nil
+
+	property TextComponent EndDate = nil
+
+	property TextComponent CloseDate = nil
+
+	property TextComponent Disable = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		local panel = entity:GetChildByName("Panel")
+		
+		local btn_exit = panel:GetChildByName("Title"):GetChildByName("Btn_Exit")
+		btn_exit:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Cancel)
+		
+		local item = panel:GetChildByName("item")
+		self.Id = item:GetChildByName("Text_Id").TextComponent
+		self.DefId = item:GetChildByName("Text_DefId").TextComponent
+		self.PreviewDate = item:GetChildByName("Text_PreviewDate").TextComponent
+		self.StartDate = item:GetChildByName("Text_StartDate").TextComponent
+		self.EndDate = item:GetChildByName("Text_EndDate").TextComponent
+		self.CloseDate = item:GetChildByName("Text_CloseDate").TextComponent
+		self.Disable = item:GetChildByName("Text_Disable").TextComponent
+		
+		local Btn_Apply = panel:GetChildByName("Btn_Apply")
+		Btn_Apply:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Apply)
+		
+		local Btn_Cancel = panel:GetChildByName("Btn_Cancel")
+		Btn_Cancel:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Cancel)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Open()
+		self.Entity.Enable = true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		self.Id.Text = ""
+		self.DefId.Text = ""
+		self.PreviewDate.Text = ""
+		self.StartDate.Text = ""
+		self.EndDate.Text = ""
+		self.CloseDate.Text = ""
+		self.Disable.Text = ""
+	end
+
+	@ExecSpace("ClientOnly")
+	method GameEventScheduleData GetDataFromTextInput()
+		local id = math.tointeger(tonumber(self.Id.Text))
+		local defId = math.tointeger(tonumber(self.DefId.Text))
+		
+		local timeOffset = self.Parent.TimeOffset
+		local startTime = _UtilGMTool:StringToElapsedTime(self.StartDate.Text, timeOffset)
+		local endTime = _UtilGMTool:StringToElapsedTime(self.EndDate.Text, timeOffset)
+		
+		local previewTime = 0
+		local previewDateStr = self.PreviewDate.Text
+		if _Util:IsNilorEmptyString(previewDateStr) then
+			previewTime = startTime
+		else
+			previewTime = _UtilGMTool:StringToElapsedTime(self.PreviewDate.Text, timeOffset)
+		end
+		
+		local closeTime = 0
+		local closeDateStr = self.PreviewDate.Text
+		if _Util:IsNilorEmptyString(closeDateStr) then
+			closeTime = endTime
+		else
+			closeTime = _UtilGMTool:StringToElapsedTime(self.CloseDate.Text, timeOffset)
+		end
+		
+		local disable = not _UtilLogic:IsNilorEmptyString(self.Disable.Text)
+		
+		local addData = GameEventScheduleData()
+		addData.Id = id
+		addData.DefId = defId
+		addData.PreviewTime = previewTime
+		addData.StartTime = startTime
+		addData.EndTime = endTime
+		addData.CloseTime = closeTime
+		addData.Disable = disable
+		
+		if not addData:IsValid() then
+			return nil
+		end
+		
+		return addData
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Apply()
+		local scheduleData = self:GetDataFromTextInput()
+		if scheduleData == nil then
+			return
+		end
+		
+		_GMGameEventToolLogic:RequestSetScheduleData(scheduleData)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Cancel()
+		self.Entity.Enable = false
+	end
+
+end

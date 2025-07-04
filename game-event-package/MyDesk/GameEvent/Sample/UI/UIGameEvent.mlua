@@ -1,0 +1,168 @@
+@Component
+script UIGameEvent extends Component
+	
+	property Entity ScrollLayout = nil
+	
+	property Entity Item = nil
+	
+	property table StructList = {}
+	
+	property table Pool = {}
+
+	property any SortFunc = nil
+	
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		local panel = entity:GetChildByName("Panel")
+		
+		local title = panel:GetChildByName("Title")
+		local Btn_Exit = title:GetChildByName("Btn_Exit")
+		Btn_Exit:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Close)
+		
+		local item = panel:GetChildByName("Item")
+		item.Enable = false
+		self.Item = item
+		
+		self.ScrollLayout = panel:GetChildByName("Scroll_Layout")
+
+		---@param s1 GameEventStruct
+		---@param s2 GameEventStruct
+		local function sortFunc(s1, s2)
+			local status1 = s1.Status
+			local status2 = s2.Status
+			if status1 ~= status2 then
+				return status1 < status2
+			end
+
+			---@type GameEventScheduleData
+			local data1 = s1.ScheduleData
+			local t1 = data1:GetNextTransitionTime(status1)
+	
+			---@type GameEventScheduleData
+			local data2 = s1.ScheduleData
+			local t2 = data2:GetNextTransitionTime(status1)
+			
+			if t1 ~= t2 then
+				return t1 < t2
+			end
+
+			local defId1 = s1.DefId
+			local defId2 = s2.DefId
+			if defId1 ~= defId2 then
+				return defId1 < defId2
+			end
+
+			return s1.ScheduleId < s2.ScheduleId
+		end
+		self.SortFunc = sortFunc
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Open()
+		self:CleanupItemsForReuse()
+		
+		---@type table<GameEventStruct>
+		local structs = _GameEventLogic:GetStructList()
+		table.sort(structs, self.SortFunc)
+
+		for i = 1, #structs do
+			local s = structs[i]
+			local status = s.Status
+			if status <= _GameEventStatusEnum.Awaiting or status >= _GameEventStatusEnum.Close then
+				continue
+			end
+			
+			local defEnum = s:GetDefEnum()
+			if defEnum == _GameEventStatusEnum.None then
+				continue
+			end
+			
+			local defData = s:GetDefData()
+			if defData == nil then
+				continue
+			end
+			
+			if not defData.ShowBanner then
+				continue
+			end
+			
+			local item = self:GetOrCreateItem(defEnum)
+			item.UIGameEventItem:Set(s)
+			item.Enable = true
+		end
+		
+		self:DiscardUnusedItems()
+		self.Entity.Enable = true
+	end
+	
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Close()
+		self.Entity.Enable = false
+	end
+	
+	@ExecSpace("ClientOnly")
+	method void CleanupItemsForReuse()
+		local panel = self.Entity:GetChildByName("Panel")
+		local scrollLayout = self.ScrollLayout
+		
+		local children = scrollLayout.Children
+		for i = #children, 1 , -1 do
+			local item = children[i]
+			item.Enable = false
+			item:AttachTo(panel)
+			
+			self:ReturnItemToPool(item)
+		end
+	end
+	
+	@ExecSpace("ClientOnly")
+	method void ReturnItemToPool(Entity item)
+		---@type GameEventStruct
+		local s = item.UIGameEventItem.Struct
+		local defId = s.DefId
+		
+		local pool = self.Pool
+		local inner = pool[defId]
+		if inner == nil then
+			inner = {}
+			pool[defId] = inner
+		end
+		
+		inner[#inner + 1] = item
+	end
+	
+	@ExecSpace("ClientOnly")
+	method Entity GetOrCreateItem(integer defEnum)
+		local inner = self.Pool[defEnum]
+		if _Util:IsNilorEmptyTable(inner) then
+			return self:CreateItem(defEnum)
+		end
+		
+		---@type Entity
+		local item = table.remove(inner)
+		item:AttachTo(self.ScrollLayout)
+		return item
+	end
+	
+	@ExecSpace("ClientOnly")
+	method Entity CreateItem(integer defEnum)
+		local item = _SpawnService:SpawnByEntity(self.Item, tostring(defEnum), FastVector3.zero, self.ScrollLayout)
+		item.Enable = false
+		item.UIGameEventItem:Init(defEnum)
+		return item
+	end
+	
+	@ExecSpace("ClientOnly")
+	method void DiscardUnusedItems()
+		---@type table<integer, table<Entity>>
+		local pool = self.Pool
+		for _, v in pairs(pool) do
+			for i, entity in pairs(v) do
+				entity:Destroy()
+			end
+		end
+		
+		table.clear(pool)
+	end
+end

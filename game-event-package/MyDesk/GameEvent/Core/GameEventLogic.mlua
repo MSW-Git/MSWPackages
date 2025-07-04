@@ -1,0 +1,558 @@
+@Logic
+script GameEventLogic extends Logic
+	
+	property table StructById = {}
+	
+	property table SortedStructList = {}
+	
+	property table StructTableByStatus = {}
+	
+	property table CachedScheduleDataById = {}
+	
+	property table CachedStatusById = {}
+	
+	property any SortFunc = nil
+	
+	property boolean IsInit = false
+	
+	property number AccDelta = 0
+	
+	property table PendingEventList = {}
+	
+	method GameEventStruct GetStruct(integer id)
+		return self.StructById[id]
+	end
+	
+	method table GetStructList()
+		local list = {}
+		for id, s in pairs(self.StructById) do
+			list[#list + 1] = s
+		end
+		
+		return list
+	end
+	
+	method table GetActiveStructList()
+		local list = {}
+		local structTable = self.StructTableByStatus[_GameEventStatusEnum.Active]
+		for id, s in pairs(structTable) do
+			list[#list + 1] = s
+		end
+		
+		return list
+	end
+	
+	method table GetVisibleStructList()
+		local list = {}
+		
+		local statusList = {_GameEventStatusEnum.Preview, _GameEventStatusEnum.Active, _GameEventStatusEnum.Grace}
+		for i = 1, #statusList do
+			local status = statusList[i]
+			local structTable = self.StructTableByStatus[status]
+			for id, s in pairs(structTable) do
+				list[#list + 1] = s
+			end
+		end
+		
+		return list
+	end
+	
+	method table GetStructListByEnum(integer enum)
+		local resultList = {}
+		
+		---@type table<GameEventStruct>
+		local list = self:GetStructList()
+		for i = 1, #list do
+			local s = list[i]
+			local e = s:GetDefEnum()
+			if e ~= enum then
+				continue
+			end
+			
+			resultList[#resultList + 1] = s
+		end
+		
+		return resultList
+	end
+	
+	method table GetActiveStructListByDefEnum(integer enum)
+		local resultList = {}
+		
+		---@type table<GameEventStruct>
+		local list = self:GetActiveStructList()
+		for i = 1, #list do
+			local s = list[i]
+			local e = s:GetDefEnum()
+			if e ~= enum then
+				continue
+			end
+			
+			resultList[#resultList + 1] = s
+		end
+		
+		return resultList
+	end
+	
+	method table GetVisibletStructListByDefEnum(integer enum)
+		local resultList = {}
+		
+		---@type table<GameEventStruct>
+		local list = self:GetVisibleStructList()
+		for i = 1, #list do
+			local s = list[i]
+			local e = s:GetDefEnum()
+			if e ~= enum then
+				continue
+			end
+			
+			resultList[#resultList + 1] = s
+		end
+		
+		return resultList
+	end
+	
+	method boolean IsActiveState(integer id)
+		local status = self:GetStatus(id)
+		return _GameEventStatusEnum:IsActive(status)
+	end
+	
+	method boolean IsVisibleState(integer id)
+		local status = self:GetStatus(id)
+		return _GameEventStatusEnum:IsVisible(status)
+	end
+	
+	method integer GetStatus(integer id)
+		local s = self:GetStruct(id)
+		if s == nil then
+			return _GameEventStatusEnum.Close
+		end
+		
+		return s.Status
+	end
+	
+	method boolean CheckStatus(integer id, integer status)
+		local curStatus = self:GetStatus(id)
+		return curStatus == status
+	end
+	
+	method boolean InitAndWait()
+		self:InitStructTableByStatus()
+		
+		if self:IsClient() then
+			return true
+		end
+		
+		---@param s1 GameEventStruct
+		---@param s2 GameEventStruct
+		local function sortFunc(s1, s2)
+			return s1.NextTransitionTime > s2.NextTransitionTime
+		end
+		self.SortFunc = sortFunc
+		
+		if not _GMGameEventToolLogic:LoadScheduleDataTableAndWait() then
+			return false
+		end
+		
+		if not self:SetupEvents() then
+			return false
+		end
+		
+		self.IsInit = true
+		return true
+	end
+	
+	method void InitStructTableByStatus()
+		local structTableByStatus = self.StructTableByStatus
+		for i = _GameEventStatusEnum.Awaiting, _GameEventStatusEnum.Grace do
+			structTableByStatus[i] = {}
+		end
+	end
+	
+	@ExecSpace("ServerOnly")
+	method boolean SetupEvents()
+		local curElapsed = _DateTimeLogic:GetTimeElapsed()
+		
+		---@type table<integer, GameEventScheduleData>
+		local dataTable = {}
+		
+		---@type table<integer, GameEventScheduleData>
+		local dataSetDataTable = _GameEventScheculeDataSetLogic.DataTable
+		for id, data in pairs(dataSetDataTable) do
+			dataTable[id] = data
+		end
+		
+		-- Uses DataStorage data instead of DataSet data.
+		---@type table<integer, GameEventScheduleData>
+		local dsDataTable = _GMGameEventToolLogic.ScheduleDataTable
+		for id, data in pairs(dsDataTable) do
+			dataTable[id] = data
+		end
+		
+		for id, data in pairs(dataTable) do
+			self:AddEvent(data, true)
+		end
+		
+		self:ProcessPendingEvents()
+		
+		---@type table<integer, GameEventStruct>
+		local structById = self.StructById
+		for id, s in pairs(structById) do
+			self:OnStatusChanged(id, s.DefId, _GameEventStatusEnum.None, s.Status, true)
+		end
+		
+		table.sort(self.SortedStructList, self.SortFunc)
+		return true
+	end
+	
+	@ExecSpace("ServerOnly")
+	method void ClearAndSetupEvents()
+		self:ClearEvents()
+		self:SetupEvents()
+		self:InvokeSyncInitToAllClient()
+	end
+	
+	@ExecSpace("ServerOnly")
+	method void ClearEvents()
+		local ids = table.keys(self.StructById)
+		for i = 1, #ids do
+			local id = ids[i]
+			self:RemoveEvent(id, false)
+		end
+	end
+	
+	@ExecSpace("ServerOnly")
+	method void InvokeSyncInitToClient(string userId)
+		self:SyncInitToClient(self.CachedScheduleDataById, self.CachedStatusById, userId)
+	end
+	
+	@ExecSpace("ServerOnly")
+	method void InvokeSyncInitToAllClient()
+		self:SyncInitToClient(self.CachedScheduleDataById, self.CachedStatusById)
+	end
+	
+	@ExecSpace("Client")
+	method void SyncInitToClient(table cachedScheduleDataTable, table cachedStatusById)
+		local structById = self.StructById
+		for id, v in pairs(cachedScheduleDataTable) do
+			local status = cachedStatusById[id]
+			if status == nil then
+				log_error(string.format("Cannot find status. Id : %d", id))
+				continue
+			end
+			
+			---@type GameEventScheduleData
+			local scheduleData = v
+			
+			local s = GameEventStruct()
+			s:Init(scheduleData)
+			structById[id] = s
+			
+			self:SetStatus(s, status, true)
+			self:OnStatusChanged(id, s.DefId, _GameEventStatusEnum.None, status, true)
+		end
+		
+		self.IsInit = true
+	end
+	
+	@ExecSpace("ServerOnly")
+	method void ProcessPendingEvents()
+		local pendingEventList = self.PendingEventList
+		for i = 1, #pendingEventList do
+			self:ProcessScheduleDataChangedEvent(pendingEventList[i], true)
+		end
+		table.clear(pendingEventList)
+	end
+	
+	@ExecSpace("ServerOnly")
+	method void ProcessScheduleDataChangedEvent(GameEventScheduleChangedEvent event, boolean isInit)
+		--[[
+		This function operates when the ScheduleData in DataStorage is modified via the admin tool.
+		When an event is deleted from DataStorage, the event corresponding to its ID is retrieved and used from the DataSet.
+		If there are no changes in the ScheduleData, the event will also remain unchanged.
+		]]
+		local id = event.Id
+		local newData = nil
+		
+		if event.IsDelete then
+			newData = _GameEventScheculeDataSetLogic:GetData(id)
+			_GMGameEventToolLogic.ScheduleDataTable[id] = nil
+		else
+			newData = event:ToScheduleData()
+			_GMGameEventToolLogic.ScheduleDataTable[id] = newData
+		end
+		
+		local s = self:GetStruct(id)
+		if s ~= nil then
+			if newData ~= nil then
+				---@type GameEventScheduleData
+				local data = s.ScheduleData
+				if data:IsEqual(newData) then
+					return
+				end
+			end
+			
+			self:RemoveEvent(id, isInit)
+		end
+		
+		if newData ~= nil then
+			self:AddEvent(newData, isInit)
+		end
+	end
+	
+	@ExecSpace("ServerOnly")
+	method void AddEvent(GameEventScheduleData data, boolean isInit)
+		if data.Disable then
+			return
+		end
+		
+		local id = data.Id
+		if self:GetStruct(id) ~= nil then
+			log_error(string.format("Id is already exist. Id : %d", id))
+			return
+		end
+		
+		local curElapsed = _DateTimeLogic:GetTimeElapsed()
+		if data:GetStatus(curElapsed) == _GameEventStatusEnum.Close then
+			return
+		end
+		
+		local s = GameEventStruct()
+		s:Init(data)
+		self.StructById[id] = s
+		
+		self:UpdateStatus(s, curElapsed, isInit)
+		
+		local sortedStructList = self.SortedStructList
+		sortedStructList[#sortedStructList + 1] = s
+		
+		if not isInit then
+			table.sort(sortedStructList, self.SortFunc)
+		end
+	end
+	
+	@ExecSpace("ServerOnly")
+	method void RemoveEvent(integer id, boolean isInit)
+		local s = self:GetStruct(id)
+		if s == nil then
+			return
+		end
+		
+		-- Closes and removes events.
+		self:UpdateStatus(s, DateTime.MaxValue.Elapsed, isInit)
+		
+		if not isInit then
+			self:CleanupSortedStructList()
+		end
+	end
+	
+	@ExecSpace("ServerOnly")
+	method void OnUpdate(number delta)
+		if not self.IsInit then
+			return
+		end
+		
+		-- Every second, events requiring status transitions are identified and updated.
+		local accDelta = self.AccDelta
+		if accDelta < 1 then
+			self.AccDelta = accDelta + delta
+			return
+		end
+		self.AccDelta = 0
+		
+		local isDirty = false
+		local curElapsed = _DateTimeLogic:GetTimeElapsed()
+		
+		---@type table<GameEventStruct>
+		local sortedStructList = self.SortedStructList
+		for i = #sortedStructList, 1 , -1 do
+			local s = sortedStructList[i]
+			if curElapsed < s.NextTransitionTime then
+				break
+			end
+			isDirty = true
+			
+			self:UpdateStatus(s, curElapsed, false)
+		end
+		
+		if not isDirty then
+			return
+		end
+		
+		self:CleanupSortedStructList()
+	end
+	
+	@ExecSpace("ServerOnly")
+	method void CleanupSortedStructList()
+		---@type table<GameEventStruct>
+		local sortedStructList = self.SortedStructList
+		table.sort(sortedStructList, self.SortFunc)
+		
+		-- Removes events with 'Close' status.
+		for i = #sortedStructList, 1 , -1 do
+			local s = sortedStructList[i]
+			if s.NextTransitionTime ~= 0 then
+				return
+			end
+			
+			sortedStructList[i] = nil
+		end
+	end
+	
+	@ExecSpace("ServerOnly")
+	method void UpdateStatus(GameEventStruct s, integer curElapsed, boolean isInit)
+		local id = s.ScheduleId
+		local prevStatus = s.Status
+		
+		---@type GameEventScheduleData
+		local scheduleData = s.ScheduleData
+		local curStatus = scheduleData:GetStatus(curElapsed)
+		self:SetStatus(s, curStatus, isInit)
+		
+		if curStatus == _GameEventStatusEnum.Close then
+			self.StructById[id] = nil
+		end
+		
+		if isInit then
+			return
+		end
+		
+		if curStatus < _GameEventStatusEnum.Preview then
+			return
+		end
+		
+		if prevStatus < _GameEventStatusEnum.Preview and curStatus == _GameEventStatusEnum.Close then
+			return
+		end
+		
+		self:SendStatusChangedEventToClient(scheduleData, curStatus)
+	end
+	
+	method void SetStatus(GameEventStruct s, integer status, boolean isInit)
+		local prevStatus = s.Status
+		s.Status = status
+		
+		---@type GameEventScheduleData
+		local scheduleData = s.ScheduleData
+		if scheduleData ~= nil then
+			s.NextTransitionTime = scheduleData:GetNextTransitionTime(status)
+		end
+		
+		local id = s.ScheduleId
+		local structTableByStatus = self.StructTableByStatus
+		if prevStatus ~= _GameEventStatusEnum.None then
+			structTableByStatus[prevStatus][id] = nil
+		end
+		
+		if status ~= _GameEventStatusEnum.Close then
+			structTableByStatus[status][id] = s
+		end
+		
+		if not isInit then
+			self:OnStatusChanged(id, s.DefId, prevStatus, status, false)
+		end
+		
+		if self:IsClient() then
+			return
+		end
+		
+		-- Modifies ScheduleData that needs to be synchronized with the client.
+		---@type table<integer, GameEventScheduleData>
+		local cachedScheduleDataById = self.CachedScheduleDataById
+		---@type table<integer, integer>
+		local cacheStatusById = self.CachedStatusById
+		
+		if _GameEventStatusEnum:IsVisible(status) then
+			cachedScheduleDataById[id] = scheduleData
+			cacheStatusById[id] = status
+		elseif status == _GameEventStatusEnum.Close then
+			cachedScheduleDataById[id] = nil
+			cacheStatusById[id] = nil
+		end
+	end
+	
+	@ExecSpace("Client")
+	method void SendStatusChangedEventToClient(GameEventScheduleData scheduleData, integer status)
+		if not self.IsInit then
+			return
+		end
+		
+		local id = scheduleData.Id
+		local s = self:GetStruct(id)
+		if s == nil then
+			s = GameEventStruct()
+			s:Init(scheduleData)
+			self.StructById[id] = s
+		end
+		
+		self:SetStatus(s, status, false)
+		
+		-- The struct is removed after SendEvent to ensure the EventHandler can access ScheduleData.
+		if status == _GameEventStatusEnum.Close then
+			self.StructById[id] = nil
+		end
+	end
+	
+	method void OnStatusChanged(integer id, integer defId, integer prevStatus, integer curStatus, boolean isInit)
+		-- Send changed event.
+		local evt = GameEventStatusChangedEvent()
+		evt.ScheduleId = id
+		evt.DefId = defId
+		evt.PrevStatus = prevStatus
+		evt.CurStatus = curStatus
+		evt.IsInit = isInit
+		
+		self:SendEvent(evt)
+		
+		-- Call StatusChanged function.
+		local s = self:GetStruct(id)
+		if s == nil then
+			log_error(string.format("Cannot find GameEventStruct. Id : %d", id))
+			return
+		end
+		
+		local defData = _GameEventDefDataSetLogic:GetData(defId)
+		if defData == nil then
+			log_error(string.format("Cannot find DefData. Id : %d, DefId : %d", id, defId))
+			return
+		end
+		
+		defData:OnStatusChanged(s, curStatus)
+	end
+	
+	@ExecSpace("ServerOnly")
+	@EventSender("Logic", "DateTimeLogic")
+	handler HandleServerTimeOffsetChangedEvent(ServerTimeOffsetChangedEvent event)
+		local offset = event.ServerTimeOffset
+		local prevOffset = event.PrevServerTimeOffset
+		
+		if prevOffset <= offset then
+			return
+		end
+		
+		self:ClearAndSetupEvents()
+	end
+	
+	@ExecSpace("ServerOnly")
+	@EventSender("Service", "WorldInstanceService")
+	handler HandleEventGameEventScheduleChangedEvent(GameEventScheduleChangedEvent event)
+		if not self.IsInit then
+			table.insert(self.PendingEventList, event)
+			return
+		end
+		
+		self:ProcessScheduleDataChangedEvent(event, false)
+	end
+	
+	@EventSender("Self")
+	handler HandleGameEventStatusChangedEvent(GameEventStatusChangedEvent event)
+		-- Parameters
+		local ScheduleId = event.ScheduleId
+		local DefId = event.DefId
+		local PrevStatus = event.PrevStatus
+		local CurStatus = event.CurStatus
+		local IsInit = event.IsInit
+		---------------------------------------------------------
+		log(string.format("Id : %d, DefId : %d, PrevStatus : %d, CurStatus : %d, IsInit : %s", ScheduleId, DefId, PrevStatus, CurStatus, IsInit))
+	end
+	
+end

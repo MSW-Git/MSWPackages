@@ -1,0 +1,56 @@
+@Logic
+script GameEventDefTypeEnum extends Logic
+
+	property table StringToEnumTable = {}
+
+	property table EnumToStringTable = {}
+	
+	property table StructTypeTable = {}
+
+	property integer None = 0
+
+	property integer ExpRate = 1
+
+	property integer LoginBoard = 2
+
+	method void Init()
+		local stringToEnumTable = self.StringToEnumTable
+		stringToEnumTable["ExpRate"] = self.ExpRate
+		stringToEnumTable["LoginBoard"] = self.LoginBoard
+
+		local enumToStringTable = self.EnumToStringTable
+		for str, enum in pairs(stringToEnumTable) do
+			enumToStringTable[enum] = str
+		end
+
+		local structTypeTable = self.StructTypeTable
+		structTypeTable[self.ExpRate] = GameEventExpRateDefData
+		structTypeTable[self.LoginBoard] = GameEventLoginBoardDefData
+	end
+	
+	method integer ToEnum(string str)
+		local enum = self.StringToEnumTable[str]	
+		if enum == nil then
+			return 0	-- None
+		end
+		return enum
+	end
+
+	method any CreateData(integer enum)
+		local structType = self.StructTypeTable[enum]
+		if structType == nil then
+			return nil
+		end
+
+		return structType()
+	end
+
+	method string GetBannnerModelName(integer defEnum)
+		local str = self.EnumToStringTable[defEnum]
+		if _Util:IsNilorEmptyString(str) then
+			return nil
+		end
+
+		return string.format("UIGameEvent%sBanner", str)
+	end
+end

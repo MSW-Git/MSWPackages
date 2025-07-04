@@ -1,0 +1,73 @@
+@Struct
+script GameEventDefData
+	
+	property integer DefId = 0
+	
+	property integer TypeEnum = 0
+	
+	property boolean ShowBanner = false
+	
+	method boolean Load(any dataRow)
+		---@type UserDataRow
+		local row = dataRow
+		
+		local defId = math.tointeger(tonumber(row:GetItem("DefId")))
+		if defId == nil or defId == 0 then
+			log_error("DefId is nil or 0.")
+			return false
+		end
+		self.DefId = defId
+		
+		local enum = _GameEventDefTypeEnum:ToEnum(row:GetItem("Type"))
+		if enum == 0 then
+			log_error(string.format("Cannot find enum. DefId : %d", defId))
+			return false
+		end
+		self.TypeEnum = enum
+		
+		if not _Util:IsNilorEmptyString(row:GetItem("ShowBanner")) then
+			self.ShowBanner = true
+		end
+		
+		return true
+	end
+	
+	method void OnStatusChanged(GameEventStruct s, integer status)
+		if status == _GameEventStatusEnum.Awaiting then
+			self:OnAwaiting(s)
+		elseif status == _GameEventStatusEnum.Preview then
+			self:OnPreview(s)
+		elseif status == _GameEventStatusEnum.Active then
+			self:OnActive(s)
+		elseif status == _GameEventStatusEnum.Grace then
+			self:OnGrace(s)
+		elseif status == _GameEventStatusEnum.Close then
+			self:OnClose(s)
+		end
+	end
+		
+	method void OnAwaiting(GameEventStruct s)
+		-- Optional: Implement in child struct.
+	end
+	
+	method void OnPreview(GameEventStruct s)
+		-- Optional: Implement in child struct.
+	end
+	
+	method void OnActive(GameEventStruct s)
+		-- Optional: Implement in child struct.
+	end
+	
+	method void OnGrace(GameEventStruct s)
+		-- Optional: Implement in child struct.
+	end
+	
+	method void OnClose(GameEventStruct s)
+		-- Optional: Implement in child struct.
+	end
+	
+	method void OnLoadedUserData(Entity userEntity, GameEventStruct s)
+		-- Optional: Implement in child struct.
+	end
+	
+end

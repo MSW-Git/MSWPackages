@@ -1,0 +1,162 @@
+@Logic
+script GameEventLoginBoardLogic extends Logic
+
+	@ExecSpace("ServerOnly")
+	method void OnLoadedUserData(Entity userEntity, GameEventStruct s)
+		local comp = userEntity.PlayerGameEvent
+		local userData = comp:GetOrCreateUserData(s.ScheduleId, s.DefId)
+
+		local userValue = userData.Value
+		if userValue == nil then
+			userValue = {}
+		end
+
+		local loginCount = userValue["LC"] or 0
+		local remainAttemptsCount = userValue["RC"] or 0
+
+		userValue["LC"] = loginCount + 1
+		userValue["RC"] = remainAttemptsCount + 1
+		comp:SetValue(s.ScheduleId, s.DefId, userValue)
+	end
+
+	@ExecSpace("Server")
+	method void RequestOpenUI(integer id, integer defId)
+		local s = _GameEventLogic:GetStruct(id)
+		if s == nil then
+			return
+		end
+		
+		local defData = _GameEventDefDataSetLogic:GetData(defId)
+		if defData == nil then
+			return
+		end
+
+		local status = s:GetStatusByData(nil)
+		if status ~= _GameEventStatusEnum.Active then
+			return
+		end
+
+		local userEntity = _UserService:GetUserEntityByUserId(senderUserId)
+		if not isvalid(userEntity) then
+			return
+		end
+
+		local comp = userEntity.PlayerGameEvent
+		local userData = userEntity.PlayerGameEvent:GetOrCreateUserData(id, defId)
+		local userValue = userData.Value
+		if userValue == nil then
+			userValue = {}
+		end
+
+		local loginCount = userValue["LC"] or 0
+		local remainAttemptsCount = userValue["RC"] or 0
+		local openedCovers = userValue["OC"] or {}
+
+		self:ResponseOpenUI(id, defId, loginCount, remainAttemptsCount, openedCovers, senderUserId)
+	end
+
+	@ExecSpace("Client")
+	method void ResponseOpenUI(integer id, integer defId, integer loginCount, integer remainAttemptsCount, table openedCovers)
+		local entity = _GameEventSampleUILogic:ActiveLoginBoardUI()
+		if entity == nil then
+			return
+		end
+	
+		entity.UIGameEventLoginBoard:Open(id, defId, loginCount, remainAttemptsCount, openedCovers)
+	end
+
+	@ExecSpace("Server")
+	method void RequestOpenCover(integer id, integer defId, integer index)
+		local s = _GameEventLogic:GetStruct(id)
+		if s == nil then
+			return
+		end
+		
+		---@type GameEventLoginBoardDefData
+		local defData = _GameEventDefDataSetLogic:GetData(defId)
+		if defData == nil then
+			return
+		end
+
+		local status = s:GetStatusByData(nil)
+		if status ~= _GameEventStatusEnum.Active then
+			return
+		end
+
+		local userEntity = _UserService:GetUserEntityByUserId(senderUserId)
+		if not isvalid(userEntity) then
+			return
+		end
+
+		local comp = userEntity.PlayerGameEvent
+		local userData = comp:GetOrCreateUserData(id, defId)
+
+		local userValue = userData.Value
+		if userValue == nil then
+			userValue = {}
+		end
+
+		local loginCount = userValue["LC"] or 0
+		local remainAttemptsCount = userValue["RC"] or 0
+		---@type table<integer>
+		local openedCovers = userValue["OC"] or {}
+
+		if remainAttemptsCount < 1 then
+			return
+		end
+
+		if index <= 0 or index > 9 then
+			return
+		end
+
+		local isOpened = false
+		for i = 1, #openedCovers do
+			if openedCovers[i] == index then
+				isOpened = true
+				break
+			end
+		end
+
+		if isOpened then
+			return
+		end
+
+		local rewardList = defData.RewardList
+		if rewardList == nil then
+			return
+		end
+
+		local rewardItem = rewardList[index]
+		if rewardItem == nil then
+			return
+		end
+
+		remainAttemptsCount -= 1
+		openedCovers[#openedCovers + 1] = index
+
+		userValue["RC"] = remainAttemptsCount
+		userValue["OC"] = openedCovers
+		userEntity.PlayerGameEvent:SetValue(id, defId, userValue)
+		
+		local itemId = rewardItem[1]
+		local itemCount = rewardItem[2]
+		log(string.format("Reward Item. ItemId : %d, ItemCount : %d", itemId, itemCount))
+		
+		self:ResponseOpenCover(id, defId, index, remainAttemptsCount, senderUserId)
+	end
+
+	@ExecSpace("Client")
+	method void ResponseOpenCover(integer id, integer defId, integer index, integer remainAttemptsCount)
+		local entity = _GameEventSampleUILogic:GetLoginBoardUI()
+		if entity == nil then
+			return
+		end
+	
+		if not entity.Enable then
+			return
+		end
+		
+		entity.UIGameEventLoginBoard:OpenCover(id, defId, index, remainAttemptsCount)
+	end
+
+end

@@ -1,0 +1,5 @@
+﻿DefId,Type,Arg1,Arg2,Arg3,ShowBanner,Disable
+1,LoginBoard,"EventName1,c9957ae95acf4af3ab598e3d26494882","701,1,702,2,703,3,704,1,705,2,706,3,707,1,708,2,709,3",,1,
+2,LoginBoard,"EventName2,71e1337291344ebf82fcae9e25a58b42","801,1,802,2,803,3,804,1,805,2,806,3,807,1,808,2,809,3",,1,
+10,ExpRate,0.5,,,1,
+11,ExpRate,1.0,,,1,

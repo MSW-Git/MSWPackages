@@ -1,0 +1,210 @@
+@Struct
+script GameEventScheduleData
+	
+	property integer Id = 0
+	
+	property integer DefId = 0
+	
+	property integer PreviewTime = 0
+	
+	property integer StartTime = 0
+	
+	property integer EndTime = 0
+	
+	property integer CloseTime = 0
+	
+	property boolean Disable = false
+	
+	method table Serialize()
+		local dbItem = {}
+		dbItem["Id"] = self.Id
+		dbItem["DefId"] = self.DefId
+		dbItem["PreviewTime"] = self.PreviewTime
+		dbItem["StartTime"] = self.StartTime
+		dbItem["EndTime"] = self.EndTime
+		dbItem["CloseTime"] = self.CloseTime
+		
+		return dbItem
+	end
+	
+	method boolean Deserialize(table dbItem)
+		self.Id = dbItem["Id"]
+		self.DefId = dbItem["DefId"]
+		self.PreviewTime = dbItem["PreviewTime"]
+		self.StartTime = dbItem["StartTime"]
+		self.EndTime = dbItem["EndTime"]
+		self.CloseTime = dbItem["CloseTime"]
+		
+		return true
+	end
+	
+	method boolean IsEqual(GameEventScheduleData other)
+		if other == nil then
+			return false
+		end
+		
+		return self.Id == other.Id
+		and self.DefId == other.DefId
+		and self.PreviewTime == other.PreviewTime
+		and self.StartTime == other.StartTime
+		and self.EndTime == other.EndTime
+		and self.CloseTime == other.CloseTime
+		and self.Disable == other.Disable
+	end
+	
+	method boolean Load(any dataRow, any getTimeElapsedFunc)
+		---@type UserDataRow
+		local row = dataRow
+		
+		local id = math.tointeger(tonumber(row:GetItem("Id")))
+		if id == nil or id == 0 then
+			log_error("Id is nil.")
+			return false
+		end
+		self.Id = id
+		
+		local definitionId = math.tointeger(tonumber(row:GetItem("DefId")))
+		if definitionId == nil then
+			log_error(string.format("DefId is nil. Id : %d", id))
+			return false
+		end
+		self.DefId = definitionId
+		
+		local success, result = pcall(getTimeElapsedFunc, row:GetItem("StartTime"))
+		if not success then
+			log_error(string.format("GameEventData StartTime Error. Id : %d, Error : %s", id, result))
+			return false
+		end
+		self.StartTime = result
+		
+		success, result = pcall(getTimeElapsedFunc, row:GetItem("EndTime"))
+		if not success then
+			log_error(string.format("GameEventData EndTime Error. Id : %d, Error : %s", id, result))
+			return false
+		end
+		self.EndTime = result
+		
+		local previewTimeStr = row:GetItem("PreviewTime")
+		if _Util:IsNilorEmptyString(previewTimeStr) then
+			self.PreviewTime = self.StartTime
+		else
+			success, result = pcall(getTimeElapsedFunc, previewTimeStr)
+			if not success then
+				log_error(string.format("GameEventData PreviewTime Error. Id : %d, Error : %s", id, result))
+				return false
+			end
+			self.PreviewTime = result
+		end
+		
+		local closeTimeStr = row:GetItem("CloseTime")
+		if _Util:IsNilorEmptyString(closeTimeStr) then
+			self.CloseTime = self.EndTime
+		else
+			success, result = pcall(getTimeElapsedFunc, closeTimeStr)
+			if not success then
+				log_error(string.format("GameEventData CloseTime Error. Id : %d, Error : %s", id, result))
+				return false
+			end
+			self.CloseTime = result
+		end
+		
+		local disable = row:GetItem("Disable")
+		if not _Util:IsNilorEmptyString(disable) then
+			self.Disable = true
+		end
+		
+		if not self:IsValid() then
+			return false
+		end
+		
+		return true
+	end
+	
+	method boolean IsValid()
+		local id = self.Id
+		if id == nil or id == 0 then
+			log_error("Id is nil.")
+			return false
+		end
+		
+		local defId = self.DefId
+		if defId == nil or defId == 0 then
+			log_error(string.format("DefId is nil. Id : %d", id))
+			return false
+		end
+		
+		local previewTime = self.PreviewTime
+		if previewTime < 0 then
+			log_error(string.format("PreviewTime is negative value. Id : %d", id))
+			return false
+		end
+		
+		local startTime = self.StartTime
+		if startTime < 0 then
+			log_error(string.format("StartTime is negative value. Id : %d", id))
+			return false
+		end
+		
+		local endTime = self.EndTime
+		if endTime < 0 then
+			log_error(string.format("EndTime is negative value. Id : %d", id))
+			return false
+		end
+		
+		local closeTime = self.CloseTime
+		if closeTime < 0 then
+			log_error(string.format("CloseTime is negative value. Id : %d", id))
+			return false
+		end
+		
+		if startTime >= endTime then
+			log_error(string.format("The startTime must be less than the endTime. Id : %d", id))
+			return false
+		end
+		
+		if previewTime > startTime then
+			log_error(string.format("The previewTime is later than the startTime. Id : %d", id))
+			return false
+		end
+		
+		if endTime > closeTime then
+			log_error(string.format("The endTime is later than the closeTime. Id : %d", id))
+			return false
+		end
+		
+		return true
+	end
+	
+	method integer GetStatus(integer curElapsed)
+		if curElapsed == nil then
+			curElapsed = _DateTimeLogic:GetTimeElapsed()
+		end
+		
+		if self.CloseTime <= curElapsed then
+			return _GameEventStatusEnum.Close
+		elseif self.EndTime <= curElapsed then
+			return _GameEventStatusEnum.Grace
+		elseif self.StartTime <= curElapsed then
+			return _GameEventStatusEnum.Active
+		elseif self.PreviewTime <= curElapsed then
+			return _GameEventStatusEnum.Preview
+		else
+			return _GameEventStatusEnum.Awaiting
+		end
+	end
+	
+	method integer GetNextTransitionTime(integer state)
+		if state == _GameEventStatusEnum.Awaiting then
+			return self.PreviewTime
+		elseif state == _GameEventStatusEnum.Preview then
+			return self.StartTime
+		elseif state == _GameEventStatusEnum.Active then
+			return self.EndTime
+		elseif state == _GameEventStatusEnum.Grace then
+			return self.CloseTime
+		else
+			return 0
+		end
+	end
+	
+end

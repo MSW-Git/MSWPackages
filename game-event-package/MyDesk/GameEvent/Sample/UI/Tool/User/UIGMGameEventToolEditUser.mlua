@@ -1,0 +1,324 @@
+@Component
+script UIGMGameEventToolEditUser extends Component
+
+	property UIGMGameEventTool Parent = nil
+	
+	property GridViewComponent GridViewComp = nil
+	
+	property Entity Item = nil
+	
+	property table GridViewDataTable = {}
+	
+	property TextComponent Text_Name = nil
+
+	property TextComponent Text_ProfileCode = nil
+
+	property any SortFunc = nil
+
+	property integer TimeOffset = 0
+
+	property table OriginalUserDataTable = {}
+
+	property table EditUserDataTable = {}
+
+	property string TargetProfileCode = nil
+
+	property boolean IsLoaded = false
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		
+		self.Text_Name = entity:GetChildByName("Text_Name").TextComponent
+
+		local item = entity:GetChildByName("Item")
+		self.Item = item
+		
+		local gridViewComp = entity:GetChildByName("GridView").GridViewComponent
+		gridViewComp.ItemEntity = item
+		gridViewComp.OnRefresh = self.OnRefresh
+		gridViewComp.OnClear = self.OnClear
+		gridViewComp.Entity:ConnectEvent(ChildUIEvent, self.OnChildUIEvent)
+		
+		self.GridViewComp = gridViewComp
+		
+		local scroll_bottom = entity:GetChildByName("Scroll_Bottom")
+		self.Text_ProfileCode = scroll_bottom:GetChildByName("Text_ProfileCode").TextComponent
+
+		local Btn_Query = scroll_bottom:GetChildByName("Btn_Query")
+		Btn_Query:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Query)
+		
+		local Btn_Add = entity:GetChildByName("Btn_Add")
+		Btn_Add:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Add)
+
+		local Btn_Revert = entity:GetChildByName("Btn_Revert")
+		Btn_Revert:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Revert)
+
+		local Btn_Save = entity:GetChildByName("Btn_Save")
+		Btn_Save:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Save)
+		
+		---@param a UserGameEventData
+		---@param b UserGameEventData
+		local function sortFunc(a, b)
+			if a.Id ~= b.Id then
+				return a.Id < b.Id
+			end
+			return a.DefId < b.DefId
+		end
+		self.SortFunc = sortFunc
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Apply(string profileCode, table dataList)
+		self.TargetProfileCode = profileCode
+		self.Text_Name.Text = "ProfileCode : " .. profileCode
+
+		local original = self.OriginalUserDataTable
+		table.clear(original)
+
+		for i = 1, #dataList do
+			---@type UserGameEventData
+			local data = dataList[i]
+			local id = data.Id
+			local defId = data.DefId
+
+			self:SetOriginalData(id, defId, data)
+		end
+		
+		if not self:InitDataTable() then
+			self.IsLoaded = false
+			return
+		end
+
+		self:Invalidate(true)
+		self.IsLoaded = true
+	end
+
+	@ExecSpace("ClientOnly")
+	method boolean InitDataTable()
+		local editTable = self.EditUserDataTable
+		table.clear(editTable)
+		
+		local editDataList = {}
+		for id, inner in pairs(self.OriginalUserDataTable) do
+			for defId, originalData in pairs(inner) do
+				local editData = UserGameEventData()
+				if not editData:CopyFrom(originalData) then
+					return false
+				end
+				
+				self:SetEditData(id, defId, editData)
+				editDataList[#editDataList + 1] = editData
+			end
+		end
+		table.sort(editDataList, self.SortFunc)
+
+		local gridViewDataTable = self.GridViewDataTable
+		table.initialize(gridViewDataTable, editDataList)
+
+		return true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Invalidate(boolean resetPos)
+		self.TimeOffset = self.Parent.TimeOffset
+		self.GridViewComp.TotalCount = #self.GridViewDataTable
+		self.GridViewComp:Refresh(resetPos, true)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnRefresh(integer index, Entity entity)
+		index += 1
+		local s = self.GridViewDataTable[index]
+		entity.UIGMGameEventToolEditUserItem:Set(s, self.TimeOffset)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClear(integer index, Entity entity)
+		entity.UIGMGameEventToolEditUserItem:Clear()
+	end
+
+	@ExecSpace("ClientOnly")
+	method boolean TryAddEditData(integer id, integer defId)
+		local data = self:GetEditData(id, defId)
+		if data ~= nil then
+			log_error(string.format("Data is already exits. Id : %d, DefId : %d", id, defId))
+			return false
+		end
+
+		data = UserGameEventData()
+		data:Init(id, defId)
+		self:SetEditData(id, defId, data)
+
+		---@type table<UserGameEventData>
+		local gridViewDataTable = self.GridViewDataTable
+		table.insert(gridViewDataTable, data)
+		table.sort(gridViewDataTable, self.SortFunc)
+	
+		self:Invalidate(false)
+		return true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnChildUIEvent(ChildUIEvent evt)
+		if evt.Arg == 1 then
+			self:OnClickBtn_Edit(evt)
+		elseif evt.Arg == 2 then
+			self:OnClickBtn_Delete(evt)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Edit(ChildUIEvent evt)
+		if not self.IsLoaded then
+			return
+		end
+		
+		---@type UserGameEventData
+		local editData = evt.Entity.UIGMGameEventToolEditUserItem.EditData
+		if editData == nil then
+			return
+		end
+		
+		local originalData = self:GetOriginalData(editData.Id, editData.DefId)
+		self.Parent:OpenPopup_UserEdit(originalData, editData)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Delete(ChildUIEvent evt)
+		if not self.IsLoaded then
+			return
+		end
+		
+		---@type UserGameEventData
+		local delData = evt.Entity.UIGMGameEventToolEditUserItem.EditData
+		if delData == nil then
+			return
+		end
+		
+		local id = delData.Id
+		local defId = delData.DefId
+
+		local data = self:GetEditData(id, defId)
+		if data == nil then
+			return
+		end
+
+		local editTable = self.EditUserDataTable
+		editTable[id][defId] = nil
+
+		---@type table<UserGameEventData>
+		local gridViewDataTable = self.GridViewDataTable
+		for i = 1, #gridViewDataTable do
+			local s = gridViewDataTable[i]
+			if s.Id == id and s.DefId == defId then
+				table.remove(gridViewDataTable, i)
+				break
+			end
+		end
+		
+		table.sort(gridViewDataTable, self.SortFunc)
+		self:Invalidate(false)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Query()
+		local profileCode = self.Text_ProfileCode.Text
+		if _Util:IsNilorEmptyString(profileCode) then
+			return
+		end
+		
+		_GMGameEventToolLogic:RequestUserDataList(profileCode, true)
+	end
+	
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Add()
+		if not self.IsLoaded then
+			return
+		end
+		
+		self.Parent:OpenPopup_UserAdd()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Revert()
+		if not self.IsLoaded then
+			return
+		end
+
+		if not self:InitDataTable() then
+			self.IsLoaded = false
+			return
+		end
+
+		self:Invalidate(false)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Save()
+		if not self.IsLoaded then
+			return
+		end
+
+		local profileCode = self.TargetProfileCode
+		if _Util:IsNilorEmptyString(profileCode) then
+			return
+		end
+
+		---@type table<integer, table<integer, UserGameEventData>>
+		local editDataTable = self.EditUserDataTable
+		
+		local dataList = {}
+		for id, innerTable in pairs(editDataTable) do
+			for defId, data in pairs(innerTable) do
+				dataList[#dataList + 1] = data
+			end
+		end
+
+		_GMGameEventToolLogic:InvokeRequestEditUserDataList(profileCode, dataList)
+	end
+
+	@ExecSpace("ClientOnly")
+	method UserGameEventData GetOriginalData(integer id, integer defId)
+		local inner = self.OriginalUserDataTable[id]
+		if inner == nil then
+			return nil
+		end
+
+		return inner[defId]
+	end
+
+	@ExecSpace("ClientOnly")
+	method UserGameEventData GetEditData(integer id, integer defId)
+		local inner = self.EditUserDataTable[id]
+		if inner == nil then
+			return nil
+		end
+
+		return inner[defId]
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetOriginalData(integer id, integer defId, UserGameEventData data)
+		local t = self.OriginalUserDataTable
+		local inner = t[id]
+		if inner == nil then
+			inner = {}
+			t[id] = inner
+		end
+
+		inner[defId] = data
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetEditData(integer id, integer defId, UserGameEventData data)
+		local t = self.EditUserDataTable
+		local inner = t[id]
+		if inner == nil then
+			inner = {}
+			t[id] = inner
+		end
+
+		inner[defId] = data
+	end
+end

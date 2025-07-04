@@ -1,0 +1,18 @@
+@Component
+script UIGameEventBanner extends Component
+
+	@ExecSpace("ClientOnly")
+	method void Set(GameEventStruct s)
+		-- Implement function in child component.	
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		-- Implement function in child component.	
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClick(GameEventStruct s)
+		-- Implement function in child component.	
+	end
+end

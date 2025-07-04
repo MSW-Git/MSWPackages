@@ -1,0 +1,158 @@
+@Component
+script UIGMGameEventToolEditUserPopupEdit extends Component
+
+	property UIGMGameEventTool Parent = nil
+
+	property TextComponent Id = nil
+
+	property TextComponent DefId = nil
+
+	property TextComponent Value = nil
+
+	property TextComponent UpdateDate = nil
+
+	property any OriginalData = nil
+
+	property any EditData = nil
+
+	property integer TimeOffset = 0
+
+	property any GetElapsedFunc = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		local panel = entity:GetChildByName("Panel")
+		local btn_exit = panel:GetChildByName("Title"):GetChildByName("Btn_Exit")
+		btn_exit:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Close)
+		
+		local item = panel:GetChildByName("item")
+		self.Id = item:GetChildByName("Text_Id").TextComponent
+		self.DefId = item:GetChildByName("Text_DefId").TextComponent
+		self.Value = item:GetChildByName("Text_Value").TextComponent
+		self.UpdateDate = item:GetChildByName("Text_UpdateDate").TextComponent
+		
+		local scroll_action = panel:GetChildByName("Scroll_Action")
+		local Btn_RevertEdits = scroll_action:GetChildByName("Btn_RevertEdits")
+		Btn_RevertEdits:ConnectEvent(ButtonClickEvent, self.OnClickBtn_RevertEdits)
+		
+		local Btn_ResetToOriginal = scroll_action:GetChildByName("Btn_ResetToOriginal")
+		Btn_ResetToOriginal:ConnectEvent(ButtonClickEvent, self.OnClickBtn_ResetToOriginal)
+		
+		local btn_ok = panel:GetChildByName("Btn_OK")
+		btn_ok:ConnectEvent(ButtonClickEvent, self.OnClickBtn_OK)
+		
+		local btn_cancel = panel:GetChildByName("Btn_Cancel")
+		btn_cancel:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Close)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Open(UserGameEventData originalData, UserGameEventData editData)
+		self.OriginalData = originalData
+		self.EditData = editData
+		self.TimeOffset = self.Parent.TimeOffset
+		
+		self:Set(editData)
+		self.Entity.Enable = true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Set(UserGameEventData s)
+		self.Id.Text = tostring(s.Id)
+		self.DefId.Text = tostring(s.DefId)
+			
+		local isValueExist = false
+		if not _Util:IsNilorEmptyTable(s.Value) then
+			local success, result = pcall(_HttpService.JSONEncode, _HttpService, s.Value)
+			if success then
+				self.Value.Text = result				
+				isValueExist = true
+			else
+				log_error(string.format("JSONEncode Error. Id : %d, DefId : %d, Error : %s", s.Id, s.DefId, result))
+			end 
+		end
+
+		if not isValueExist then
+			self.Value.Text = ""
+		end		
+
+		self.UpdateDate.Text = _UtilGMTool:ElapsedTimeToString(s.UpdateTime, self.TimeOffset)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		self.Id.Text = ""
+		self.DefId.Text = ""
+		self.Value.Text = ""
+		self.UpdateDate.Text = ""
+	end
+
+	@ExecSpace("ClientOnly")
+	method UserGameEventData GetDataFromTextInput()
+		---@type UserGameEventData
+		local editData = self.EditData
+		
+		local id = editData.Id
+		local defId = editData.DefId
+
+		local data = UserGameEventData()
+		data.Id = id
+		data.DefId = defId
+		
+		local valueStr = self.Value.Text
+		if not _Util:IsNilorEmptyString(valueStr) then
+			local success, result = pcall(_HttpService.JSONDecode, _HttpService, valueStr)
+			if not success then
+				log_error("JSONDecode Failed. Error : " .. result)
+				return nil
+			end
+
+			if not _Util:IsNilorEmptyTable(result) then
+				data.Value = result
+			end
+		end
+
+		data.UpdateTime = _UtilGMTool:StringToElapsedTime(self.UpdateDate.Text, self.TimeOffset)
+		return data
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_RevertEdits()
+		---@type UserGameEventData
+		local editData = self.EditData
+		self:Set(editData)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_ResetToOriginal()
+		---@type UserGameEventData
+		local originalData = self.OriginalData
+		self:Set(originalData)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_OK()
+		local s = self:GetDataFromTextInput()
+		if s == nil then
+			return
+		end
+		
+		---@type UserGameEventData
+		local editData = self.EditData
+		if not editData:CopyFrom(s) then
+			return
+		end
+		
+		self.Parent.Page_EditUser.UIGMGameEventToolEditUser:Invalidate(false)
+		
+		self:Clear()
+		self.Entity.Enable = false
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Close()
+		self:Clear()
+		self.Entity.Enable = false
+	end
+
+end

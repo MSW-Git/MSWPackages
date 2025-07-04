@@ -1,0 +1,144 @@
+@Component
+script PlayerDBManager extends Component
+
+	property integer TimerId = 0
+
+	property boolean IsLoadAttempted = false
+
+	@TargetUserSync
+	property boolean IsLoadSuccess = false
+
+	@ExecSpace("ServerOnly")
+	method void SaveToDB(boolean isLeaving)
+		if not self.IsLoadSuccess then
+			return
+		end
+		
+		local saveData = {}
+		-------------------------------------------------------------------
+		local playerEntity = self.Entity
+		playerEntity.PlayerGameEvent:SaveToDB(saveData)
+		-------------------------------------------------------------------
+		
+		local profileCode = self.Entity.PlayerComponent.ProfileCode
+		local ds = _DataStorageService:GetUserDataStorage(profileCode)
+		if isLeaving == true then
+			ds:BatchSetAndWait(saveData)
+		else
+			local callback = function(errorCode, values)
+				if errorCode == 0 then
+					return
+				end
+				
+				-- Error handling
+			end
+			ds:BatchSetAsync(saveData, callback)
+		end
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean LoadFromDB()
+		local playerEntity = self.Entity
+		local profileCode = self.Entity.PlayerComponent.ProfileCode
+		local ds = _DataStorageService:GetUserDataStorage(profileCode)
+		local loadKey = {}
+		local loadedData = {}
+		
+		-------------------------------------------------------------------
+		playerEntity.PlayerGameEvent:LoadFromDB(loadKey)
+		-------------------------------------------------------------------
+		
+		local returnCode, itemPages = ds:BatchGetAndWait(loadKey)
+		if returnCode ~= 0 then
+			return false
+		end
+		
+		while true do
+			local datas = itemPages:GetCurrentPageDatas()
+			if datas == nil then
+				break
+			end
+			
+			for i=1, #datas do
+				loadedData[datas[i].KeyInfo.Key] = datas[i]
+			end
+			
+			if itemPages.IsLastPage == true then
+				break
+			end
+			itemPages:MoveToNextPageAndWait()
+		end
+		
+		if not self:OnLoadedDataFromDB(loadedData) then
+			return false
+		end
+		
+		if not self:PostOnLoadedDataFromDB() then
+			return false
+		end
+		
+		return true
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean OnLoadedDataFromDB(table datas)
+		local playerEntity = self.Entity
+		
+		if not playerEntity.PlayerGameEvent:OnLoadedDataFromDB(datas) then
+			return false
+		end
+		
+		return true
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean PostOnLoadedDataFromDB()
+		local playerEntity = self.Entity
+		
+		if not playerEntity.PlayerGameEvent:PostOnLoadedDataFromDB() then
+			return false
+		end
+		
+		return true
+	end
+
+	@ExecSpace("Server")
+	method void NotifyWorldDataLoadCompleted()
+		if self.IsLoadAttempted then
+			return
+		end
+		self.IsLoadAttempted = true
+		
+		if not _DataLoadLogic:IsLoadSuccessAndWait() then
+			log_error("World DataLoad Failed.")
+			return
+		end
+		
+		if not self:LoadFromDB() then
+			return
+		end
+		
+		self.IsLoadSuccess = true
+		
+		-- Database save interval
+		local period = 300
+		
+		local dbfunction = function()
+			self:SaveToDB(false)
+		end
+		
+		self.TimerId = _TimerService:SetTimerRepeat(dbfunction, period, period)
+	end
+
+	@ExecSpace("ServerOnly")
+	@EventSender("Service", "UserService")
+	handler HandleUserLeaveEvent(UserLeaveEvent event)
+		local UserId = event.UserId
+		
+		if UserId == self.Entity.PlayerComponent.UserId then
+			_TimerService:ClearTimer(self.TimerId)
+			self:SaveToDB(true)
+		end
+	end
+
+end

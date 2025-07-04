@@ -1,0 +1,46 @@
+@Component
+script UIGameEventExpRateBanner extends UIGameEventBanner
+	
+	property TextComponent Text = nil
+	
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		self.Text = self.Entity:GetChildByName("Text").TextComponent
+	end
+	
+	@ExecSpace("ClientOnly")
+	method void Set(GameEventStruct s)
+		---@type GameEventExpRateDefData
+		local defData = s:GetDefData()
+		if defData == nil then
+			log_error(string.format("Cannot find GameEventDefData. DefId : %d", s.DefId))
+			return
+		end
+		
+		local expRate = defData.ExpRate
+		if expRate == nil then
+			log_error(string.format("Cannot find expRate. DefId : %d", s.DefId))
+			return
+		end
+		
+		local text = self.Text
+		if isvalid(text) then
+			local percent = math.tointeger(defData.ExpRate * 100 + 0.5)
+			text.Text = string.format("%d%%", percent)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		local text = self.Text
+		if isvalid(text) then
+			text.Text = ""
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClick(GameEventStruct s)
+		-- Do nothing.
+	end
+
+end

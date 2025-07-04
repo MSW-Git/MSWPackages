@@ -1,0 +1,40 @@
+@Component
+script UIGameEventLoginBoardBanner extends UIGameEventBanner
+
+	property TextComponent Text = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		self.Text = self.Entity:GetChildByName("Text").TextComponent
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Set(GameEventStruct s)
+	---@type GameEventLoginBoardDefData
+		local defData = s:GetDefData()
+		if defData == nil then
+			log_error(string.format("Cannot find GameEventDefData. DefId : %d", s.DefId))
+			return
+		end
+		
+		local text = self.Text
+		if isvalid(text) then
+			local title = defData.Title or "Login Board"
+			text.Text = title
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		local text = self.Text
+		if isvalid(text) then
+			text.Text = ""
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClick(GameEventStruct s)
+		_GameEventLoginBoardLogic:RequestOpenUI(s.ScheduleId, s.DefId)
+	end
+
+end

@@ -1,0 +1,14 @@
+@Event
+script GameEventStatusChangedEvent extends EventType
+
+	property integer ScheduleId = 0
+
+	property integer DefId = 0
+
+	property integer PrevStatus = 0
+
+	property integer CurStatus = 0
+
+	property boolean IsInit = false
+
+end

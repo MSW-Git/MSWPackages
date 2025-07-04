@@ -1,0 +1,67 @@
+@Component
+script UIGMGameEventToolUserItem extends Component
+
+	property TextComponent Id = nil
+
+	property TextComponent DefId = nil
+
+	property TextComponent Value = nil
+
+	property TextComponent UpdateDate = nil
+
+	property any UserData = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		self.Id = entity:GetChildByName("Text_Id").TextComponent
+		self.DefId = entity:GetChildByName("Text_DefId").TextComponent
+		self.Value = entity:GetChildByName("Text_Value").TextComponent
+		self.UpdateDate = entity:GetChildByName("Text_UpdateDate").TextComponent
+	
+		local Btn_Detail = entity:GetChildByName("Btn_Detail")
+		Btn_Detail:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Detail)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Set(UserGameEventData s, integer timeOffset)
+		self.UserData = s
+
+		self.Id.Text = tostring(s.Id)
+		self.DefId.Text = tostring(s.DefId)
+	
+		local isValueExist = false
+		if not _Util:IsNilorEmptyTable(s.Value) then
+			local success, result = pcall(_HttpService.JSONEncode, _HttpService, s.Value)
+			if success then
+				self.Value.Text = result				
+				isValueExist = true
+			else
+				log_error(string.format("JSONEncode Error. Id : %d, DefId : %d, Error : %s", s.Id, s.DefId, result))
+			end 
+		end
+
+		if not isValueExist then
+			self.Value.Text = ""
+		end
+
+		self.UpdateDate.Text = _UtilGMTool:ElapsedTimeToString(s.UpdateTime, timeOffset)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		self.Id.Text = ""
+		self.DefId.Text = ""
+		self.Value.Text = ""
+		self.UpdateDate.Text = ""
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Detail()
+		local evt = ButtonClickEvent()
+		evt.Entity = self.Entity
+
+		self.Entity.Parent:SendEvent(evt)
+	end
+
+end

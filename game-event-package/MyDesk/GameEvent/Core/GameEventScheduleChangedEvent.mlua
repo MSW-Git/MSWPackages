@@ -1,0 +1,43 @@
+@Event
+script GameEventScheduleChangedEvent extends EventType
+
+	property integer Id = 0
+
+	property integer DefId = 0
+
+	property integer PreviewTime = 0
+
+	property integer StartTime = 0
+
+	property integer EndTime = 0
+
+	property integer CloseTime = 0
+
+	property boolean Disable = false
+
+	property boolean IsDelete = false
+
+	method GameEventScheduleData ToScheduleData()
+		local data = GameEventScheduleData()
+		data.Id = self.Id
+		data.DefId = self.DefId
+		data.PreviewTime = self.PreviewTime
+		data.StartTime = self.StartTime
+		data.EndTime = self.EndTime
+		data.CloseTime = self.CloseTime
+		data.Disable = self.Disable
+
+		return data
+	end
+
+	method void FromScheduleData(GameEventScheduleData data)
+		self.Id = data.Id
+		self.DefId = data.DefId
+		self.PreviewTime = data.PreviewTime
+		self.StartTime = data.StartTime
+		self.EndTime = data.EndTime
+		self.CloseTime = data.CloseTime
+		self.Disable = data.Disable
+	end
+
+end

@@ -1,0 +1,41 @@
+@Logic
+script GameEventScheculeDataSetLogic extends Logic
+
+	property table DataTable = {}
+
+	method boolean Load()
+		if self:IsClient() then
+			return true
+		end
+
+		---@type table<integer, GameEventScheduleData>
+		local dataTable = self.DataTable
+		
+		local getTimeElapsedFunc = function(str)
+			return DateTime(str).Elapsed
+		end
+		
+		local rows = _DataService:GetTable("GameEventScheduleDataSet"):GetAllRow()
+		for i = 1, #rows do
+			local row = rows[i]
+			
+			local data = GameEventScheduleData()
+			if not data:Load(row, getTimeElapsedFunc) then
+				return false
+			end
+			
+			local id = data.Id
+			if dataTable[id] ~= nil then
+				log_error(string.format("GameEventData is already exist. Id : %d", id))
+				return false
+			end
+			dataTable[id] = data
+		end
+		
+		return true
+	end
+
+	method GameEventScheduleData GetData(integer id)
+		return self.DataTable[id]
+	end
+end

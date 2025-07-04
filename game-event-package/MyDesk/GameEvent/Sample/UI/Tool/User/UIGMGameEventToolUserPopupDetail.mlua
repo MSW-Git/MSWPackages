@@ -1,0 +1,68 @@
+@Component
+script UIGMGameEventToolUserPopupDetail extends Component
+
+	property UIGMGameEventTool Parent = nil
+
+	property TextComponent Id = nil
+
+	property TextComponent DefId = nil
+
+	property TextComponent UpdateDate = nil
+
+	property TextComponent Value = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		local panel = entity:GetChildByName("Panel")
+		
+		local btn_exit = panel:GetChildByName("Title"):GetChildByName("Btn_Exit")
+		btn_exit:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Cancel)
+		
+		local item = panel:GetChildByName("item")
+		self.Id = item:GetChildByName("Text_Id").TextComponent
+		self.DefId = item:GetChildByName("Text_DefId").TextComponent
+		self.UpdateDate = item:GetChildByName("Text_UpdateDate").TextComponent
+		self.Value = item:GetChildByName("Text_Value").TextComponent
+		
+		local Btn_Cancel = panel:GetChildByName("Btn_Cancel")
+		Btn_Cancel:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Cancel)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Open(UserGameEventData userData)
+		self:Set(userData)
+		self.Entity.Enable = true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Set(UserGameEventData userData)
+		self.Id.Text = tostring(userData.Id)
+		self.DefId.Text = tostring(userData.DefId)
+	
+		local success, result = pcall(_HttpService.JSONEncode, _HttpService, userData.Value)
+		if not success then
+			log_error(string.format("JSONDecode Error. Id : %d, DefId : %d, Error : %s", userData.Id, userData.DefId, result))
+			self.Value.Text = result
+		else
+			self.Value.Text = result
+		end 
+
+		local timeOffset = self.Parent.TimeOffset
+		self.UpdateDate.Text = _UtilGMTool:ElapsedTimeToString(userData.UpdateTime, timeOffset)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		self.Id.Text = ""
+		self.DefId.Text = ""
+		self.UpdateDate.Text = ""
+		self.Value.Text = ""
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Cancel()
+		self.Entity.Enable = false
+	end
+
+end

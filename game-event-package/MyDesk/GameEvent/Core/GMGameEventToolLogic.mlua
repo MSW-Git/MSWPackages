@@ -1,0 +1,306 @@
+@Logic
+script GMGameEventToolLogic extends Logic
+	
+	property string ScheduleDSName = "GameEvent"
+	
+	property string ScheduleDSTag = "Tag"
+	
+	property string UserDSName = "GameEvent"
+	
+	property table ScheduleDataTable = {}
+	
+	@ExecSpace("ServerOnly")
+	method GameEventScheduleData GetData(integer id)
+		return self.ScheduleDataTable[id]
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean LoadScheduleDataTableAndWait()
+		local outScheduleDataList = {}
+		if not self:GetScheduleDataTableAndWait(outScheduleDataList) then
+			return false
+		end
+		
+		table.initialize(self.ScheduleDataTable, outScheduleDataList)
+		return true
+	end
+	
+	@ExecSpace("ServerOnly")
+	method boolean GetScheduleDataTableAndWait(table outTable)
+		local ds = _DataStorageService:GetGlobalDataStorage(self.ScheduleDSName)
+		local errorCode, itemPages = ds:GetPagesAndWait(self.ScheduleDSTag)
+		if errorCode ~= 0 then
+			log_error(string.format("GameEvent GetPagesAndWait Failed. ErrorCode : %d", errorCode))
+			return false
+		end
+		
+		while true do
+			local items = itemPages:GetCurrentPageDatas()
+			for _, item in pairs(items) do
+				local value = item.Value
+				if _Util:IsNilorEmptyString(value) then
+					continue
+				end
+				
+				local dbItem = _HttpService:JSONDecode(value)
+				local s = GameEventScheduleData()
+				if not s:Deserialize(dbItem) then
+					continue
+				end
+				
+				outTable[s.Id] = s
+			end
+			
+			if itemPages.IsLastPage == true then
+				break
+			end
+			
+			itemPages:MoveToNextPageAndWait()
+		end
+		
+		return true
+	end
+	
+	@ExecSpace("ServerOnly")
+	method boolean GetScheduleDataListAndWait(table outList)
+		local ds = _DataStorageService:GetGlobalDataStorage(self.ScheduleDSName)
+		local errorCode, itemPages = ds:GetPagesAndWait(self.ScheduleDSTag)
+		if errorCode ~= 0 then
+			log_error(string.format("GameEvent GetPagesAndWait Failed. ErrorCode : %d", errorCode))
+			return false
+		end
+		
+		while true do
+			local items = itemPages:GetCurrentPageDatas()
+			for _, item in pairs(items) do
+				local value = item.Value
+				if _Util:IsNilorEmptyString(value) then
+					continue
+				end
+				
+				local dbItem = _HttpService:JSONDecode(value)
+				local s = GameEventScheduleData()
+				if not s:Deserialize(dbItem) then
+					continue
+				end
+				
+				outList[#outList + 1] = s
+			end
+			
+			if itemPages.IsLastPage == true then
+				break
+			end
+			
+			itemPages:MoveToNextPageAndWait()
+		end
+		
+		return true
+	end
+	
+	@ExecSpace("Server")
+	method void RequestScheduleDataList(boolean isEdit)
+		if not _AdminLogic:IsAdmin(senderUserId) then
+			return
+		end
+		
+		local outList = {}
+		if not self:GetScheduleDataListAndWait(outList) then
+			return
+		end
+		
+		self:ResponseScheduleDataList(outList, isEdit, senderUserId)
+	end
+	
+	@ExecSpace("Client")
+	method void ResponseScheduleDataList(table dataList, boolean isEdit)
+		local ui = _GameEventSampleUILogic:GetToolUI()
+		if not isvalid(ui) then
+			return
+		end
+		
+		if isEdit then
+			local page_edit = ui.UIGMGameEventTool.Page_EditSchedule
+			page_edit.UIGMGameEventToolEditSchedule:Apply(dataList)
+		else
+			local page_view = ui.UIGMGameEventTool.Page_Schedule
+			page_view.UIGMGameEventToolSchedule:Apply(dataList)
+		end
+	end
+	
+	@ExecSpace("Server")
+	method void RequestSetScheduleData(GameEventScheduleData data)
+		if not _AdminLogic:IsAdmin(senderUserId) then
+			return
+		end
+		
+		local dbItem = data:Serialize()
+		local dbStr = _HttpService:JSONEncode(dbItem)
+		if _Util:IsNilorEmptyString(dbStr) then
+			return
+		end
+		
+		local ds = _DataStorageService:GetGlobalDataStorage(self.ScheduleDSName)
+		local keyInfo = DataStorageKeyInfo()
+		keyInfo.Key = tostring(data.Id)
+		keyInfo.Tag = self.ScheduleDSTag
+		
+		local errorCode = ds:SetByInfoAndWait(keyInfo, dbStr)
+		if errorCode ~= 0 then
+			log_error(string.format("RequestSetScheduleData DataStorage Failed. ErrorCode : %d, Id : %d", errorCode, data.Id))
+			return
+		end
+		
+		local evt = GameEventScheduleChangedEvent()
+		evt:FromScheduleData(data)
+		
+		local code = _WorldInstanceService:RequestSendEventToAllWorldInstancesAndWait(evt)
+		if code ~= SendEventRequestResultCode.OK then
+			log_error(string.format("RequestSetScheduleData SendEvent Failed. Error : %s, Id : %d", tostring(code), data.Id))
+		end
+		
+		self:ResponseSetScheduleData(data, senderUserId)
+	end
+	
+	@ExecSpace("Client")
+	method void ResponseSetScheduleData(GameEventScheduleData data)
+		local ui = _GameEventSampleUILogic:GetToolUI()
+		if not isvalid(ui) then
+			return
+		end
+		
+		local tool = ui.UIGMGameEventTool
+		tool.Popup_EditSchedule_Add.Enable = false
+		tool.Popup_EditSchedule_Edit.Enable = false
+		tool.Page_EditSchedule.UIGMGameEventToolEditSchedule:OnSetData(data)
+	end
+	
+	@ExecSpace("Server")
+	method void RequestDeleteScheduleData(integer id)
+		if not _AdminLogic:IsAdmin(senderUserId) then
+			return
+		end
+		
+		local ds = _DataStorageService:GetGlobalDataStorage(self.ScheduleDSName)
+		local errorCode = ds:DeleteAndWait(tostring(id))
+		if errorCode ~= 0 then
+			log_error(string.format("RequestDeleteScheduleData DataStorage Failed. ErrorCode : %d, Id : %d", errorCode, id))
+			return
+		end
+		
+		local evt = GameEventScheduleChangedEvent()
+		evt.Id = id
+		evt.IsDelete = true
+		
+		local code = _WorldInstanceService:RequestSendEventToAllWorldInstancesAndWait(evt)
+		if code ~= SendEventRequestResultCode.OK then
+			log_error(string.format("RequestSetScheduleData SendEvent Failed. Error : %s, Id : %d", tostring(code), id))
+		end
+		
+		self:ResponseDeleteScheduleData(id, senderUserId)
+	end
+	
+	@ExecSpace("Client")
+	method void ResponseDeleteScheduleData(integer id)
+		local ui = _GameEventSampleUILogic:GetToolUI()
+		if not isvalid(ui) then
+			return
+		end
+		
+		local tool = ui.UIGMGameEventTool
+		tool.Popup_EditSchedule_Delete.Enable = false
+		tool.Page_EditSchedule.UIGMGameEventToolEditSchedule:OnDeleteData(id)
+	end
+	
+	@ExecSpace("Server")
+	method void RequestUserDataList(string profileCode, boolean isEdit)
+		if not _AdminLogic:IsAdmin(senderUserId) then
+			return
+		end
+		
+		local deserTable = self:GetUserDeserTableAndWait(profileCode)
+		if deserTable == nil then
+			return
+		end
+		
+		self:ResponseUserDataList(profileCode, isEdit, deserTable, senderUserId)
+	end
+	
+	@ExecSpace("ServerOnly")
+	method table GetUserDeserTableAndWait(string profileCode)
+		local ds = _DataStorageService:GetUserDataStorage(profileCode)
+		local errorCode, sdsValue = ds:GetAndWait(self.UserDSName)
+		if errorCode ~= 0 then
+			log_error(string.format("GameEvent UserData GetAndWait Failed. ErrorCode : %d", errorCode))
+			return nil
+		end
+		
+		if _Util:IsNilorEmptyString(sdsValue) then
+			return {}
+		end
+		
+		return _HttpService:JSONDecode(sdsValue)
+	end
+	
+	@ExecSpace("Client")
+	method void ResponseUserDataList(string profileCode, boolean isEdit, table deserTable)
+		local ui = _GameEventSampleUILogic:GetToolUI()
+		if not isvalid(ui) then
+			return
+		end
+		
+		local dataList = {}
+		for i = 1, #deserTable do
+			local userData = UserGameEventData()
+			userData:DeserializeFromTool(deserTable[i])
+			dataList[#dataList + 1] = userData
+		end
+		
+		if isEdit then
+			local page_edit = ui.UIGMGameEventTool.Page_EditUser
+			page_edit.UIGMGameEventToolEditUser:Apply(profileCode, dataList)
+		else
+			local page_view = ui.UIGMGameEventTool.Page_User
+			page_view.UIGMGameEventToolUser:Apply(profileCode, dataList)
+		end
+	end
+	
+	@ExecSpace("ClientOnly")
+	method void InvokeRequestEditUserDataList(string profileCode, table dataList)
+		local deserTable = {}
+		
+		for i = 1, #dataList do
+			---@type UserGameEventData
+			local userData = dataList[i]
+			local dbItem = {}
+			if not userData:SerializeFromTool(dbItem) then
+				return	
+			end
+
+			deserTable[#deserTable + 1] = dbItem
+		end
+		
+		self:RequestEditUserDataList(profileCode, deserTable)
+	end
+	
+	@ExecSpace("Server")
+	method void RequestEditUserDataList(string profileCode, table deserTable)
+		if not _AdminLogic:IsAdmin(senderUserId) then
+			return
+		end
+		
+		local sds = ""
+		if not _Util:IsNilorEmptyTable(deserTable) then
+			sds = _HttpService:JSONEncode(deserTable)
+		end
+		
+		local ds = _DataStorageService:GetUserDataStorage(profileCode)
+		local errorCode = ds:SetAndWait(_GMGameEventToolLogic.UserDSName, sds)
+		if errorCode ~= 0 then
+			log_error(string.format("SetAndWait Failed. ErrorCode : %d, ProfileCode : %s", errorCode, profileCode))
+			return
+		end
+		
+		log("RequestEditUserDataList Success. ProfileCode : " .. profileCode)
+	end
+
+end

@@ -1,0 +1,51 @@
+@Logic
+script GameEventDefDataSetLogic extends Logic
+
+	property table DataTable = {}
+
+	method boolean Load()
+		---@type table<integer, GameEventDefData>
+		local dataTable = self.DataTable
+		
+		local rows = _DataService:GetTable("GameEventDefDataSet"):GetAllRow()
+		for i = 1, #rows do
+			local row = rows[i]
+			
+			local disable = row:GetItem("Disable")
+			if not _Util:IsNilorEmptyString(disable) then
+				continue
+			end
+
+			local defEnum = _GameEventDefTypeEnum:ToEnum(row:GetItem("Type"))
+			if defEnum == _GameEventDefTypeEnum.None then
+				log_error(string.format("GameEventDefData defEnum is invalid. RowNum : %d", i))
+				continue
+			end
+
+			---@type GameEventDefData
+			local data = _GameEventDefTypeEnum:CreateData(defEnum)
+			if data == nil then
+				log_error(string.format("GameEventDefData Creation Fail. DefEnum : %d, RowNum : %d", defEnum, i))
+				continue
+			end
+
+			if not data:Load(row) then
+				return false
+			end
+			
+			local defId = data.DefId
+			if dataTable[defId] ~= nil then
+				log_error(string.format("GameEventDefData is already exist. DefId : %d", defId))
+				return false
+			end
+			dataTable[defId] = data
+		end
+		
+		return true
+	end
+
+	method GameEventDefData GetData(integer defId)
+		return self.DataTable[defId]
+	end
+
+end

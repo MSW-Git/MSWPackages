@@ -1,0 +1,117 @@
+@Component
+script UIGameEventLoginBoard extends Component
+
+	property SpriteGUIRendererComponent Img = nil
+
+	property table CoverList = {}
+
+	property TextComponent Text_LoginCount = nil
+
+	property TextComponent Text_RemainAttempts = nil
+
+	property integer Id = 0
+
+	property integer DefId = 0
+
+	property boolean IsInit = false
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		local panel = entity:GetChildByName("Panel")
+
+		local title = panel:GetChildByName("Title")
+		local Btn_Exit = title:GetChildByName("Btn_Exit")
+		Btn_Exit:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Close)
+
+		local bg = panel:GetChildByName("BG")
+		local img = bg:GetChildByName("Img")
+		self.Img = img.SpriteGUIRendererComponent
+
+		local coverList = self.CoverList
+		for i, cover in ipairs(img.Children) do
+			coverList[i] = cover
+
+			local index = i
+			cover:ConnectEvent(ButtonClickEvent, function() self:OnClickBtn_Cover(index) end)
+		end
+
+		self.Text_LoginCount = bg:GetChildByName("Text_LoginCount").TextComponent
+		self.Text_RemainAttempts = bg:GetChildByName("Text_RemainAttempts").TextComponent
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Open(integer id, integer defId, integer loginCount, integer remainAttemptsCount, table openedCovers)
+		self:Clear()
+
+		---@type GameEventLoginBoardDefData
+		local defData = _GameEventDefDataSetLogic:GetData(defId)
+		if defData == nil then
+			return
+		end
+
+		self.Id = id
+		self.DefId = defId
+		self.Img.ImageRUID = defData.ImgRUID
+		
+
+		---@type table<Entity>
+		local coverList = self.CoverList
+		for i = 1, #openedCovers do
+			local index = openedCovers[i]
+			coverList[index].Enable = false
+		end
+
+		self.Text_LoginCount.Text = tostring(loginCount)
+		self.Text_RemainAttempts.Text = tostring(remainAttemptsCount)
+
+		self.IsInit = true
+	end
+	
+	@ExecSpace("ClientOnly")
+	method void OpenCover(integer id, integer defId, integer index, integer remainAttemptsCount)
+		if not self.IsInit then
+			return
+		end
+
+		if self.Id ~= id or self.DefId ~= defId then
+			return
+		end
+
+		---@type table<Entity>
+		local coverList = self.CoverList
+		coverList[index].Enable = false
+	
+		self.Text_RemainAttempts.Text = tostring(remainAttemptsCount)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		self.Id = 0
+		self.DefId = 0
+
+		self.Img.ImageRUID = nil
+
+		---@type table<Entity>
+		local coverList = self.CoverList
+		for i = 1, #coverList do
+			local cover = coverList[i]
+			cover.Enable = true
+		end
+
+		self.Text_LoginCount.Text = tostring(0)
+		self.Text_RemainAttempts.Text = tostring(0)
+
+		self.IsInit = false
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Cover(integer index)
+		_GameEventLoginBoardLogic:RequestOpenCover(self.Id, self.DefId, index)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Close()
+		self.Entity.Enable = false
+	end
+end

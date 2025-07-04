@@ -1,0 +1,31 @@
+@Logic
+script GameEventExpRateLogic extends Logic
+	
+	property number ExpRate = 0
+	
+	method void Update()
+		local resultRate = 0
+		
+		---@type table<GameEventStruct>
+		local list = _GameEventLogic:GetActiveStructListByDefEnum(_GameEventDefTypeEnum.ExpRate)
+		for i = 1, #list do
+			local s = list[i]
+			
+			---@type GameEventExpRateDefData
+			local defData = s:GetDefData()
+			if defData == nil then
+				continue
+			end
+			
+			local rate = defData.ExpRate
+			if rate == nil or rate <= 0 then
+				continue
+			end
+			
+			resultRate += rate
+		end
+		
+		self.ExpRate = resultRate
+	end
+	
+end

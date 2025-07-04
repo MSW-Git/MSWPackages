@@ -1,0 +1,81 @@
+@Component
+script UIGMGameEventToolEditScheduleItem extends Component
+
+	property TextComponent Id = nil
+
+	property TextComponent DefId = nil
+
+	property TextComponent PreviewDate = nil
+
+	property TextComponent StartDate = nil
+
+	property TextComponent EndDate = nil
+
+	property TextComponent CloseDate = nil
+
+	property TextComponent Disable = nil
+
+	property any EditData = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		self.Id = entity:GetChildByName("Text_Id").TextComponent
+		self.DefId = entity:GetChildByName("Text_DefId").TextComponent
+		self.PreviewDate = entity:GetChildByName("Text_PreviewDate").TextComponent
+		self.StartDate = entity:GetChildByName("Text_StartDate").TextComponent
+		self.EndDate = entity:GetChildByName("Text_EndDate").TextComponent
+		self.CloseDate = entity:GetChildByName("Text_CloseDate").TextComponent
+		self.Disable = entity:GetChildByName("Text_Disable").TextComponent
+		
+		local Btn_Edit = entity:GetChildByName("Btn_Edit")
+		Btn_Edit:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Edit)
+		
+		local Btn_Delete = entity:GetChildByName("Btn_Delete")
+		Btn_Delete:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Delete)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Set(GameEventScheduleData s, integer timeOffset)
+		self.EditData = s
+		
+		self.Id.Text = tostring(s.Id)
+		self.DefId.Text = tostring(s.DefId)
+		self.PreviewDate.Text = _UtilGMTool:ElapsedTimeToString(s.PreviewTime, timeOffset)
+		self.StartDate.Text = _UtilGMTool:ElapsedTimeToString(s.StartTime, timeOffset)
+		self.EndDate.Text = _UtilGMTool:ElapsedTimeToString(s.EndTime, timeOffset)
+		self.CloseDate.Text = _UtilGMTool:ElapsedTimeToString(s.CloseTime, timeOffset)
+		self.Disable.Text = s.Disable and "1" or ""
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		self.EditData = nil
+		self.Id.Text = ""
+		self.DefId.Text = ""
+		self.PreviewDate.Text = ""
+		self.StartDate.Text = ""
+		self.EndDate.Text = ""
+		self.CloseDate.Text = ""
+		self.Disable.Text = ""
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Edit()
+		local evt = ChildUIEvent()
+		evt.Entity = self.Entity
+		evt.Arg = 1
+		
+		self.Entity.Parent:SendEvent(evt)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Delete()
+		local evt = ChildUIEvent()
+		evt.Entity = self.Entity
+		evt.Arg = 2
+		
+		self.Entity.Parent:SendEvent(evt)
+	end
+
+end

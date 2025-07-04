@@ -1,0 +1,45 @@
+@Component
+script UIGMGameEventToolEditSchedulePopupDelete extends Component
+
+	property UIGMGameEventTool Parent = nil
+
+	property TextComponent Text = nil
+
+	property integer DelId = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		local panel = entity:GetChildByName("Panel")
+		self.Text = panel:GetChildByName("Text").TextComponent
+		
+		local Btn_Apply = panel:GetChildByName("Btn_Apply")
+		Btn_Apply:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Apply)
+		
+		local Btn_Cancel = panel:GetChildByName("Btn_Cancel")
+		Btn_Cancel:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Cancel)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Open(integer id)
+		if id == nil or id == 0 then
+			return
+		end
+		
+		self.DelId = id
+		self.Entity.Enable = true
+		
+		self.Text.Text = string.format("The schedule data with ID %d is removed from dataStorage.\nIf the same ID exists in the DataSet, its corresponding data will be applied.", id)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Apply()
+		_GMGameEventToolLogic:RequestDeleteScheduleData(self.DelId)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Cancel()
+		self.Entity.Enable = false
+	end
+
+end

@@ -1,0 +1,8 @@
+@Event
+script ChildUIEvent extends EventType
+
+	property Entity Entity = nil
+
+	property integer Arg = 0
+
+end
