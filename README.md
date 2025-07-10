@@ -30,6 +30,7 @@ See the README file in each package for detailed usage information.
 | resource | A game resource system that manages standard and rechargeable resources. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/resource-package/resource-package.modpackage)|
 | droptable-resolver | Provides functionality for determining which items to return based on drop tables and probability. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/droptable-resolver-package/droptable-resolver.modpackage)|
 | game-event | Provides game event system to creators. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/game-event-package/game-event-package.modpackage)|
+| collection | Provides collections to creators. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/collections-package/collections-package.modpackage)|
 
 
 
