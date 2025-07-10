@@ -1,0 +1,403 @@
+@Logic
+script Test_Set extends Logic
+
+	method void OnBeginPlay()
+		-- self:test()
+	end
+
+	method void test()
+		self:testAdd()
+		self:testRemove()
+		self:testContains()
+		self:testCount()
+		self:testClear()
+		self:testToArray()
+		self:testUnion()
+		self:testIntersect()
+		self:testSubtract()
+		self:testIsSubset()
+		self:testIsSuperset()
+		self:testIsEqual()
+		self:testLargeSet()
+		self:testMixedTypes()
+		self:testComplexOperations()
+	end
+
+	method void testAdd()
+		-- Test adding elements to the set
+		local s = _CollectionFactoryLogic:GetSet()
+		
+		_AssertLogic:AssertTrue(s:Add(1))
+		_AssertLogic:AssertEquals(s:Count(), 1)
+		_AssertLogic:AssertTrue(s:Contains(1))
+		
+		_AssertLogic:AssertFalse(s:Add(1)) -- Add existing element
+		_AssertLogic:AssertEquals(s:Count(), 1)
+		
+		_AssertLogic:AssertTrue(s:Add("hello"))
+		_AssertLogic:AssertEquals(s:Count(), 2)
+		_AssertLogic:AssertTrue(s:Contains("hello"))
+		
+		_AssertLogic:AssertTrue(s:Add(true))
+		_AssertLogic:AssertEquals(s:Count(), 3)
+	end
+
+	method void testRemove()
+		-- Test removing elements from the set
+		local s = _CollectionFactoryLogic:GetSet()
+		s:Add(1)
+		s:Add(2)
+		s:Add(3)
+		
+		_AssertLogic:AssertTrue(s:Remove(2))
+		_AssertLogic:AssertEquals(s:Count(), 2)
+		_AssertLogic:AssertFalse(s:Contains(2))
+		
+		_AssertLogic:AssertFalse(s:Remove(2)) -- Remove non-existing element
+		_AssertLogic:AssertEquals(s:Count(), 2)
+		
+		_AssertLogic:AssertTrue(s:Remove(1))
+		_AssertLogic:AssertTrue(s:Remove(3))
+		_AssertLogic:AssertTrue(s:IsEmpty())
+	end
+
+	method void testContains()
+		-- Test checking for element presence
+		local s = _CollectionFactoryLogic:GetSet()
+		s:Add("apple")
+		s:Add("banana")
+		
+		_AssertLogic:AssertTrue(s:Contains("apple"))
+		_AssertLogic:AssertTrue(s:Contains("banana"))
+		_AssertLogic:AssertFalse(s:Contains("orange"))
+		_AssertLogic:AssertFalse(s:Contains(nil))
+	end
+
+	method void testCount()
+		-- Test count accuracy
+		local s = _CollectionFactoryLogic:GetSet()
+		_AssertLogic:AssertEquals(s:Count(), 0)
+		
+		s:Add("a")
+		_AssertLogic:AssertEquals(s:Count(), 1)
+		
+		s:Add("b")
+		s:Add("c")
+		_AssertLogic:AssertEquals(s:Count(), 3)
+		
+		s:Remove("a")
+		_AssertLogic:AssertEquals(s:Count(), 2)
+		
+		s:Clear()
+		_AssertLogic:AssertEquals(s:Count(), 0)
+	end
+
+	method void testClear()
+		-- Test clearing all elements
+		local s = _CollectionFactoryLogic:GetSet()
+		s:Add(1)
+		s:Add(2)
+		s:Clear()
+		
+		_AssertLogic:AssertTrue(s:IsEmpty())
+		_AssertLogic:AssertEquals(s:Count(), 0)
+		_AssertLogic:AssertFalse(s:Contains(1))
+	end
+
+	method void testToArray()
+		-- Test converting set to array
+		local s = _CollectionFactoryLogic:GetSet()
+		s:Add(10)
+		s:Add(20)
+		s:Add(30)
+		
+		local arr = s:ToArray()
+		_AssertLogic:AssertEquals(#arr, 3)
+		
+		-- Create temp set to check contents (order not guaranteed)
+		local tempSet = _CollectionFactoryLogic:GetSet()
+		for _, v in ipairs(arr) do
+			tempSet:Add(v)
+		end
+		
+		_AssertLogic:AssertTrue(tempSet:Contains(10))
+		_AssertLogic:AssertTrue(tempSet:Contains(20))
+		_AssertLogic:AssertTrue(tempSet:Contains(30))
+		_AssertLogic:AssertEquals(tempSet:Count(), 3)
+		
+		local emptySet = _CollectionFactoryLogic:GetSet()
+		_AssertLogic:AssertEquals(#emptySet:ToArray(), 0)
+	end
+
+	method void testUnion()
+		-- Test union operation
+		local set1 = _CollectionFactoryLogic:GetSet()
+		set1:Add(1)
+		set1:Add(2)
+		set1:Add(3)
+		
+		local set2 = _CollectionFactoryLogic:GetSet()
+		set2:Add(3)
+		set2:Add(4)
+		set2:Add(5)
+		
+		local unionSet = set1:Union(set2)
+		_AssertLogic:AssertEquals(unionSet:Count(), 5)
+		_AssertLogic:AssertTrue(unionSet:Contains(1))
+		_AssertLogic:AssertTrue(unionSet:Contains(2))
+		_AssertLogic:AssertTrue(unionSet:Contains(3))
+		_AssertLogic:AssertTrue(unionSet:Contains(4))
+		_AssertLogic:AssertTrue(unionSet:Contains(5))
+		_AssertLogic:AssertFalse(unionSet:Contains(6))
+		
+		-- Test union with empty set
+		local emptySet = _CollectionFactoryLogic:GetSet()
+		local unionWithEmpty = set1:Union(emptySet)
+		_AssertLogic:AssertTrue(unionWithEmpty:IsEqual(set1))
+		
+		-- Test union with self
+		local unionWithSelf = set1:Union(set1)
+		_AssertLogic:AssertTrue(unionWithSelf:IsEqual(set1))
+	end
+
+	method void testIntersect()
+		-- Test intersection operation
+		local set1 = _CollectionFactoryLogic:GetSet()
+		set1:Add(1)
+		set1:Add(2)
+		set1:Add(3)
+		
+		local set2 = _CollectionFactoryLogic:GetSet()
+		set2:Add(3)
+		set2:Add(4)
+		set2:Add(5)
+		
+		local intersectSet = set1:Intersect(set2)
+		_AssertLogic:AssertEquals(intersectSet:Count(), 1)
+		_AssertLogic:AssertTrue(intersectSet:Contains(3))
+		_AssertLogic:AssertFalse(intersectSet:Contains(1))
+		
+		-- Test with no common elements
+		local set3 = _CollectionFactoryLogic:GetSet()
+		set3:Add(10)
+		set3:Add(11)
+		local noCommonIntersect = set1:Intersect(set3)
+		_AssertLogic:AssertTrue(noCommonIntersect:IsEmpty())
+		
+		-- Test intersect with empty set
+		local emptySet = _CollectionFactoryLogic:GetSet()
+		local intersectWithEmpty = set1:Intersect(emptySet)
+		_AssertLogic:AssertTrue(intersectWithEmpty:IsEmpty())
+	end
+
+	method void testSubtract()
+		-- Test subtraction operation
+		local set1 = _CollectionFactoryLogic:GetSet()
+		set1:Add(1)
+		set1:Add(2)
+		set1:Add(3)
+		
+		local set2 = _CollectionFactoryLogic:GetSet()
+		set2:Add(3)
+		set2:Add(4)
+		set2:Add(5)
+		
+		local subtractSet = set1:Subtract(set2) -- {1, 2}
+		_AssertLogic:AssertEquals(subtractSet:Count(), 2)
+		_AssertLogic:AssertTrue(subtractSet:Contains(1))
+		_AssertLogic:AssertTrue(subtractSet:Contains(2))
+		_AssertLogic:AssertFalse(subtractSet:Contains(3))
+		
+		-- Test subtract where set2 has elements not in set1
+		local set4 = _CollectionFactoryLogic:GetSet()
+		set4:Add(1)
+		set4:Add(2)
+		local set5 = _CollectionFactoryLogic:GetSet()
+		set5:Add(3)
+		set5:Add(4)
+		local subtractNoOverlap = set4:Subtract(set5) -- {1, 2}
+		_AssertLogic:AssertEquals(subtractNoOverlap:Count(), 2)
+		_AssertLogic:AssertTrue(subtractNoOverlap:Contains(1))
+		_AssertLogic:AssertTrue(subtractNoOverlap:Contains(2))
+		
+		-- Test subtract with empty set
+		local emptySet = _CollectionFactoryLogic:GetSet()
+		local subtractWithEmpty = set1:Subtract(emptySet)
+		_AssertLogic:AssertTrue(subtractWithEmpty:IsEqual(set1))
+		
+		-- Test subtract self
+		local subtractSelf = set1:Subtract(set1)
+		_AssertLogic:AssertTrue(subtractSelf:IsEmpty())
+	end
+
+	method void testIsSubset()
+		-- Test subset relationship
+		local s1 = _CollectionFactoryLogic:GetSet()
+		s1:Add(1)
+		s1:Add(2)
+		
+		local s2 = _CollectionFactoryLogic:GetSet()
+		s2:Add(1)
+		s2:Add(2)
+		s2:Add(3)
+		
+		local s3 = _CollectionFactoryLogic:GetSet()
+		s3:Add(1)
+		s3:Add(4)
+		
+		local emptySet = _CollectionFactoryLogic:GetSet()
+		
+		_AssertLogic:AssertTrue(s1:IsSubset(s2))       -- {1,2} is subset of {1,2,3}
+		_AssertLogic:AssertTrue(s1:IsSubset(s1))       -- A set is a subset of itself
+		_AssertLogic:AssertFalse(s2:IsSubset(s1))      -- {1,2,3} is not subset of {1,2}
+		_AssertLogic:AssertFalse(s1:IsSubset(s3))      -- {1,2} is not subset of {1,4}
+		_AssertLogic:AssertTrue(emptySet:IsSubset(s1)) -- Empty set is subset of any set
+		_AssertLogic:AssertTrue(emptySet:IsSubset(emptySet)) -- Empty set is subset of empty set
+	end
+
+	method void testIsSuperset()
+		-- Test superset relationship
+		local s1 = _CollectionFactoryLogic:GetSet()
+		s1:Add(1)
+		s1:Add(2)
+		
+		local s2 = _CollectionFactoryLogic:GetSet()
+		s2:Add(1)
+		s2:Add(2)
+		s2:Add(3)
+		
+		local s3 = _CollectionFactoryLogic:GetSet()
+		s3:Add(1)
+		s3:Add(4)
+		
+		local emptySet = _CollectionFactoryLogic:GetSet()
+		
+		_AssertLogic:AssertTrue(s2:IsSuperset(s1))       -- {1,2,3} is superset of {1,2}
+		_AssertLogic:AssertTrue(s1:IsSuperset(s1))       -- A set is a superset of itself
+		_AssertLogic:AssertFalse(s1:IsSuperset(s2))      -- {1,2} is not superset of {1,2,3}
+		_AssertLogic:AssertFalse(s3:IsSuperset(s1))      -- {1,4} is not superset of {1,2}
+		_AssertLogic:AssertTrue(s1:IsSuperset(emptySet)) -- Any set is superset of empty set
+		_AssertLogic:AssertTrue(emptySet:IsSuperset(emptySet)) -- Empty set is superset of empty set
+	end
+
+	method void testIsEqual()
+		-- Test set equality
+		local s1 = _CollectionFactoryLogic:GetSet()
+		s1:Add(1)
+		s1:Add(2)
+		s1:Add(3)
+		
+		local s2 = _CollectionFactoryLogic:GetSet()
+		s2:Add(3)
+		s2:Add(1)
+		s2:Add(2) -- Same elements, different add order
+		
+		local s3 = _CollectionFactoryLogic:GetSet()
+		s3:Add(1)
+		s3:Add(2)
+		
+		local emptySet1 = _CollectionFactoryLogic:GetSet()
+		local emptySet2 = _CollectionFactoryLogic:GetSet()
+		
+		_AssertLogic:AssertTrue(s1:IsEqual(s2))         -- Should be equal
+		_AssertLogic:AssertFalse(s1:IsEqual(s3))        -- Different sizes
+		_AssertLogic:AssertFalse(s3:IsEqual(s1))        -- Different sizes
+		
+		s3:Add(3) -- Make s3 equal to s1
+		_AssertLogic:AssertTrue(s1:IsEqual(s3))
+		
+		_AssertLogic:AssertTrue(emptySet1:IsEqual(emptySet2)) -- Empty sets are equal
+		_AssertLogic:AssertFalse(s1:IsEqual(emptySet1)) -- Non-empty vs empty
+	end
+
+	method void testLargeSet()
+		-- Test with many elements
+		local s = _CollectionFactoryLogic:GetSet()
+		
+		-- Add many elements
+		for i = 1, 100 do
+			_AssertLogic:AssertTrue(s:Add(i))
+		end
+		
+		_AssertLogic:AssertEquals(s:Count(), 100)
+		
+		-- Verify all elements are present
+		for i = 1, 100 do
+			_AssertLogic:AssertTrue(s:Contains(i))
+		end
+		
+		-- Remove all elements
+		for i = 1, 100 do
+			_AssertLogic:AssertTrue(s:Remove(i))
+		end
+		
+		_AssertLogic:AssertTrue(s:IsEmpty())
+		_AssertLogic:AssertEquals(s:Count(), 0)
+	end
+
+	method void testMixedTypes()
+		-- Test with different data types
+		local s = _CollectionFactoryLogic:GetSet()
+		
+		-- Add various types
+		s:Add(42)
+		s:Add("string")
+		s:Add(true)
+		s:Add(false)
+		s:Add({})
+		
+		_AssertLogic:AssertEquals(s:Count(), 5)
+		_AssertLogic:AssertTrue(s:Contains(42))
+		_AssertLogic:AssertTrue(s:Contains("string"))
+		_AssertLogic:AssertTrue(s:Contains(true))
+		_AssertLogic:AssertTrue(s:Contains(false))
+		
+		-- Test table reference properly
+		local testTable = {}
+		s:Add(testTable)
+		_AssertLogic:AssertTrue(s:Contains(testTable))
+		_AssertLogic:AssertFalse(s:Contains({})) -- Different table reference
+	end
+
+	method void testComplexOperations()
+		-- Test complex set operations
+		local set1 = _CollectionFactoryLogic:GetSet()
+		set1:Add(1)
+		set1:Add(2)
+		set1:Add(3)
+		set1:Add(4)
+		
+		local set2 = _CollectionFactoryLogic:GetSet()
+		set2:Add(3)
+		set2:Add(4)
+		set2:Add(5)
+		set2:Add(6)
+		
+		local set3 = _CollectionFactoryLogic:GetSet()
+		set3:Add(1)
+		set3:Add(5)
+		set3:Add(7)
+		
+		-- Test: (set1 ∩ set2) ∪ set3
+		local intersection = set1:Intersect(set2)
+		local result = intersection:Union(set3)
+		
+		_AssertLogic:AssertEquals(result:Count(), 5)
+		_AssertLogic:AssertTrue(result:Contains(3))
+		_AssertLogic:AssertTrue(result:Contains(4))
+		_AssertLogic:AssertTrue(result:Contains(1))
+		_AssertLogic:AssertTrue(result:Contains(5))
+		_AssertLogic:AssertTrue(result:Contains(7))
+		
+		-- Test: set1 - (set2 ∩ set3)
+		local set2IntersectSet3 = set2:Intersect(set3)
+		local subtraction = set1:Subtract(set2IntersectSet3)
+		
+		_AssertLogic:AssertEquals(subtraction:Count(), 4)
+		_AssertLogic:AssertTrue(subtraction:Contains(1))
+		_AssertLogic:AssertTrue(subtraction:Contains(2))
+		_AssertLogic:AssertTrue(subtraction:Contains(3))
+		_AssertLogic:AssertTrue(subtraction:Contains(4))
+	end
+
+end

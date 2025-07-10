@@ -1,0 +1,78 @@
+@Struct
+script Set
+
+	method boolean Add(any value)
+		-- Adds a new element to the set.
+		-- Returns true if the element was successfully added, otherwise returns false.
+		return false
+	end
+
+	method boolean Remove(any value)
+		-- Removes an element from the set.
+		-- Returns true if the element was successfully removed, otherwise returns false if the element was not found.
+		return false
+	end
+
+	method boolean Contains(any value)
+		-- Checks if the set contains a specific element.
+		-- Returns true if the element is found, otherwise returns false.
+		return false
+	end
+
+	method integer Count()
+		-- Returns the number of unique elements in the set.
+		return 0
+	end
+
+	method boolean IsEmpty()
+		-- Checks if the set contains any elements.
+		-- Returns true if the set is empty, otherwise returns false.
+		return false
+	end
+
+	method void Clear()
+		-- Removes all elements from the set.
+	end
+
+	method boolean IsEqual(Set other)
+		-- Compares this set with another set to check if they contain the exact same elements.
+		-- Returns true if both sets are equal, otherwise returns false.
+		return false
+	end
+
+	method Set Union(Set other)
+		-- Creates and returns a new set containing all unique elements from both this set and the 'other' set.
+		-- (Combines elements without duplicates)
+		return nil
+	end
+
+	method Set Intersect(Set other)
+		-- Creates and returns a new set containing only the common elements found in both this set and the 'other' set.
+		-- (Elements that exist in both sets)
+		return nil
+	end
+
+	method Set Subtract(Set other)
+		-- Creates and returns a new set containing elements that are in this set but not in the 'other' set.
+		-- (Elements unique to this set)
+		return nil
+	end
+
+	method boolean IsSubset(Set other)
+		-- Checks if all elements of this set are also contained in the 'other' set.
+		-- Returns true if this set is a subset of 'other', otherwise returns false.
+		return nil
+	end
+
+	method boolean IsSuperset(Set other)
+		-- Checks if this set contains all elements of the 'other' set.
+		-- Returns true if this set is a superset of 'other', otherwise returns false.
+		return nil
+	end
+
+	method table ToArray()
+		-- Converts the set elements into a table. The order of elements in the resulting table is not guaranteed.
+		return nil
+	end
+
+end

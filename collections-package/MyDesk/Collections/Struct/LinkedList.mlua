@@ -1,0 +1,143 @@
+@Struct
+script LinkedList
+
+	method boolean IsEmpty()
+		-- Checks if the linked list contains any elements.
+		-- Returns true if the list is empty, otherwise returns false.
+		return false
+	end
+
+	method integer Count()
+		-- Returns the number of elements (nodes) in the linked list.
+		return 0
+	end
+
+	method LinkedListNode GetFirstNode()
+		-- Returns the first node in the linked list.
+		-- Returns nil if the list is empty.
+		return nil
+	end
+
+	method any GetFirst()
+		-- Returns the value of the first element in the linked list.
+		-- Returns nil if the list is empty.
+		return nil
+	end
+
+	method LinkedListNode GetLastNode()
+		-- Returns the last node in the linked list.
+		-- Returns nil if the list is empty.
+		return nil
+	end
+
+	method any GetLast()
+		-- Returns the value of the last element in the linked list.
+		-- Returns nil if the list is empty.
+		return nil
+	end
+
+	method boolean AddFirst(any value)
+		-- Adds a new node containing the specified value at the beginning of the linked list.
+		-- Returns true if the operation was successful.
+		return false
+	end
+
+	method boolean AddNodeFirst(LinkedListNode node)
+		-- Adds an existing node at the beginning of the linked list.
+		-- Returns true if the operation was successful.
+		return false
+	end
+
+	method boolean AddLast(any value)
+		-- Adds a new node containing the specified value at the end of the linked list.
+		-- Returns true if the operation was successful.
+		return false
+	end
+
+	method boolean AddNodeLast(LinkedListNode node)
+		-- Adds an existing node at the end of the linked list.
+		-- Returns true if the operation was successful.
+		return false
+	end
+
+	method boolean AddBefore(LinkedListNode existingNode, any value)
+		-- Adds a new node containing the specified value immediately before the 'existingNode'.
+		-- Returns true if the operation was successful, otherwise returns false if 'existingNode' is not in the list.
+		return false
+	end
+
+	method boolean AddNodeBefore(LinkedListNode existingNode, LinkedListNode node)
+		-- Adds an new node immediately before the 'existingNode'.
+		-- Returns true if the operation was successful, otherwise returns false if 'existingNode' is not in the list.
+		return false
+	end
+
+	method boolean AddAfter(LinkedListNode existingNode, any value)
+		-- Adds a new node containing the specified value immediately after the 'existingNode'.
+		-- Returns true if the operation was successful, otherwise returns false if 'existingNode' is not in the list.
+		return false
+	end
+
+	method boolean AddNodeAfter(LinkedListNode existingNode, LinkedListNode node)
+		-- Adds an new node immediately after the 'existingNode'.
+		-- Returns true if the operation was successful, otherwise returns false if 'existingNode' is not in the list.
+		return false
+	end
+
+	method boolean Contains(any value)
+		-- Checks if the linked list contains a node with the specified value.
+		-- Returns true if the value is found, otherwise returns false.
+		return false
+	end
+
+	method LinkedListNode Find(any value)
+		-- Finds the first node in the linked list that contains the specified value.
+		-- Returns the LinkedListNode if found, otherwise returns nil.
+		return nil
+	end
+
+	method LinkedListNode FindLast(any value)
+		-- Finds the last node in the linked list that contains the specified value.
+		-- Returns the LinkedListNode if found, otherwise returns nil.
+		return nil
+	end
+
+	method boolean Remove(any value)
+		-- Removes the first occurrence of a node containing the specified value from the linked list.
+		-- Returns true if the element was successfully removed, otherwise returns false if the element was not found.
+		return false
+	end
+
+	method boolean RemoveNode(LinkedListNode nodeToRemove)
+		-- Removes the specified node from the linked list.
+		-- Returns true if the node was successfully removed, otherwise returns false if the node was not in the list.
+		return false
+	end
+
+	method boolean RemoveFirst()
+		-- Removes the node at the beginning of the linked list.
+		-- Returns true if the operation was successful, otherwise returns false if the list was empty.
+		return false
+	end
+
+	method boolean RemoveLast()
+		-- Removes the node at the end of the linked list.
+		-- Returns true if the operation was successful, otherwise returns false if the list was empty.
+		return false
+	end
+
+	method void Clear()
+		-- Removes all nodes from the linked list.
+	end
+
+	method table ToArray()
+		-- Converts the values of the linked list elements into a table in order from first to last.
+		return nil
+	end
+
+	method table ToNodeArray()
+		-- Converts the nodes of the linked list into a table in order from first to last.
+		return nil
+	end
+
+end

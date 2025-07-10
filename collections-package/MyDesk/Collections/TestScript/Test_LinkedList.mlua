@@ -1,0 +1,688 @@
+@Logic
+script Test_LinkedList extends Logic
+
+	method void OnBeginPlay()
+		-- self:test()
+	end
+
+	method void test()
+		self:testIsEmptyAndCount()
+		self:testGetFirstAndLast()
+		self:testAddFirst()
+		self:testAddLast()
+		self:testAddBefore()
+		self:testAddAfter()
+		self:testContainsAndFind()
+		self:testFindLast()
+		self:testRemove()
+		self:testRemoveNode()
+		self:testRemoveFirst()
+		self:testRemoveLast()
+		self:testClear()
+		self:testToArray()
+		self:testToNodeArray()
+		self:testNodeParentList()
+		self:testNilValues()
+		self:testLargeList()
+		self:testMixedTypes()
+		self:testComplexOperations()
+		self:testNodeTraversal()
+	end
+
+	method string listValuesToString(LinkedList list)
+		local values = {}
+		local current = list:GetFirstNode()
+		while current ~= nil do
+			table.insert(values, tostring(current.Value))
+			current = current:GetNextNode()
+		end
+		return "{" .. table.concat(values, ", ") .. "}"
+	end
+
+	method void testIsEmptyAndCount()
+		-- Test empty list state and count
+		local list = _CollectionFactoryLogic:GetLinkedList()
+		_AssertLogic:AssertTrue(list:IsEmpty())
+		_AssertLogic:AssertEquals(list:Count(), 0)
+		
+		list:AddFirst("first")
+		_AssertLogic:AssertFalse(list:IsEmpty())
+		_AssertLogic:AssertEquals(list:Count(), 1)
+		
+		list:Clear()
+		_AssertLogic:AssertTrue(list:IsEmpty())
+		_AssertLogic:AssertEquals(list:Count(), 0)
+	end
+
+	method void testGetFirstAndLast()
+		-- Test first and last node access
+		local list = _CollectionFactoryLogic:GetLinkedList()
+		_AssertLogic:AssertNil(list:GetFirstNode())
+		_AssertLogic:AssertNil(list:GetFirst())
+		_AssertLogic:AssertNil(list:GetLastNode())
+		_AssertLogic:AssertNil(list:GetLast())
+		
+		list:AddFirst("single")
+		_AssertLogic:AssertEquals(list:GetFirst(), "single")
+		_AssertLogic:AssertEquals(list:GetLast(), "single")
+		_AssertLogic:AssertEquals(list:GetFirstNode().Value, "single")
+		_AssertLogic:AssertEquals(list:GetLastNode().Value, "single")
+		_AssertLogic:AssertEquals(list:GetFirstNode(), list:GetLastNode())
+		_AssertLogic:AssertNil(list:GetFirstNode():GetPrevNode())
+		_AssertLogic:AssertNil(list:GetFirstNode():GetNextNode())
+		
+		list:AddLast("last")
+		list:AddFirst("new first")
+		
+		_AssertLogic:AssertEquals(list:GetFirst(), "new first")
+		_AssertLogic:AssertEquals(list:GetLast(), "last")
+		_AssertLogic:AssertEquals(list:GetFirstNode().Value, "new first")
+		_AssertLogic:AssertEquals(list:GetLastNode().Value, "last")
+		_AssertLogic:AssertEquals(list:Count(), 3)
+	end
+
+	method void testAddFirst()
+		-- Test adding elements to front
+		local list = _CollectionFactoryLogic:GetLinkedList()
+		
+		-- AddFirst (value)
+		_AssertLogic:AssertTrue(list:AddFirst(10))
+		_AssertLogic:AssertEquals(list:GetFirst(), 10)
+		_AssertLogic:AssertEquals(list:GetLast(), 10)
+		_AssertLogic:AssertEquals(list:Count(), 1)
+		
+		_AssertLogic:AssertTrue(list:AddFirst(20))
+		_AssertLogic:AssertEquals(list:GetFirst(), 20)
+		_AssertLogic:AssertEquals(list:GetLast(), 10)
+		_AssertLogic:AssertEquals(list:Count(), 2)
+		_AssertLogic:AssertEquals(self:listValuesToString(list), "{20, 10}")
+		
+		-- AddNodeFirst (node)
+		local node30 = _CollectionFactoryLogic:GetLinkedListNode()
+		node30.Value = 30
+		_AssertLogic:AssertTrue(list:AddNodeFirst(node30))
+		_AssertLogic:AssertEquals(list:GetFirst(), 30)
+		_AssertLogic:AssertEquals(list:Count(), 3)
+		_AssertLogic:AssertEquals(self:listValuesToString(list), "{30, 20, 10}")
+		
+		_AssertLogic:AssertEquals(list:GetFirstNode():GetNextNode().Value, 20)
+		_AssertLogic:AssertNil(list:GetFirstNode():GetPrevNode())
+		_AssertLogic:AssertEquals(list:GetFirstNode():GetParentList(), list)
+		
+		-- Try adding already parented node
+		_AssertLogic:AssertFalse(list:AddNodeFirst(node30))
+		_AssertLogic:AssertEquals(list:Count(), 3) -- Count should not change
+	end
+
+	method void testAddLast()
+		-- Test adding elements to end
+		local list = _CollectionFactoryLogic:GetLinkedList()
+		
+		-- AddLast (value)
+		_AssertLogic:AssertTrue(list:AddLast(10))
+		_AssertLogic:AssertEquals(list:GetFirst(), 10)
+		_AssertLogic:AssertEquals(list:GetLast(), 10)
+		_AssertLogic:AssertEquals(list:Count(), 1)
+		
+		_AssertLogic:AssertTrue(list:AddLast(20))
+		_AssertLogic:AssertEquals(list:GetFirst(), 10)
+		_AssertLogic:AssertEquals(list:GetLast(), 20)
+		_AssertLogic:AssertEquals(list:Count(), 2)
+		_AssertLogic:AssertEquals(self:listValuesToString(list), "{10, 20}")
+		
+		-- AddNodeLast (node)
+		local node30 = _CollectionFactoryLogic:GetLinkedListNode()
+		node30.Value = 30
+		_AssertLogic:AssertTrue(list:AddNodeLast(node30))
+		_AssertLogic:AssertEquals(list:GetLast(), 30)
+		_AssertLogic:AssertEquals(list:Count(), 3)
+		_AssertLogic:AssertEquals(self:listValuesToString(list), "{10, 20, 30}")
+		
+		_AssertLogic:AssertEquals(list:GetLastNode():GetPrevNode().Value, 20)
+		_AssertLogic:AssertNil(list:GetLastNode():GetNextNode())
+		_AssertLogic:AssertEquals(list:GetLastNode():GetParentList(), list)
+		
+		-- Try adding already parented node
+		_AssertLogic:AssertFalse(list:AddNodeLast(node30))
+		_AssertLogic:AssertEquals(list:Count(), 3) -- Count should not change
+	end
+
+	method void testAddBefore()
+		-- Test adding before specific nodes
+		local list = _CollectionFactoryLogic:GetLinkedList()
+		list:AddLast("B") -- List: {B}
+		
+		-- Add before head
+		local nodeB = list:Find("B")
+		_AssertLogic:AssertTrue(list:AddBefore(nodeB, "A")) -- List: {A, B}
+		_AssertLogic:AssertEquals(list:GetFirst(), "A")
+		_AssertLogic:AssertEquals(self:listValuesToString(list), "{A, B}")
+		_AssertLogic:AssertEquals(list:Count(), 2)
+		_AssertLogic:AssertEquals(nodeB:GetPrevNode().Value, "A")
+		_AssertLogic:AssertEquals(list:GetFirstNode():GetNextNode().Value, "B")
+		_AssertLogic:AssertNil(list:GetFirstNode():GetPrevNode())
+		
+		-- Add before middle
+		list:AddLast("D") -- List: {A, B, D}
+		local nodeD = list:Find("D")
+		_AssertLogic:AssertTrue(list:AddBefore(nodeD, "C")) -- List: {A, B, C, D}
+		_AssertLogic:AssertEquals(self:listValuesToString(list), "{A, B, C, D}")
+		_AssertLogic:AssertEquals(list:Count(), 4)
+		_AssertLogic:AssertEquals(nodeD:GetPrevNode().Value, "C")
+		_AssertLogic:AssertEquals(nodeD:GetPrevNode():GetPrevNode().Value, "B")
+		_AssertLogic:AssertEquals(nodeD:GetPrevNode():GetParentList(), list)
+		
+		-- AddNodeBefore
+		local nodeX = _CollectionFactoryLogic:GetLinkedListNode()
+		nodeX.Value = "X"
+		local nodeA = list:Find("A")
+		_AssertLogic:AssertTrue(list:AddNodeBefore(nodeA, nodeX)) -- List: {X, A, B, C, D}
+		_AssertLogic:AssertEquals(list:GetFirst(), "X")
+		_AssertLogic:AssertEquals(self:listValuesToString(list), "{X, A, B, C, D}")
+		_AssertLogic:AssertEquals(nodeX:GetNextNode().Value, "A")
+		_AssertLogic:AssertNil(nodeX:GetPrevNode())
+		_AssertLogic:AssertEquals(nodeX:GetParentList(), list)
+		
+		-- Add before non-existent node (should fail)
+		local nonExistentNode = _CollectionFactoryLogic:GetLinkedListNode()
+		nonExistentNode.Value = "Z"
+		_AssertLogic:AssertFalse(list:AddBefore(nonExistentNode, "Y"))
+		_AssertLogic:AssertFalse(list:AddNodeBefore(nonExistentNode, _CollectionFactoryLogic:GetLinkedListNode()))
+		
+		-- Add already parented node (should fail)
+		_AssertLogic:AssertFalse(list:AddNodeBefore(nodeA, nodeX))
+		_AssertLogic:AssertEquals(list:Count(), 5) -- Count should not change
+	end
+
+	method void testAddAfter()
+		-- Test adding after specific nodes
+		local list = _CollectionFactoryLogic:GetLinkedList()
+		list:AddFirst("A") -- List: {A}
+		
+		-- Add after head (which is also tail initially)
+		local nodeA = list:Find("A")
+		_AssertLogic:AssertTrue(list:AddAfter(nodeA, "B")) -- List: {A, B}
+		_AssertLogic:AssertEquals(list:GetLast(), "B")
+		_AssertLogic:AssertEquals(self:listValuesToString(list), "{A, B}")
+		_AssertLogic:AssertEquals(list:Count(), 2)
+		_AssertLogic:AssertEquals(nodeA:GetNextNode().Value, "B")
+		_AssertLogic:AssertEquals(list:GetLastNode():GetPrevNode().Value, "A")
+		_AssertLogic:AssertNil(list:GetLastNode():GetNextNode())
+		
+		-- Add after middle
+		list:AddLast("D") -- List: {A, B, D}
+		local nodeB = list:Find("B")
+		_AssertLogic:AssertTrue(list:AddAfter(nodeB, "C")) -- List: {A, B, C, D}
+		_AssertLogic:AssertEquals(self:listValuesToString(list), "{A, B, C, D}")
+		_AssertLogic:AssertEquals(list:Count(), 4)
+		local nodeC = nodeB:GetNextNode()
+		_AssertLogic:AssertEquals(nodeC.Value, "C")
+		_AssertLogic:AssertEquals(nodeC:GetNextNode().Value, "D")
+		_AssertLogic:AssertEquals(nodeC:GetPrevNode().Value, "B")
+		_AssertLogic:AssertEquals(nodeC:GetParentList(), list)
+		
+		-- AddNodeAfter
+		local nodeY = _CollectionFactoryLogic:GetLinkedListNode()
+		nodeY.Value = "Y"
+		local nodeD = list:Find("D")
+		_AssertLogic:AssertTrue(list:AddNodeAfter(nodeD, nodeY)) -- List: {A, B, C, D, Y}
+		_AssertLogic:AssertEquals(list:GetLast(), "Y")
+		_AssertLogic:AssertEquals(self:listValuesToString(list), "{A, B, C, D, Y}")
+		_AssertLogic:AssertEquals(nodeY:GetPrevNode().Value, "D")
+		_AssertLogic:AssertNil(nodeY:GetNextNode())
+		_AssertLogic:AssertEquals(nodeY:GetParentList(), list)
+		
+		-- Add after non-existent node (should fail)
+		local nonExistentNode = _CollectionFactoryLogic:GetLinkedListNode()
+		nonExistentNode.Value = "Z"
+		_AssertLogic:AssertFalse(list:AddAfter(nonExistentNode, "W"))
+		_AssertLogic:AssertFalse(list:AddNodeAfter(nonExistentNode, _CollectionFactoryLogic:GetLinkedListNode()))
+		
+		-- Add already parented node (should fail)
+		_AssertLogic:AssertFalse(list:AddNodeAfter(nodeD, nodeY))
+		_AssertLogic:AssertEquals(list:Count(), 5) -- Count should not change
+	end
+
+	method void testContainsAndFind()
+		-- Test element search and containment
+		local list = _CollectionFactoryLogic:GetLinkedList()
+		list:AddLast("one")
+		list:AddLast("two")
+		list:AddLast("three")
+		
+		_AssertLogic:AssertTrue(list:Contains("two"))
+		_AssertLogic:AssertFalse(list:Contains("four"))
+		
+		local foundNode = list:Find("two")
+		_AssertLogic:AssertNotNil(foundNode)
+		_AssertLogic:AssertEquals(foundNode.Value, "two")
+		_AssertLogic:AssertEquals(foundNode:GetPrevNode().Value, "one")
+		_AssertLogic:AssertEquals(foundNode:GetNextNode().Value, "three")
+		_AssertLogic:AssertEquals(foundNode:GetParentList(), list)
+		
+		_AssertLogic:AssertNil(list:Find("four"))
+		
+		-- Test with duplicate values (Find should return first)
+		list:AddLast("one")
+		local firstOne = list:Find("one")
+		_AssertLogic:AssertEquals(firstOne.Value, "one")
+		_AssertLogic:AssertNil(firstOne:GetPrevNode()) -- Should be the head "one"
+	end
+
+	method void testFindLast()
+		-- Test finding last occurrence
+		local list = _CollectionFactoryLogic:GetLinkedList()
+		list:AddLast("apple")
+		list:AddLast("banana")
+		list:AddLast("apple") -- Duplicate
+		list:AddLast("cherry")
+		
+		local lastAppleNode = list:FindLast("apple")
+		_AssertLogic:AssertNotNil(lastAppleNode)
+		_AssertLogic:AssertEquals(lastAppleNode.Value, "apple")
+		_AssertLogic:AssertEquals(lastAppleNode:GetPrevNode().Value, "banana")
+		_AssertLogic:AssertEquals(lastAppleNode:GetNextNode().Value, "cherry")
+		
+		_AssertLogic:AssertNil(list:FindLast("grape"))
+		_AssertLogic:AssertEquals(list:FindLast("cherry").Value, "cherry")
+	end
+
+	method void testRemove()
+		-- Test removing by value
+		local list = _CollectionFactoryLogic:GetLinkedList()
+		list:AddLast(1)
+		list:AddLast(2)
+		list:AddLast(3)
+		list:AddLast(2) -- Duplicate
+		list:AddLast(4)
+		
+		_AssertLogic:AssertEquals(self:listValuesToString(list), "{1, 2, 3, 2, 4}")
+		
+		-- Remove head
+		_AssertLogic:AssertTrue(list:Remove(1))
+		_AssertLogic:AssertEquals(list:Count(), 4)
+		_AssertLogic:AssertEquals(list:GetFirst(), 2)
+		_AssertLogic:AssertNil(list:GetFirstNode():GetPrevNode())
+		_AssertLogic:AssertEquals(self:listValuesToString(list), "{2, 3, 2, 4}")
+		
+		-- Remove middle (first occurrence of 2)
+		_AssertLogic:AssertTrue(list:Remove(2))
+		_AssertLogic:AssertEquals(list:Count(), 3)
+		_AssertLogic:AssertEquals(self:listValuesToString(list), "{3, 2, 4}")
+		_AssertLogic:AssertEquals(list:GetFirst(), 3) -- Now 3 is head
+		_AssertLogic:AssertEquals(list:GetLast(), 4)
+		_AssertLogic:AssertEquals(list:Find(3):GetNextNode().Value, 2)
+		_AssertLogic:AssertEquals(list:Find(2):GetPrevNode().Value, 3)
+		
+		-- Remove tail
+		_AssertLogic:AssertTrue(list:Remove(4))
+		_AssertLogic:AssertEquals(list:Count(), 2)
+		_AssertLogic:AssertEquals(list:GetLast(), 2)
+		_AssertLogic:AssertNil(list:GetLastNode():GetNextNode())
+		_AssertLogic:AssertEquals(self:listValuesToString(list), "{3, 2}")
+		
+		-- Remove remaining
+		_AssertLogic:AssertTrue(list:Remove(3))
+		_AssertLogic:AssertEquals(list:Count(), 1)
+		_AssertLogic:AssertEquals(list:GetFirst(), 2)
+		_AssertLogic:AssertEquals(list:GetLast(), 2)
+		
+		_AssertLogic:AssertTrue(list:Remove(2))
+		_AssertLogic:AssertTrue(list:IsEmpty())
+		_AssertLogic:AssertNil(list:GetFirst())
+		_AssertLogic:AssertNil(list:GetLast())
+		
+		-- Try removing from empty or non-existent
+		_AssertLogic:AssertFalse(list:Remove(99))
+	end
+
+	method void testRemoveNode()
+		-- Test removing specific nodes
+		local list = _CollectionFactoryLogic:GetLinkedList()
+		list:AddLast("A")
+		list:AddLast("B")
+		list:AddLast("C")
+		
+		local nodeA = list:Find("A")
+		local nodeB = list:Find("B")
+		local nodeC = list:Find("C")
+		
+		-- Remove middle node
+		_AssertLogic:AssertTrue(list:RemoveNode(nodeB))
+		_AssertLogic:AssertEquals(list:Count(), 2)
+		_AssertLogic:AssertEquals(self:listValuesToString(list), "{A, C}")
+		_AssertLogic:AssertFalse(list:Contains("B"))
+		_AssertLogic:AssertEquals(nodeA:GetNextNode(), nodeC)
+		_AssertLogic:AssertEquals(nodeC:GetPrevNode(), nodeA)
+		_AssertLogic:AssertNil(nodeB:GetParentList())
+		_AssertLogic:AssertNil(nodeB:GetNextNode())
+		_AssertLogic:AssertNil(nodeB:GetPrevNode())
+		
+		-- Remove head node
+		_AssertLogic:AssertTrue(list:RemoveNode(nodeA))
+		_AssertLogic:AssertEquals(list:Count(), 1)
+		_AssertLogic:AssertEquals(self:listValuesToString(list), "{C}")
+		_AssertLogic:AssertEquals(list:GetFirst(), "C")
+		_AssertLogic:AssertNil(list:GetFirstNode():GetPrevNode())
+		_AssertLogic:AssertNil(nodeA:GetParentList())
+		
+		-- Remove last remaining node
+		_AssertLogic:AssertTrue(list:RemoveNode(nodeC))
+		_AssertLogic:AssertTrue(list:IsEmpty())
+		_AssertLogic:AssertNil(list:GetFirst())
+		_AssertLogic:AssertNil(list:GetLast())
+		_AssertLogic:AssertNil(nodeC:GetParentList())
+		
+		-- Try removing a node not in the list or a nil node
+		local nodeD = _CollectionFactoryLogic:GetLinkedListNode()
+		nodeD.Value = "D"
+		_AssertLogic:AssertFalse(list:RemoveNode(nodeD)) -- Not in list
+		_AssertLogic:AssertFalse(list:RemoveNode(nil)) -- Nil node
+	end
+
+	method void testRemoveFirst()
+		-- Test removing first element
+		local list = _CollectionFactoryLogic:GetLinkedList()
+		list:AddLast(1)
+		list:AddLast(2)
+		list:AddLast(3)
+		
+		local removedValue1 = list:RemoveFirst()
+		_AssertLogic:AssertEquals(removedValue1, 1)
+		_AssertLogic:AssertEquals(list:Count(), 2)
+		_AssertLogic:AssertEquals(list:GetFirst(), 2)
+		_AssertLogic:AssertNil(list:GetFirstNode():GetPrevNode())
+		
+		local removedValue2 = list:RemoveFirst()
+		_AssertLogic:AssertEquals(removedValue2, 2)
+		_AssertLogic:AssertEquals(list:Count(), 1)
+		_AssertLogic:AssertEquals(list:GetFirst(), 3)
+		_AssertLogic:AssertEquals(list:GetLast(), 3)
+		
+		local removedValue3 = list:RemoveFirst()
+		_AssertLogic:AssertEquals(removedValue3, 3)
+		_AssertLogic:AssertEquals(list:Count(), 0)
+		_AssertLogic:AssertTrue(list:IsEmpty())
+		_AssertLogic:AssertNil(list:GetFirst())
+		_AssertLogic:AssertNil(list:GetLast())
+		
+		_AssertLogic:AssertNil(list:RemoveFirst()) -- Remove from empty
+	end
+
+	method void testRemoveLast()
+		-- Test removing last element
+		local list = _CollectionFactoryLogic:GetLinkedList()
+		list:AddLast(1)
+		list:AddLast(2)
+		list:AddLast(3)
+		
+		local removedValue1 = list:RemoveLast()
+		_AssertLogic:AssertEquals(removedValue1, 3)
+		_AssertLogic:AssertEquals(list:Count(), 2)
+		_AssertLogic:AssertEquals(list:GetLast(), 2)
+		_AssertLogic:AssertNil(list:GetLastNode():GetNextNode())
+		
+		local removedValue2 = list:RemoveLast()
+		_AssertLogic:AssertEquals(removedValue2, 2)
+		_AssertLogic:AssertEquals(list:Count(), 1)
+		_AssertLogic:AssertEquals(list:GetFirst(), 1)
+		_AssertLogic:AssertEquals(list:GetLast(), 1)
+		
+		local removedValue3 = list:RemoveLast()
+		_AssertLogic:AssertEquals(removedValue3, 1)
+		_AssertLogic:AssertEquals(list:Count(), 0)
+		_AssertLogic:AssertTrue(list:IsEmpty())
+		_AssertLogic:AssertNil(list:GetFirst())
+		_AssertLogic:AssertNil(list:GetLast())
+		
+		_AssertLogic:AssertNil(list:RemoveLast()) -- Remove from empty
+	end
+
+	method void testClear()
+		-- Test clearing the list
+		local list = _CollectionFactoryLogic:GetLinkedList()
+		list:AddLast(1)
+		list:AddLast(2)
+		local node3 = _CollectionFactoryLogic:GetLinkedListNode()
+		node3.Value = 3
+		list:AddNodeLast(node3)
+		
+		_AssertLogic:AssertEquals(list:Count(), 3)
+		_AssertLogic:AssertFalse(list:IsEmpty())
+		
+		list:Clear()
+		
+		_AssertLogic:AssertTrue(list:IsEmpty())
+		_AssertLogic:AssertEquals(list:Count(), 0)
+		_AssertLogic:AssertNil(list:GetFirstNode())
+		_AssertLogic:AssertNil(list:GetLastNode())
+		
+		-- Ensure cleared nodes' references are nilled
+		_AssertLogic:AssertNil(node3:GetParentList())
+		_AssertLogic:AssertNil(node3:GetNextNode())
+		_AssertLogic:AssertNil(node3:GetPrevNode())
+	end
+
+	method void testToArray()
+		-- Test converting list to array
+		local list = _CollectionFactoryLogic:GetLinkedList()
+		list:AddLast("one")
+		list:AddLast("two")
+		list:AddLast("three")
+		
+		local arr = list:ToArray()
+		_AssertLogic:AssertEquals(#arr, 3)
+		_AssertLogic:AssertEquals(arr[1], "one")
+		_AssertLogic:AssertEquals(arr[2], "two")
+		_AssertLogic:AssertEquals(arr[3], "three")
+		
+		local emptyList = _CollectionFactoryLogic:GetLinkedList()
+		_AssertLogic:AssertEquals(#emptyList:ToArray(), 0)
+	end
+
+	method void testToNodeArray()
+		-- Test converting list nodes to array
+		local list = _CollectionFactoryLogic:GetLinkedList()
+		list:AddLast("first")
+		list:AddLast("second")
+		
+		local nodeArr = list:ToNodeArray()
+		_AssertLogic:AssertEquals(#nodeArr, 2)
+		_AssertLogic:AssertEquals(nodeArr[1].Value, "first")
+		_AssertLogic:AssertEquals(nodeArr[2].Value, "second")
+		
+		_AssertLogic:AssertEquals(nodeArr[1]:GetNextNode(), nodeArr[2])
+		_AssertLogic:AssertEquals(nodeArr[2]:GetPrevNode(), nodeArr[1])
+		_AssertLogic:AssertEquals(nodeArr[1]:GetParentList(), list)
+		_AssertLogic:AssertEquals(nodeArr[2]:GetParentList(), list)
+		
+		local emptyList = _CollectionFactoryLogic:GetLinkedList()
+		_AssertLogic:AssertEquals(#emptyList:ToNodeArray(), 0)
+	end
+
+	method void testNodeParentList()
+		-- Test node parent list relationship
+		local list1 = _CollectionFactoryLogic:GetLinkedList()
+		local list2 = _CollectionFactoryLogic:GetLinkedList()
+		
+		local nodeA = _CollectionFactoryLogic:GetLinkedListNode()
+		nodeA.Value = "A"
+		
+		list1:AddNodeFirst(nodeA)
+		_AssertLogic:AssertEquals(nodeA:GetParentList(), list1)
+		
+		local nodeB = _CollectionFactoryLogic:GetLinkedListNode()
+		nodeB.Value = "B"
+		list2:AddNodeFirst(nodeB)
+		
+		-- Try to add nodeA to list2 (should fail as it's already parented)
+		_AssertLogic:AssertFalse(list2:AddNodeLast(nodeA))
+		_AssertLogic:AssertEquals(nodeA:GetParentList(), list1) -- Still parented to list1
+		
+		-- Remove nodeA from list1 and check ParentList
+		list1:RemoveNode(nodeA)
+		_AssertLogic:AssertNil(nodeA:GetParentList())
+		
+		-- Now it should be possible to add nodeA to list2
+		_AssertLogic:AssertTrue(list2:AddNodeLast(nodeA))
+		_AssertLogic:AssertEquals(nodeA:GetParentList(), list2)
+	end
+
+	method void testNilValues()
+		-- Test handling of nil values
+		local list = _CollectionFactoryLogic:GetLinkedList()
+		
+		-- Add nil values
+		list:AddLast(nil)
+		list:AddLast("not nil")
+		list:AddLast(nil)
+		
+		_AssertLogic:AssertEquals(list:Count(), 3)
+		_AssertLogic:AssertTrue(list:Contains(nil))
+		_AssertLogic:AssertTrue(list:Contains("not nil"))
+		
+		local nilNode = list:Find(nil)
+		_AssertLogic:AssertNotNil(nilNode)
+		_AssertLogic:AssertNil(nilNode.Value)
+		
+		-- Remove nil values
+		_AssertLogic:AssertTrue(list:Remove(nil))
+		_AssertLogic:AssertEquals(list:Count(), 2)
+		_AssertLogic:AssertTrue(list:Contains(nil)) -- Second nil still exists
+		
+		_AssertLogic:AssertTrue(list:Remove(nil))
+		_AssertLogic:AssertEquals(list:Count(), 1)
+		_AssertLogic:AssertFalse(list:Contains(nil))
+	end
+
+	method void testLargeList()
+		-- Test with many elements
+		local list = _CollectionFactoryLogic:GetLinkedList()
+		
+		-- Add many elements
+		for i = 1, 100 do
+			list:AddLast(i)
+		end
+		
+		_AssertLogic:AssertEquals(list:Count(), 100)
+		
+		-- Verify all elements are present
+		for i = 1, 100 do
+			_AssertLogic:AssertTrue(list:Contains(i))
+		end
+		
+		-- Remove all elements from front
+		for i = 1, 100 do
+			_AssertLogic:AssertEquals(list:RemoveFirst(), i)
+		end
+		
+		_AssertLogic:AssertTrue(list:IsEmpty())
+		_AssertLogic:AssertEquals(list:Count(), 0)
+	end
+
+	method void testMixedTypes()
+		-- Test with different data types
+		local list = _CollectionFactoryLogic:GetLinkedList()
+		
+		-- Add various types
+		list:AddLast(42)
+		list:AddLast("string")
+		list:AddLast(true)
+		list:AddLast(false)
+		list:AddLast(nil)
+		list:AddLast({})
+		
+		_AssertLogic:AssertEquals(list:Count(), 6)
+		_AssertLogic:AssertTrue(list:Contains(42))
+		_AssertLogic:AssertTrue(list:Contains("string"))
+		_AssertLogic:AssertTrue(list:Contains(true))
+		_AssertLogic:AssertTrue(list:Contains(false))
+		_AssertLogic:AssertTrue(list:Contains(nil))
+		
+		-- Test table reference properly
+		local testTable = {}
+		list:AddLast(testTable)
+		_AssertLogic:AssertTrue(list:Contains(testTable))
+		_AssertLogic:AssertFalse(list:Contains({})) -- Different table reference
+		
+		-- Test node traversal with mixed types
+		local current = list:GetFirstNode()
+		_AssertLogic:AssertEquals(current.Value, 42)
+		current = current:GetNextNode()
+		_AssertLogic:AssertEquals(current.Value, "string")
+		current = current:GetNextNode()
+		_AssertLogic:AssertEquals(current.Value, true)
+	end
+
+	method void testComplexOperations()
+		-- Test complex list operations
+		local list = _CollectionFactoryLogic:GetLinkedList()
+		
+		-- Build complex list
+		list:AddLast("A")
+		list:AddLast("B")
+		list:AddLast("C")
+		
+		-- Insert in middle
+		local nodeB = list:Find("B")
+		list:AddAfter(nodeB, "B2")
+		
+		-- Insert at beginning
+		list:AddFirst("Z")
+		
+		-- Insert at end
+		list:AddLast("D")
+		
+		_AssertLogic:AssertEquals(self:listValuesToString(list), "{Z, A, B, B2, C, D}")
+		_AssertLogic:AssertEquals(list:Count(), 6)
+		
+		-- Remove middle elements
+		list:Remove("B")
+		list:Remove("B2")
+		
+		_AssertLogic:AssertEquals(self:listValuesToString(list), "{Z, A, C, D}")
+		_AssertLogic:AssertEquals(list:Count(), 4)
+		
+		-- Clear and rebuild
+		list:Clear()
+		_AssertLogic:AssertTrue(list:IsEmpty())
+		
+		list:AddLast("new")
+		_AssertLogic:AssertEquals(list:GetFirst(), "new")
+		_AssertLogic:AssertEquals(list:GetLast(), "new")
+	end
+
+	method void testNodeTraversal()
+		-- Test node traversal methods
+		local list = _CollectionFactoryLogic:GetLinkedList()
+		list:AddLast("A")
+		list:AddLast("B")
+		list:AddLast("C")
+		
+		local nodeA = list:GetFirstNode()
+		local nodeB = nodeA:GetNextNode()
+		local nodeC = nodeB:GetNextNode()
+		
+		-- Test forward traversal
+		_AssertLogic:AssertEquals(nodeA.Value, "A")
+		_AssertLogic:AssertEquals(nodeB.Value, "B")
+		_AssertLogic:AssertEquals(nodeC.Value, "C")
+		_AssertLogic:AssertNil(nodeC:GetNextNode())
+		
+		-- Test backward traversal
+		_AssertLogic:AssertEquals(nodeC.Value, "C")
+		_AssertLogic:AssertEquals(nodeC:GetPrevNode().Value, "B")
+		_AssertLogic:AssertEquals(nodeB:GetPrevNode().Value, "A")
+		_AssertLogic:AssertNil(nodeA:GetPrevNode())
+		
+		-- Test node relationships
+		_AssertLogic:AssertEquals(nodeA:GetNextValue(), "B")
+		_AssertLogic:AssertEquals(nodeB:GetNextValue(), "C")
+		_AssertLogic:AssertNil(nodeC:GetNextValue())
+		
+		_AssertLogic:AssertNil(nodeA:GetPrevValue())
+		_AssertLogic:AssertEquals(nodeB:GetPrevValue(), "A")
+		_AssertLogic:AssertEquals(nodeC:GetPrevValue(), "B")
+	end
+
+end

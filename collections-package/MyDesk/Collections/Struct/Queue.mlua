@@ -1,0 +1,40 @@
+@Struct
+script Queue
+
+	method boolean IsEmpty()
+		-- Checks if the queue contains any elements.
+		return nil
+	end
+
+	method integer Count()
+		-- Checks if the queue contains any elements.
+		return nil
+	end
+
+	method void Enqueue(any value)
+		-- Adds a new element to the back of the queue.
+		-- Resizes the internal array if capacity is reached.
+	end
+
+	method any Dequeue()
+		-- Removes and returns the element from the front of the queue.
+		-- Returns nil if the queue is empty.
+		return nil
+	end
+
+	method any Peek()
+		-- Returns the element at the front of the queue without removing it.
+		-- Returns nil if the queue is empty.
+		return nil
+	end
+
+	method void Clear()
+		-- Removes all elements from the queue.
+	end
+
+	method table ToArray()
+		-- Converts the queue elements into a table in order.
+		return nil
+	end
+
+end

@@ -1,0 +1,1062 @@
+@Logic
+script CollectionFactoryLogic extends Logic
+
+	property table MetaTable = {}
+
+	method Stack GetStack()
+		-- Factory method to get a stack, initialized Stack instance.
+		local meta = self.MetaTable.StackMeta
+		if meta == nil then
+			self:InitStack()
+			meta = self.MetaTable.StackMeta
+		end
+		
+		---@type any
+		local s = {}
+		setmetatable(s, meta)
+		s:New()
+		
+		return s
+	end
+
+	method Queue GetQueue()
+		-- Factory method to get a queue, initialized Queue instance.
+		local meta = self.MetaTable.QueueMeta
+		if meta == nil then
+			self:InitQueue()
+			meta = self.MetaTable.QueueMeta
+		end
+		
+		---@type any
+		local s = {}
+		setmetatable(s, meta)
+		s:New()
+		
+		return s
+	end
+
+	method PriorityQueue GetPriorityQueue()
+		-- Factory method to get a priorityQueue, initialized PriorityQueue instance.
+		local meta = self.MetaTable.PriorityQueueMeta
+		if meta == nil then
+			self:InitPriorityQueue()
+			meta = self.MetaTable.PriorityQueueMeta
+		end
+		
+		---@type any
+		local s = {}
+		setmetatable(s, meta)
+		s:New()
+		
+		return s
+	end
+
+	method Set GetSet()
+		-- Factory method to get a set, initialized Set instance.
+		local meta = self.MetaTable.SetMeta
+		if meta == nil then
+			self:InitSet()
+			meta = self.MetaTable.SetMeta
+		end
+		
+		---@type any
+		local s = {}
+		setmetatable(s, meta)
+		s:New()
+		
+		return s
+	end
+
+	method LinkedListNode GetLinkedListNode()
+		-- Factory method to get a new, initialized LinkedListNode instance.
+		local meta = self.MetaTable.LinkedListNodeMeta
+		if meta == nil then
+			self:InitLinkedListNode()
+			meta = self.MetaTable.LinkedListNodeMeta
+		end
+		
+		---@type any
+		local s = {}
+		setmetatable(s, meta)
+		s:New()
+		
+		return s
+	end
+
+	method LinkedList GetLinkedList()
+		-- Factory method to get a new, initialized LinkedList instance.
+		local meta = self.MetaTable.LinkedListMeta
+		if meta == nil then
+			self:InitLinkedList()
+			meta = self.MetaTable.LinkedListMeta
+		end
+		
+		---@type any
+		local s = {}
+		setmetatable(s, meta)
+		s:New()
+		
+		return s
+	end
+
+	method void InitAll()
+		-- Initialize all metatables.
+		self:InitQueue()
+		self:InitStack()
+		self:InitPriorityQueue()
+		self:InitSet()
+		self:InitLinkedList()
+	end
+
+	method void InitQueue()
+		-- Initializes the metatable for Queue objects.
+		-- This should be called once to set up the queue's core behaviors.
+		if self.MetaTable.QueueMeta ~= nil then
+			return
+		end
+		
+		local Meta = {}
+		Meta.__index = Meta
+		
+		function Meta.New(s)
+			-- Constructor for a new Queue instance.
+			-- Initializes a circular buffer-based queue.
+			s.Array = {}
+			s.Head = 1      -- Index of the front element
+			s.Tail = 1      -- Index where the next element will be enqueued
+			s.Size = 0      -- Current number of elements in the queue
+			s.Capacity = 4  -- Initial allocated capacity of the underlying array
+		end
+		
+		function Meta.IsEmpty(s)
+			-- Checks if the queue contains any elements.
+			return s.Size == 0
+		end
+		
+		function Meta.Count(s)
+			-- Returns the total number of elements currently in the queue.
+			return s.Size
+		end
+		
+		function Meta.Enqueue(s, value)
+			-- Adds a new element to the back of the queue.
+			-- Resizes the internal array if capacity is reached.
+			if s.Size == s.Capacity then
+				s:Resize()
+			end
+			
+			local tail = s.Tail
+			s.Array[tail] = value
+			s.Tail = (tail % s.Capacity) + 1 -- Calculate next tail index for circular buffer
+			s.Size += 1
+		end
+		
+		function Meta.Dequeue(s)
+			-- Removes and returns the element from the front of the queue.
+			-- Returns nil if the queue is empty.
+			if s.Size == 0 then
+				return nil
+			end
+			
+			local head = s.Head
+			local value = s.Array[head]
+			s.Array[head] = nil -- Clear the reference to aid garbage collection
+			s.Head = (head % s.Capacity) + 1 -- Calculate next head index for circular buffer
+			s.Size -= 1
+			
+			return value
+		end
+		
+		function Meta.Peek(s)
+			-- Returns the element at the front of the queue without removing it.
+			-- Returns nil if the queue is empty.
+			if s.Size == 0 then
+				return nil
+			end
+			
+			return s.Array[s.Head]
+		end
+		
+		function Meta.Clear(s)
+			-- Removes all elements from the queue.
+			local head = s.Head
+			local tail = s.Tail
+			local capacity = s.Capacity
+			local size = s.Size
+			local array = s.Array
+			
+			-- Iterate and clear elements based on circular buffer wrap-around
+			if head >= tail then
+				for i = head, capacity do
+					array[i] = nil
+				end
+				
+				for i = 1, tail - 1 do
+					array[i] = nil
+				end
+			else
+				for i = head, tail - 1 do
+					array[i] = nil
+				end
+			end
+			
+			s.Head = 1
+			s.Tail = 1
+			s.Size = 0
+		end
+		
+		function Meta.Resize(s)
+			-- Doubles the capacity of the queue's internal array when it's full.
+			-- Copies existing elements to the new, larger array, resetting indices.
+			local oldArray = s.Array
+			local oldCapacity = s.Capacity
+			local newCapacity = oldCapacity * 2
+			
+			local newArray = {}
+			local currentHead = s.Head
+			local currentSize = s.Size
+			
+			-- Copy existing elements to the beginning of the new array (index 1)
+			for i = 1, currentSize do
+				newArray[i] = oldArray[currentHead]
+				oldArray[currentHead] = nil -- Clear old reference
+				currentHead = (currentHead % oldCapacity) + 1 -- Move to next element in old array
+			end
+			
+			s.Array = newArray
+			s.Capacity = newCapacity
+			s.Head = 1
+			s.Tail = currentSize + 1 -- New tail position in the resized array
+		end
+		
+		function Meta.ToArray(s)
+			-- Converts the queue elements into a standard Lua array (table) in order.
+			local result = {}
+			
+			if s.Size == 0 then
+				return result
+			end
+			
+			local head = s.Head
+			local tail = s.Tail
+			local capacity = s.Capacity
+			local array = s.Array
+			local index = 1
+			
+			-- Copy elements from the circular buffer into a contiguous array
+			if head >= tail then
+				for i = head, capacity do
+					result[index] = array[i]
+					index += 1
+				end
+				
+				for i = 1, tail - 1 do
+					result[index] = array[i]
+					index += 1
+				end
+			else
+				for i = head, tail - 1 do
+					result[index] = array[i]
+					index += 1
+				end
+			end
+			return result
+		end
+		
+		self.MetaTable.QueueMeta = Meta
+	end
+
+	method void InitStack()
+		-- Initializes the metatable for Stack objects.
+		-- This method sets up the core behaviors for a stack data structure.
+		if self.MetaTable.StackMeta ~= nil then
+			return
+		end
+		
+		local Meta = {}
+		Meta.__index = Meta 
+		
+		function Meta.New(s)
+			-- Constructor for a new Stack instance.
+			-- Initializes the stack to an empty state.
+			s.Array = {} -- The underlying array to store stack elements
+			s.Size = 0   -- Current number of elements in the stack
+		end
+		
+		function Meta.IsEmpty(s)
+			-- Checks if the stack currently contains any elements.
+			return s.Size == 0
+		end
+		
+		function Meta.Count(s)
+			-- Returns the total number of elements currently in the stack.
+			return s.Size
+		end
+		
+		function Meta.Push(s, value)
+			-- Adds a new element to the top of the stack.
+			s.Size += 1
+			s.Array[s.Size] = value
+		end
+		
+		function Meta.Pop(s)
+			-- Removes and returns the element from the top of the stack.
+			-- Returns nil if the stack is empty.
+			if s.Size == 0 then
+				return nil
+			end
+			
+			local value = s.Array[s.Size]
+			s.Array[s.Size] = nil
+			s.Size -= 1
+			
+			return value
+		end
+		
+		function Meta.Peek(s)
+			-- Returns the element at the top of the stack without removing it.
+			-- Returns nil if the stack is empty.
+			if s.Size == 0 then
+				return nil
+			end
+			
+			return s.Array[s.Size]
+		end
+		
+		function Meta.Clear(s)
+			-- Removes all elements from the stack and resets its state.
+			-- De-references elements in the array for garbage collection.
+			if s.Size == 0 then
+				return
+			end
+			
+			local array = s.Array
+			for i = 1, s.Size do
+				array[i] = nil
+			end
+			
+			s.Size = 0
+		end
+		
+		function Meta.ToArray(s)
+			-- Converts the stack elements into a standard Lua array (table) in order from bottom to top.
+			local result = {}
+			
+			if s.Size == 0 then
+				return result
+			end
+			
+			local array = s.Array
+			for i = 1, s.Size do
+				result[i] = array[i]
+			end
+			
+			return result
+		end
+		
+		self.MetaTable.StackMeta = Meta
+	end
+
+	method void InitPriorityQueue()
+		-- Initializes the metatable for PriorityQueue objects.
+		-- This method sets up the core behaviors for a priority queue using a min-heap.
+		if self.MetaTable.PriorityQueueMeta ~= nil then
+			return
+		end
+		
+		local Meta = {}
+		Meta.__index = Meta
+		
+		function Meta.New(s)
+			-- Constructor for a new PriorityQueue instance.
+			-- Initializes an empty min-heap to store [value, priority] pairs.
+			s.Heap = {} -- The underlying array representing the min-heap
+			s.Size = 0  -- Current number of elements in the heap
+		end
+		
+		function Meta.IsEmpty(s)
+			-- Checks if the priority queue contains any elements.
+			return s.Size == 0
+		end
+		
+		function Meta.Count(s)
+			-- Returns the total number of elements currently in the priority queue.
+			return s.Size
+		end
+		
+		function Meta.Enqueue(s, value, priority)
+			-- Adds a new element with its associated priority to the queue.
+			-- The element is inserted and then "heapified up" to maintain heap property.
+			local heap = s.Heap
+			local floor = math.floor
+			
+			s.Size += 1
+			local index = s.Size -- Start at the end of the heap
+			
+			-- Heapify-up: Compare with parent and swap if priority is lower (higher priority)
+			while index > 1 do
+				local parentIndex = floor(index / 2)
+				-- If parent's priority is greater than current node's priority, swap
+				if heap[parentIndex][2] > priority then 
+					heap[index] = heap[parentIndex]
+					index = parentIndex
+				else
+					break -- Correct position found
+				end
+			end
+			heap[index] = {value, priority} -- Place the new element in its final position
+		end
+		
+		function Meta.Dequeue(s)
+			-- Removes and returns the element with the highest priority (smallest priority value).
+			-- The root element is removed, the last element moves to the root, and then "heapified down".
+			local heap = s.Heap
+			if s.Size == 0 then
+				return nil
+			end
+			
+			local rootNodeValue = heap[1][1] -- Value of the highest priority element
+			local lastNode = heap[s.Size]    -- The last element in the heap
+			
+			heap[s.Size] = nil -- Remove the last element
+			s.Size -= 1
+			
+			if s.Size > 0 then
+				heap[1] = lastNode -- Move the last element to the root
+				local index = 1
+				
+				-- Heapify-down: Restore heap property by moving the new root down
+				while true do
+					local leftChildIndex = index * 2
+					local rightChildIndex = index * 2 + 1
+					local smallestChildIndex = index -- Assume current node is smallest
+					
+					-- Check left child
+					if leftChildIndex <= s.Size and heap[leftChildIndex][2] < heap[smallestChildIndex][2] then
+						smallestChildIndex = leftChildIndex
+					end
+					
+					-- Check right child
+					if rightChildIndex <= s.Size and heap[rightChildIndex][2] < heap[smallestChildIndex][2] then
+						smallestChildIndex = rightChildIndex
+					end
+					
+					if smallestChildIndex == index then
+						-- Current node is smaller than or equal to its children, correct position found
+						break
+					else
+						-- Swap current node with the smallest child
+						heap[index], heap[smallestChildIndex] = heap[smallestChildIndex], heap[index]
+						index = smallestChildIndex -- Continue heapifying down from the child's new position
+					end
+				end
+			end
+			
+			return rootNodeValue -- Return the value of the removed highest priority element
+		end
+		
+		function Meta.Peek(s)
+			-- Returns the element with the highest priority (smallest priority value) without removing it.
+			-- Returns nil if the queue is empty.
+			if s.Size == 0 then
+				return nil
+			end
+			return s.Heap[1][1] -- Access the value of the root node
+		end
+		
+		function Meta.Clear(s)
+			-- Clears all elements from the priority queue, resetting its state.
+			s.Heap = {}
+			s.Size = 0
+		end
+		
+		function Meta.ToArray(s)
+			-- Converts the heap elements into a standard Lua array (table).
+			-- Note: This does not return elements in priority order, but in their current heap array order.
+			local result = {}
+			
+			if s.Size == 0 then
+				return result
+			end
+			
+			local heap = s.Heap
+			for i = 1, s.Size do
+				result[i] = heap[i][1]
+			end
+			
+			return result
+		end
+		
+		self.MetaTable.PriorityQueueMeta = Meta
+	end
+
+	method void InitSet()
+		-- Initializes the metatable for Set objects.
+		-- This method sets up the core behaviors for a mathematical set data structure.
+		if self.MetaTable.SetMeta ~= nil then
+			return
+		end
+		
+		local Meta = {}
+		Meta.__index = Meta
+		
+		function Meta.New(s)
+			-- Constructor for a new Set instance.
+			-- Initializes an empty set with no elements.
+			s.Elements = {} -- Stores unique elements, using Lua table keys for O(1) lookups
+			s.Size = 0      -- Current number of elements in the set
+		end
+		
+		function Meta.Add(s, value)
+			-- Adds a new element to the set.
+			-- Returns true if the element was added (it was new), false otherwise (it already existed).
+			if not s.Elements[value] then
+				s.Elements[value] = true
+				s.Size += 1
+				return true
+			end
+			return false
+		end
+		
+		function Meta.Remove(s, value)
+			-- Removes an element from the set.
+			-- Returns true if the element was removed, false if it was not found.
+			if s.Elements[value] then
+				s.Elements[value] = nil -- Remove by setting to nil
+				s.Size -= 1
+				return true
+			end
+			return false
+		end
+		
+		function Meta.Contains(s, value)
+			-- Checks if the set contains a specific element.
+			return s.Elements[value] ~= nil
+		end
+		
+		function Meta.Count(s)
+			-- Returns the total number of elements in the set.
+			return s.Size
+		end
+		
+		function Meta.Clear(s)
+			-- Removes all elements from the set, making it empty.
+			s.Elements = {}
+			s.Size = 0
+		end
+		
+		function Meta.IsEmpty(s)
+			return s.Size == 0
+		end
+		
+		function Meta.ToArray(s)
+			-- Converts all elements in the set into a standard Lua array (table).
+			-- The order of elements in the resulting array is not guaranteed.
+			local result = {}
+			local count = 0
+			
+			for value, _ in pairs(s.Elements) do
+				count += 1
+				result[count] = value
+			end
+			return result
+		end
+		
+		function Meta.Union(s, otherSet)
+			-- Returns a new Set containing all elements from both this set and another set.
+			local resultSet = self:GetSet()
+			
+			for value, _ in pairs(s.Elements) do
+				resultSet:Add(value)
+			end
+			
+			for value, _ in pairs(otherSet.Elements) do
+				resultSet:Add(value)
+			end
+			
+			return resultSet
+		end
+		
+		function Meta.Intersect(s, otherSet)
+			-- Returns a new Set containing only the common elements found in both sets.
+			local resultSet = self:GetSet()
+			
+			-- Optimize by iterating over the smaller set
+			local smallerSet
+			local largerSet
+			
+			if s.Size <= otherSet.Size then
+				smallerSet = s
+				largerSet = otherSet
+			else
+				smallerSet = otherSet
+				largerSet = s
+			end
+			
+			for value, _ in pairs(smallerSet.Elements) do
+				if largerSet:Contains(value) then
+					resultSet:Add(value)
+				end
+			end
+			
+			return resultSet
+		end
+		
+		function Meta.Subtract(s, otherSet)
+			-- Returns a new Set containing elements from this set that are not present in the other set (A - B).
+			local resultSet = self:GetSet()
+			
+			-- Start by adding all elements from the current set
+			for value, _ in pairs(s.Elements) do
+				resultSet:Add(value)
+			end
+			
+			-- Then remove any elements that are also in the otherSet
+			for value, _ in pairs(otherSet.Elements) do
+				resultSet:Remove(value)
+			end
+			
+			return resultSet
+		end
+		
+		function Meta.IsSubset(s, otherSet)
+			-- Checks if this set is a subset of another set (s ⊆ otherSet).
+			-- Returns true if all elements of this set are contained in otherSet.
+			if s.Size > otherSet.Size then
+				return false -- A larger set cannot be a subset of a smaller one
+			end
+			
+			for value, _ in pairs(s.Elements) do
+				if not otherSet:Contains(value) then
+					return false
+				end
+			end
+			return true
+		end
+		
+		function Meta.IsSuperset(s, otherSet)
+			-- Checks if this set is a superset of another set (s ⊇ otherSet).
+			-- Returns true if this set contains all elements of otherSet.
+			return otherSet:IsSubset(s) -- A is a superset of B if B is a subset of A
+		end
+		
+		function Meta.IsEqual(s, otherSet)
+			-- Checks if two sets are equal, meaning they contain exactly the same elements.
+			-- Order of elements does not matter for equality.
+			if s.Size ~= otherSet.Size then
+				return false -- Sets of different sizes cannot be equal
+			end
+			
+			return s:IsSubset(otherSet) -- If sizes are equal, checking subset implies equality
+		end
+		
+		self.MetaTable.SetMeta = Meta
+	end
+
+	method void InitLinkedListNode()
+		-- Initializes the metatable for LinkedListNode objects.
+		-- This should be called once to set up the node's behavior.
+		if self.MetaTable.LinkedListNodeMeta ~= nil then
+			return
+		end
+		
+		local Meta = {}
+		Meta.__index = Meta
+		
+		function Meta.New(s)
+			-- Constructor for a new LinkedListNode instance.
+			-- Sets initial properties for a newly created node.
+			s.ParentList = nil
+			s.Prev = nil
+			s.Next = nil
+			s.Value = nil
+		end
+		
+		function Meta.GetParentList(s)
+			-- Returns the parent list.
+			return s.ParentList
+		end
+		
+		function Meta.GetPrevNode(s)
+			-- Returns the previous node in the list.
+			return s.Prev
+		end
+		
+		function Meta.GetNextNode(s)
+			-- Returns the next node in the list.
+			return s.Next
+		end
+		
+		function Meta.GetPrevValue(s)
+			-- Returns the value of the previous node.
+			return s.Prev and s.Prev.Value or nil
+		end
+		
+		function Meta.GetNextValue(s)
+			-- Returns the value of the next node.
+			return s.Next and s.Next.Value or nil
+		end
+		
+		self.MetaTable.LinkedListNodeMeta = Meta
+	end
+
+	method void InitLinkedList()
+		-- Initializes the metatable for LinkedList objects.
+		-- This method sets up the core behaviors for a linked list.
+		if self.MetaTable.LinkedListMeta ~= nil then
+			return
+		end
+		
+		local Meta = {}
+		Meta.__index = Meta
+		
+		function Meta.New(s)
+			-- Constructor for a new LinkedList instance.
+			-- Initializes the list to an empty state with no nodes.
+			s.Head = nil
+			s.Tail = nil
+			s.Size = 0
+		end
+		
+		function Meta.IsEmpty(s)
+			-- Checks if the list currently contains any elements.
+			return s.Size == 0
+		end
+		
+		function Meta.Count(s)
+			-- Returns the total number of elements in the list.
+			return s.Size
+		end
+		
+		function Meta.GetFirstNode(s)
+			-- Returns the first node in the list.
+			return s.Head
+		end
+		
+		function Meta.GetFirst(s)
+			-- Returns the value of the first node in the list.
+			return s.Head and s.Head.Value or nil
+		end
+		
+		function Meta.GetLastNode(s)
+			-- Returns the last node in the list.
+			return s.Tail
+		end
+		
+		function Meta.GetLast(s)
+			-- Returns the value of the last node in the list.
+			return s.Tail and s.Tail.Value or nil
+		end
+		
+		function Meta.AddFirst(s, value)
+			-- Adds a new node with the given value to the beginning of the list.
+			local node = self:GetLinkedListNode()
+			node.Value = value
+			return s:AddNodeFirst(node)
+		end
+		
+		function Meta.AddNodeFirst(s, node)
+			-- Adds an existing node to the beginning of the list.
+			if not node or node.ParentList ~= nil then
+				return false -- Node is invalid or already linked to a list
+			end
+			
+			local head = s.Head
+			if head == nil then -- List is empty
+				s.Head = node
+				s.Tail = node
+			else
+				node.Next = head
+				head.Prev = node
+				s.Head = node
+			end
+			
+			node.ParentList = s
+			s.Size += 1
+			return true
+		end
+		
+		function Meta.AddLast(s, value)
+			-- Adds a new node with the given value to the end of the list.
+			local node = self:GetLinkedListNode()
+			node.Value = value
+			return s:AddNodeLast(node)
+		end
+		
+		function Meta.AddNodeLast(s, node)
+			-- Adds an existing node to the end of the list.
+			if not node or node.ParentList ~= nil then
+				return false -- Node is invalid or already linked to a list
+			end
+			
+			local tail = s.Tail
+			if tail == nil then -- List is empty
+				s.Head = node
+				s.Tail = node
+			else
+				node.Prev = tail
+				tail.Next = node
+				s.Tail = node
+			end
+			
+			node.ParentList = s
+			s.Size += 1
+			return true
+		end
+		
+		function Meta.AddBefore(s, existingNode, value)
+			-- Adds a new node with the given value before a specified existing node.
+			local node = self:GetLinkedListNode()
+			node.Value = value
+			return s:AddNodeBefore(existingNode, node)
+		end
+		
+		function Meta.AddNodeBefore(s, existingNode, newNode)
+			-- Adds an existing node before a specified existing node.
+			-- This is an O(1) operation due to doubly linked nature.
+			if not newNode or newNode.ParentList ~= nil then
+				return false -- New node is invalid or already in a list
+			end
+			
+			-- Ensure existingNode belongs to this list
+			if existingNode and existingNode.ParentList ~= s then
+				return false
+			end
+			
+			-- If existingNode is nil or the head, add as first
+			if existingNode == nil or existingNode == s.Head then
+				return s:AddNodeFirst(newNode)
+			end
+			
+			-- Perform O(1) insertion before existingNode
+			local prevNode = existingNode.Prev
+			
+			newNode.Prev = prevNode
+			newNode.Next = existingNode
+			
+			if prevNode then
+				prevNode.Next = newNode
+			end
+			existingNode.Prev = newNode
+			
+			newNode.ParentList = s
+			s.Size += 1
+			return true
+		end
+		
+		function Meta.AddAfter(s, existingNode, value)
+			-- Adds a new node with the given value after a specified existing node.
+			local node = self:GetLinkedListNode()
+			node.Value = value
+			return s:AddNodeAfter(existingNode, node)
+		end
+		
+		function Meta.AddNodeAfter(s, existingNode, newNode)
+			-- Adds an existing node after a specified existing node.
+			-- This is an O(1) operation.
+			if not newNode or newNode.ParentList ~= nil then
+				return false -- New node is invalid or already in a list
+			end
+			
+			if existingNode and existingNode.ParentList ~= s then
+				return false -- Existing node does not belong to this list
+			end
+			
+			-- If existingNode is nil or the tail, add as last
+			if existingNode == nil or existingNode == s.Tail then
+				return s:AddNodeLast(newNode)
+			end
+			
+			-- Perform O(1) insertion after existingNode
+			local nextNode = existingNode.Next
+			
+			newNode.Prev = existingNode
+			newNode.Next = nextNode
+			
+			existingNode.Next = newNode
+			if nextNode then
+				nextNode.Prev = newNode
+			end
+			
+			newNode.ParentList = s
+			s.Size += 1
+			return true
+		end
+		
+		function Meta.Contains(s, value)
+			-- Checks if a specific value exists in the list by finding its first occurrence.
+			return s:Find(value) ~= nil
+		end
+		
+		function Meta.Find(s, value)
+			-- Finds the first node containing the specified value by traversing from head.
+			-- Returns the node if found, otherwise nil.
+			local current = s.Head
+			while current ~= nil do
+				if current.Value == value then
+					return current
+				end
+				current = current.Next
+			end
+			return nil
+		end
+		
+		function Meta.FindLast(s, value)
+			-- Finds the last node containing the specified value by traversing from tail.
+			-- Returns the node if found, otherwise nil.
+			local current = s.Tail
+			while current ~= nil do
+				if current.Value == value then
+					return current
+				end
+				current = current.Prev
+			end
+			return nil
+		end
+		
+		function Meta.Remove(s, value)
+			-- Removes the first occurrence of a node with the given value from the list.
+			-- Involves O(N) traversal to find the node, then O(1) removal.
+			local nodeToRemove = s:Find(value)
+			if nodeToRemove then
+				return s:RemoveNode(nodeToRemove)
+			end
+			return false
+		end
+		
+		function Meta.RemoveNode(s, nodeToRemove)
+			-- Removes a specific node from the list.
+			-- This is an O(1) operation, given the node to remove.
+			if not nodeToRemove or s.Size == 0 then
+				return false -- Invalid node or empty list
+			end
+			
+			-- Safety check: ensure the node belongs to this list
+			if nodeToRemove.ParentList ~= s then
+				return false -- Node belongs to a different list or is invalid
+			end
+			
+			local prevNode = nodeToRemove.Prev
+			local nextNode = nodeToRemove.Next
+			
+			if prevNode then
+				prevNode.Next = nextNode
+			else -- nodeToRemove is the Head
+				s.Head = nextNode
+			end
+			
+			if nextNode then
+				nextNode.Prev = prevNode
+			else -- nodeToRemove is the Tail
+				s.Tail = prevNode
+			end
+			
+			-- If the list became empty after removal
+			if s.Head == nil then
+				s.Tail = nil
+			end
+			
+			-- Clean up removed node references for garbage collection
+			nodeToRemove.Prev = nil
+			nodeToRemove.Next = nil
+			nodeToRemove.ParentList = nil
+			
+			s.Size -= 1
+			return true
+		end
+		
+		function Meta.RemoveFirst(s)
+			-- Removes and returns the value of the first node in the list.
+			-- Returns nil if the list is empty.
+			if s.Head == nil then
+				return nil
+			end
+			
+			local value = s.Head.Value
+			local oldHead = s.Head
+			
+			s.Head = s.Head.Next
+			if s.Head then
+				s.Head.Prev = nil
+			else
+				s.Tail = nil -- List became empty
+			end
+			
+			oldHead.Next = nil
+			oldHead.Prev = nil
+			oldHead.ParentList = nil
+			
+			s.Size -= 1
+			return value
+		end
+		
+		function Meta.RemoveLast(s)
+			-- Removes and returns the value of the last node in the list.
+			-- Returns nil if the list is empty.
+			if s.Tail == nil then
+				return nil
+			end
+			
+			local value = s.Tail.Value
+			local oldTail = s.Tail
+			
+			s.Tail = s.Tail.Prev
+			if s.Tail then
+				s.Tail.Next = nil
+			else
+				s.Head = nil -- List became empty
+			end
+			
+			oldTail.Next = nil
+			oldTail.Prev = nil
+			oldTail.ParentList = nil
+			
+			s.Size -= 1
+			return value
+		end
+		
+		function Meta.Clear(s)
+			-- Clears all nodes and values from the list, making it empty.
+			local current = s.Head
+			while current ~= nil do
+				local nextNode = current.Next
+				current.Prev = nil
+				current.Next = nil
+				current.ParentList = nil
+				current = nextNode
+			end
+			s.Head = nil
+			s.Tail = nil
+			s.Size = 0
+		end
+		
+		function Meta.ToArray(s)
+			-- Converts the values of the list's nodes into a standard Lua array (table).
+			local result = {}
+			local current = s.Head
+			local index = 0
+			while current ~= nil do
+				index += 1
+				result[index] = current.Value
+				current = current.Next
+			end
+			return result
+		end
+		
+		function Meta.ToNodeArray(s)
+			-- Converts the nodes themselves (not just values) into a standard Lua array (table).
+			local result = {}
+			local current = s.Head
+			local index = 0
+			while current ~= nil do
+				index += 1
+				result[index] = current
+				current = current.Next
+			end
+			return result
+		end
+		
+		self.MetaTable.LinkedListMeta = Meta
+	end
+
+end

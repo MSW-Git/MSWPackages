@@ -1,0 +1,36 @@
+@Struct
+script LinkedListNode
+
+	property any Value = nil
+
+	method any GetParentList()
+		-- Returns the LinkedList instance to which this node belongs.
+		-- Returns nil if the node is not currently part of any list.
+		return nil
+	end
+
+	method LinkedListNode GetPrevNode()
+		-- Returns the previous node in the linked list.
+		-- Returns nil if this is the first node or if the node is not in a list.
+		return nil
+	end
+
+	method LinkedListNode GetNextNode()
+		-- Returns the next node in the linked list.
+		-- Returns nil if this is the last node or if the node is not in a list.
+		return nil
+	end
+
+	method any GetPrevValue()
+		-- Returns the value of the previous node in the linked list.
+		-- Returns nil if this is the first node, the node is not in a list, or the previous node is nil.
+		return nil
+	end
+
+	method any GetNextValue()
+		-- Returns the value of the next node in the linked list.
+		-- Returns nil if this is the last node, the node is not in a list, or the next node is nil.
+		return nil
+	end
+
+end

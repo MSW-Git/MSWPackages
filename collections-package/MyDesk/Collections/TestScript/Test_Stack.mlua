@@ -1,0 +1,229 @@
+@Logic
+script Test_Stack extends Logic
+
+	method void OnBeginPlay()
+		-- self:test()
+	end
+
+	method void test()
+		self:testPushPop()
+		self:testPeek()
+		self:testIsEmpty()
+		self:testClear()
+		self:testPopOnEmpty()
+		self:testPeekOnEmpty()
+		self:testCount()
+		self:testToArray()
+		self:testLargeStack()
+		self:testNilValues()
+		self:testMixedTypes()
+		self:testComplexOperations()
+	end
+
+	method void testPushPop()
+		-- Test basic push and pop operations
+		local s = _CollectionFactoryLogic:GetStack()
+		s:Push(10)
+		s:Push(20)
+		s:Push(30)
+			
+		_AssertLogic:AssertEquals(s:Count(), 3)
+		_AssertLogic:AssertEquals(s:Pop(), 30)
+		_AssertLogic:AssertEquals(s:Count(), 2)
+		
+		_AssertLogic:AssertEquals(s:Pop(), 20)
+		_AssertLogic:AssertEquals(s:Pop(), 10)
+		_AssertLogic:AssertTrue(s:IsEmpty())
+	end
+
+	method void testPeek()
+		-- Test peek without removing elements
+		local s = _CollectionFactoryLogic:GetStack()
+		s:Push("apple")
+		s:Push("banana")
+		
+		_AssertLogic:AssertEquals(s:Peek(), "banana")
+		_AssertLogic:AssertEquals(s:Count(), 2)
+		
+		s:Pop()
+		_AssertLogic:AssertEquals(s:Peek(), "apple")
+	end
+
+	method void testIsEmpty()
+		-- Test empty stack state
+		local s = _CollectionFactoryLogic:GetStack()
+		_AssertLogic:AssertTrue(s:IsEmpty())
+		
+		s:Push("first")
+		_AssertLogic:AssertFalse(s:IsEmpty())
+		
+		s:Pop()
+		_AssertLogic:AssertTrue(s:IsEmpty())
+	end
+
+	method void testClear()
+		-- Test clearing the stack
+		local s = _CollectionFactoryLogic:GetStack()
+		s:Push(1)
+		s:Push(2)
+		s:Push(3)
+		
+		_AssertLogic:AssertEquals(s:Count(), 3)
+		s:Clear()
+		
+		_AssertLogic:AssertTrue(s:IsEmpty())
+		_AssertLogic:AssertEquals(s:Count(), 0)
+		_AssertLogic:AssertNil(s:Pop())
+	end
+
+	method void testPopOnEmpty()
+		-- Test pop on empty stack
+		local s = _CollectionFactoryLogic:GetStack()
+		local value = s:Pop()
+		_AssertLogic:AssertNil(value)
+		_AssertLogic:AssertEquals(s:Count(), 0)
+	end
+
+	method void testPeekOnEmpty()
+		-- Test peek on empty stack
+		local s = _CollectionFactoryLogic:GetStack()
+		local value = s:Peek()
+		_AssertLogic:AssertNil(value)
+		_AssertLogic:AssertEquals(s:Count(), 0)
+	end
+
+	method void testCount()
+		-- Test count accuracy
+		local s = _CollectionFactoryLogic:GetStack()
+		_AssertLogic:AssertEquals(s:Count(), 0)
+		
+		s:Push(1)
+		_AssertLogic:AssertEquals(s:Count(), 1)
+		
+		s:Push(2)
+		_AssertLogic:AssertEquals(s:Count(), 2)
+		
+		s:Pop()
+		_AssertLogic:AssertEquals(s:Count(), 1)
+		
+		s:Pop()
+		_AssertLogic:AssertEquals(s:Count(), 0)
+	end
+
+	method void testToArray()
+		-- Test converting stack to array
+		local s = _CollectionFactoryLogic:GetStack()
+		s:Push(1)
+		s:Push(2)
+		s:Push(3)
+		
+		local array = s:ToArray()
+		_AssertLogic:AssertEquals(#array, 3)
+		_AssertLogic:AssertEquals(array[1], 1)
+		_AssertLogic:AssertEquals(array[2], 2)
+		_AssertLogic:AssertEquals(array[3], 3)
+		
+		-- Verify stack state is preserved
+		_AssertLogic:AssertEquals(s:Count(), 3)
+		_AssertLogic:AssertEquals(s:Pop(), 3)
+		
+		-- Test empty stack
+		local emptyStack = _CollectionFactoryLogic:GetStack()
+		local emptyArray = emptyStack:ToArray()
+		_AssertLogic:AssertEquals(#emptyArray, 0)
+	end
+
+	method void testLargeStack()
+		-- Test with many elements
+		local s = _CollectionFactoryLogic:GetStack()
+		
+		-- Push many elements
+		for i = 1, 100 do
+			s:Push(i)
+		end
+		
+		_AssertLogic:AssertEquals(s:Count(), 100)
+		
+		-- Pop all elements in reverse order
+		for i = 100, 1, -1 do
+			_AssertLogic:AssertEquals(s:Pop(), i)
+		end
+		
+		_AssertLogic:AssertTrue(s:IsEmpty())
+		_AssertLogic:AssertEquals(s:Count(), 0)
+	end
+
+	method void testNilValues()
+		-- Test handling of nil values
+		local s = _CollectionFactoryLogic:GetStack()
+		
+		-- Push nil values
+		s:Push(nil)
+		s:Push("not nil")
+		s:Push(nil)
+		
+		_AssertLogic:AssertEquals(s:Count(), 3)
+		_AssertLogic:AssertNil(s:Pop())
+		_AssertLogic:AssertEquals(s:Pop(), "not nil")
+		_AssertLogic:AssertNil(s:Pop())
+		
+		_AssertLogic:AssertTrue(s:IsEmpty())
+	end
+
+	method void testMixedTypes()
+		-- Test with different data types
+		local s = _CollectionFactoryLogic:GetStack()
+		
+		-- Push various types
+		s:Push(42)
+		s:Push("string")
+		s:Push(true)
+		s:Push(false)
+		s:Push(nil)
+		s:Push({})
+		
+		_AssertLogic:AssertEquals(s:Count(), 6)
+		_AssertLogic:AssertEquals(s:Pop(), {})
+		_AssertLogic:AssertNil(s:Pop())
+		_AssertLogic:AssertEquals(s:Pop(), false)
+		_AssertLogic:AssertEquals(s:Pop(), true)
+		_AssertLogic:AssertEquals(s:Pop(), "string")
+		_AssertLogic:AssertEquals(s:Pop(), 42)
+		
+		_AssertLogic:AssertTrue(s:IsEmpty())
+	end
+
+	method void testComplexOperations()
+		-- Test complex stack operations
+		local s = _CollectionFactoryLogic:GetStack()
+		
+		-- Push elements
+		s:Push("bottom")
+		s:Push("middle")
+		s:Push("top")
+		
+		-- Peek and verify
+		_AssertLogic:AssertEquals(s:Peek(), "top")
+		_AssertLogic:AssertEquals(s:Count(), 3)
+		
+		-- Pop and push new elements
+		local top = s:Pop()
+		_AssertLogic:AssertEquals(top, "top")
+		_AssertLogic:AssertEquals(s:Count(), 2)
+		
+		s:Push("new_top")
+		_AssertLogic:AssertEquals(s:Peek(), "new_top")
+		_AssertLogic:AssertEquals(s:Count(), 3)
+		
+		-- Clear and verify
+		s:Clear()
+		_AssertLogic:AssertTrue(s:IsEmpty())
+		_AssertLogic:AssertEquals(s:Count(), 0)
+		
+		-- Push after clear
+		s:Push("after_clear")
+		_AssertLogic:AssertEquals(s:Peek(), "after_clear")
+		_AssertLogic:AssertEquals(s:Count(), 1)
+	end
+
+end

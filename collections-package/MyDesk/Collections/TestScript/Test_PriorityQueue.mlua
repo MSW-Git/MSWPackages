@@ -1,0 +1,366 @@
+@Logic
+script Test_PriorityQueue extends Logic
+
+	method void OnBeginPlay()
+		-- self:test()
+	end
+
+	method void test()
+		self:testEnqueueDequeueBasic()
+		self:testEnqueueDequeueMixedPriorities()
+		self:testPeek()
+		self:testIsEmpty()
+		self:testClear()
+		self:testDequeueOnEmpty()
+		self:testPeekOnEmpty()
+		self:testCount()
+		self:testComplexPriorityScenarios()
+		self:testToArray()
+		self:testNilValues()
+		self:testLargePriorityQueue()
+		self:testMixedTypes()
+		self:testPriorityEdgeCases()
+		self:testInterleavedOperations()
+	end
+
+	method void testEnqueueDequeueBasic()
+		-- Test basic enqueue and dequeue operations
+		local pq = _CollectionFactoryLogic:GetPriorityQueue()
+		
+		-- Enqueue with increasing priorities (lower value = higher priority)
+		pq:Enqueue("Task C", 3)
+		pq:Enqueue("Task A", 1)
+		pq:Enqueue("Task B", 2)
+		
+		_AssertLogic:AssertEquals(pq:Count(), 3)
+		
+		_AssertLogic:AssertEquals(pq:Dequeue(), "Task A") -- Priority 1
+		_AssertLogic:AssertEquals(pq:Count(), 2)
+		
+		_AssertLogic:AssertEquals(pq:Dequeue(), "Task B") -- Priority 2
+		_AssertLogic:AssertEquals(pq:Count(), 1)
+		
+		_AssertLogic:AssertEquals(pq:Dequeue(), "Task C") -- Priority 3
+		_AssertLogic:AssertTrue(pq:IsEmpty())
+	end
+
+	method void testEnqueueDequeueMixedPriorities()
+		-- Test enqueue and dequeue with various priority values
+		local pq = _CollectionFactoryLogic:GetPriorityQueue()
+		
+		pq:Enqueue("Task 5", 5)
+		pq:Enqueue("Task 1", 1)
+		pq:Enqueue("Task 10", 10)
+		pq:Enqueue("Task 2", 2)
+		pq:Enqueue("Task 0", 0) -- Highest priority
+		pq:Enqueue("Task 3", 3)
+		pq:Enqueue("Task 2_dup", 2) -- Duplicate priority
+		
+		_AssertLogic:AssertEquals(pq:Count(), 7)
+		
+		_AssertLogic:AssertEquals(pq:Dequeue(), "Task 0")
+		_AssertLogic:AssertEquals(pq:Dequeue(), "Task 1")
+		_AssertLogic:AssertEquals(pq:Dequeue(), "Task 2") -- Order of duplicates depends on insertion
+		_AssertLogic:AssertEquals(pq:Dequeue(), "Task 2_dup")
+		_AssertLogic:AssertEquals(pq:Dequeue(), "Task 3")
+		_AssertLogic:AssertEquals(pq:Dequeue(), "Task 5")
+		_AssertLogic:AssertEquals(pq:Dequeue(), "Task 10")
+		_AssertLogic:AssertTrue(pq:IsEmpty())
+	end
+
+	method void testPeek()
+		-- Test peek without removing elements
+		local pq = _CollectionFactoryLogic:GetPriorityQueue()
+		pq:Enqueue("High", 1)
+		_AssertLogic:AssertEquals(pq:Peek(), "High")
+		_AssertLogic:AssertEquals(pq:Count(), 1) -- Peek should not remove element
+		
+		pq:Enqueue("Low", 10)
+		_AssertLogic:AssertEquals(pq:Peek(), "High") -- Highest priority is still "High"
+		_AssertLogic:AssertEquals(pq:Count(), 2)
+		
+		pq:Enqueue("Medium", 5)
+		_AssertLogic:AssertEquals(pq:Peek(), "High")
+		
+		pq:Dequeue() -- Remove "High"
+		_AssertLogic:AssertEquals(pq:Peek(), "Medium") -- "Medium" (priority 5) should now be highest
+		_AssertLogic:AssertEquals(pq:Count(), 2)
+	end
+
+	method void testIsEmpty()
+		-- Test empty queue state
+		local pq = _CollectionFactoryLogic:GetPriorityQueue()
+		_AssertLogic:AssertTrue(pq:IsEmpty())
+		
+		pq:Enqueue("item", 1)
+		_AssertLogic:AssertFalse(pq:IsEmpty())
+		
+		pq:Dequeue()
+		_AssertLogic:AssertTrue(pq:IsEmpty())
+		
+		pq:Enqueue("item1", 1)
+		pq:Enqueue("item2", 2)
+		pq:Clear()
+		_AssertLogic:AssertTrue(pq:IsEmpty())
+	end
+
+	method void testClear()
+		-- Test clearing the priority queue
+		local pq = _CollectionFactoryLogic:GetPriorityQueue()
+		pq:Enqueue("A", 1)
+		pq:Enqueue("B", 2)
+		pq:Enqueue("C", 3)
+		
+		_AssertLogic:AssertEquals(pq:Count(), 3)
+		pq:Clear()
+		
+		_AssertLogic:AssertTrue(pq:IsEmpty())
+		_AssertLogic:AssertEquals(pq:Count(), 0)
+		_AssertLogic:AssertNil(pq:Dequeue())
+		_AssertLogic:AssertNil(pq:Peek())
+	end
+
+	method void testDequeueOnEmpty()
+		-- Test dequeue on empty queue
+		local pq = _CollectionFactoryLogic:GetPriorityQueue()
+		local value = pq:Dequeue()
+		_AssertLogic:AssertNil(value)
+		_AssertLogic:AssertEquals(pq:Count(), 0)
+	end
+
+	method void testPeekOnEmpty()
+		-- Test peek on empty queue
+		local pq = _CollectionFactoryLogic:GetPriorityQueue()
+		local value = pq:Peek()
+		_AssertLogic:AssertNil(value)
+		_AssertLogic:AssertEquals(pq:Count(), 0)
+	end
+
+	method void testCount()
+		-- Test count accuracy
+		local pq = _CollectionFactoryLogic:GetPriorityQueue()
+		_AssertLogic:AssertEquals(pq:Count(), 0)
+		
+		pq:Enqueue("A", 1)
+		_AssertLogic:AssertEquals(pq:Count(), 1)
+		
+		pq:Enqueue("B", 2)
+		pq:Enqueue("C", 3)
+		_AssertLogic:AssertEquals(pq:Count(), 3)
+		
+		pq:Dequeue()
+		_AssertLogic:AssertEquals(pq:Count(), 2)
+		
+		pq:Dequeue()
+		pq:Dequeue()
+		_AssertLogic:AssertEquals(pq:Count(), 0)
+	end
+
+	method void testComplexPriorityScenarios()
+		-- Test complex priority scenarios
+		local pq = _CollectionFactoryLogic:GetPriorityQueue()
+		
+		-- Test with negative priorities
+		pq:Enqueue("Neg A", -5)
+		pq:Enqueue("Neg B", -10) -- Highest priority
+		pq:Enqueue("Zero", 0)
+		
+		_AssertLogic:AssertEquals(pq:Dequeue(), "Neg B")
+		_AssertLogic:AssertEquals(pq:Dequeue(), "Neg A")
+		_AssertLogic:AssertEquals(pq:Dequeue(), "Zero")
+		
+		-- Test with large number of items
+		local num_items = 100
+		for i = 1, num_items do
+			pq:Enqueue("Item " .. tostring(i), math.random(1, 1000))
+		end
+		_AssertLogic:AssertEquals(pq:Count(), num_items)
+		
+		for i = 1, num_items do
+			local dequeuedValue = pq:Dequeue()
+			_AssertLogic:AssertNotNil(dequeuedValue)
+		end
+		_AssertLogic:AssertTrue(pq:IsEmpty())
+		
+		-- Test interleave enqueue/dequeue
+		pq:Enqueue("T1", 5)
+		pq:Enqueue("T2", 1)
+		pq:Dequeue() -- T2 (priority 1)
+		pq:Enqueue("T3", 3)
+		pq:Enqueue("T4", 2)
+		_AssertLogic:AssertEquals(pq:Dequeue(), "T4") -- T4 (priority 2)
+		_AssertLogic:AssertEquals(pq:Dequeue(), "T3") -- T3 (priority 3)
+		_AssertLogic:AssertEquals(pq:Dequeue(), "T1") -- T1 (priority 5)
+		_AssertLogic:AssertTrue(pq:IsEmpty())
+	end
+
+	method void testToArray()
+		-- Test converting priority queue to array
+		local pq = _CollectionFactoryLogic:GetPriorityQueue()
+		pq:Enqueue("A", 1)
+		pq:Enqueue("B", 2)
+		pq:Enqueue("C", 3)
+		
+		local array = pq:ToArray()
+		_AssertLogic:AssertEquals(#array, 3)
+		
+		-- Verify all elements are present (order not guaranteed in ToArray)
+		local foundA = false
+		local foundB = false
+		local foundC = false
+		for _, value in ipairs(array) do
+			if value == "A" then foundA = true
+			elseif value == "B" then foundB = true
+			elseif value == "C" then foundC = true
+			end
+		end
+		_AssertLogic:AssertTrue(foundA)
+		_AssertLogic:AssertTrue(foundB)
+		_AssertLogic:AssertTrue(foundC)
+		
+		-- Verify queue state is preserved
+		_AssertLogic:AssertEquals(pq:Count(), 3)
+		_AssertLogic:AssertEquals(pq:Peek(), "A")
+		
+		-- Test empty queue
+		local emptyPQ = _CollectionFactoryLogic:GetPriorityQueue()
+		local emptyArray = emptyPQ:ToArray()
+		_AssertLogic:AssertEquals(#emptyArray, 0)
+	end
+
+	method void testNilValues()
+		-- Test handling of nil values
+		local pq = _CollectionFactoryLogic:GetPriorityQueue()
+		
+		-- Enqueue nil values
+		pq:Enqueue(nil, 1)
+		pq:Enqueue("not nil", 2)
+		pq:Enqueue(nil, 3)
+		
+		_AssertLogic:AssertEquals(pq:Count(), 3)
+		
+		-- Dequeue and verify
+		_AssertLogic:AssertNil(pq:Dequeue()) -- Priority 1
+		_AssertLogic:AssertEquals(pq:Dequeue(), "not nil") -- Priority 2
+		_AssertLogic:AssertNil(pq:Dequeue()) -- Priority 3
+		
+		_AssertLogic:AssertTrue(pq:IsEmpty())
+	end
+
+	method void testLargePriorityQueue()
+		-- Test with many elements
+		local pq = _CollectionFactoryLogic:GetPriorityQueue()
+		
+		-- Add many elements with random priorities
+		for i = 1, 100 do
+			pq:Enqueue("Item " .. tostring(i), i)
+		end
+		
+		_AssertLogic:AssertEquals(pq:Count(), 100)
+		
+		-- Dequeue all elements in priority order
+		for i = 1, 100 do
+			local value = pq:Dequeue()
+			_AssertLogic:AssertEquals(value, "Item " .. tostring(i))
+		end
+		
+		_AssertLogic:AssertTrue(pq:IsEmpty())
+		_AssertLogic:AssertEquals(pq:Count(), 0)
+	end
+
+	method void testMixedTypes()
+		-- Test with different data types
+		local pq = _CollectionFactoryLogic:GetPriorityQueue()
+		
+		-- Enqueue various types
+		pq:Enqueue(42, 1)
+		pq:Enqueue("string", 2)
+		pq:Enqueue(true, 3)
+		pq:Enqueue(false, 4)
+		pq:Enqueue(nil, 5)
+		pq:Enqueue({}, 6)
+		
+		_AssertLogic:AssertEquals(pq:Count(), 6)
+		
+		-- Dequeue in priority order
+		_AssertLogic:AssertEquals(pq:Dequeue(), 42)
+		_AssertLogic:AssertEquals(pq:Dequeue(), "string")
+		_AssertLogic:AssertEquals(pq:Dequeue(), true)
+		_AssertLogic:AssertEquals(pq:Dequeue(), false)
+		_AssertLogic:AssertNil(pq:Dequeue())
+		_AssertLogic:AssertEquals(pq:Dequeue(), {})
+		
+		_AssertLogic:AssertTrue(pq:IsEmpty())
+	end
+
+	method void testPriorityEdgeCases()
+		-- Test priority edge cases
+		local pq = _CollectionFactoryLogic:GetPriorityQueue()
+		
+		-- Test with same priority values
+		pq:Enqueue("A", 5)
+		pq:Enqueue("B", 5)
+		pq:Enqueue("C", 5)
+		
+		_AssertLogic:AssertEquals(pq:Count(), 3)
+		
+		-- All should be dequeued (order may vary)
+		local values = {}
+		values[pq:Dequeue()] = true
+		values[pq:Dequeue()] = true
+		values[pq:Dequeue()] = true
+		
+		_AssertLogic:AssertTrue(values["A"])
+		_AssertLogic:AssertTrue(values["B"])
+		_AssertLogic:AssertTrue(values["C"])
+		
+		-- Test with extreme priority values
+		pq:Enqueue("Min", -999999)
+		pq:Enqueue("Max", 999999)
+		pq:Enqueue("Zero", 0)
+		
+		_AssertLogic:AssertEquals(pq:Dequeue(), "Min")
+		_AssertLogic:AssertEquals(pq:Dequeue(), "Zero")
+		_AssertLogic:AssertEquals(pq:Dequeue(), "Max")
+		
+		_AssertLogic:AssertTrue(pq:IsEmpty())
+	end
+
+	method void testInterleavedOperations()
+		-- Test interleaved enqueue/dequeue operations
+		local pq = _CollectionFactoryLogic:GetPriorityQueue()
+		
+		-- Start with some elements
+		pq:Enqueue("A", 1)
+		pq:Enqueue("B", 2)
+		pq:Enqueue("C", 3)
+		
+		-- Dequeue one
+		_AssertLogic:AssertEquals(pq:Dequeue(), "A")
+		_AssertLogic:AssertEquals(pq:Count(), 2)
+		
+		-- Add more elements
+		pq:Enqueue("D", 4)
+		pq:Enqueue("E", 1) -- Same priority as A
+		
+		-- Dequeue in priority order
+		_AssertLogic:AssertEquals(pq:Dequeue(), "E") -- Priority 1
+		_AssertLogic:AssertEquals(pq:Dequeue(), "B") -- Priority 2
+		_AssertLogic:AssertEquals(pq:Dequeue(), "C") -- Priority 3
+		_AssertLogic:AssertEquals(pq:Dequeue(), "D") -- Priority 4
+		
+		_AssertLogic:AssertTrue(pq:IsEmpty())
+		
+		-- Test peek during operations
+		pq:Enqueue("X", 10)
+		pq:Enqueue("Y", 5)
+		
+		_AssertLogic:AssertEquals(pq:Peek(), "Y") -- Lower priority value
+		_AssertLogic:AssertEquals(pq:Count(), 2)
+		
+		pq:Dequeue() -- Remove Y
+		_AssertLogic:AssertEquals(pq:Peek(), "X")
+		_AssertLogic:AssertEquals(pq:Count(), 1)
+	end
+
+end

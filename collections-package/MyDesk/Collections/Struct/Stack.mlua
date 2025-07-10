@@ -1,0 +1,40 @@
+@Struct
+script Stack
+
+	method boolean IsEmpty()
+		-- Checks if the stack contains any elements.
+		return nil
+	end
+
+	method integer Count()
+		-- Returns the number of elements in the stack.
+		return nil
+	end
+
+	method void Push(any value)
+		-- Adds a new element to the top of the stack.
+		-- Resizes the internal array if capacity is reached.
+	end
+
+	method any Pop()
+		-- Removes and returns the element from the top of the stack.
+		-- Returns nil if the stack is empty.
+		return nil
+	end
+
+	method any Peek()
+		-- Returns the element at the top of the stack without removing it.
+		-- Returns nil if the stack is empty.
+		return nil
+	end
+
+	method void Clear()
+		-- Removes all elements from the stack.
+	end
+
+	method table ToArray()
+		-- Converts the stack elements into a table in order from bottom to top.
+		return nil
+	end
+
+end

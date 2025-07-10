@@ -1,0 +1,217 @@
+@Logic
+script Test_Queue extends Logic
+
+	method void OnBeginPlay()
+		-- self:test()
+	end
+
+	method void test()
+		self:testEnqueueDequeue()
+		self:testPeek()
+		self:testIsEmpty()
+		self:testClear()
+		self:testResize()
+		self:testDequeueOnEmpty()
+		self:testPeekOnEmpty()
+		self:testWrapAround()
+		self:testToArray()
+		self:testMixedOperations()
+		self:testLargeQueue()
+		self:testNilValues()
+		self:testComplexWrapAround()
+	end
+
+	method void testEnqueueDequeue()
+		-- Test basic FIFO behavior
+		local q = _CollectionFactoryLogic:GetQueue()
+		q:Enqueue(1)
+		q:Enqueue(2)
+		q:Enqueue(3)
+		
+		_AssertLogic:AssertEquals(q:Dequeue(), 1)
+		_AssertLogic:AssertEquals(q:Dequeue(), 2)
+		_AssertLogic:AssertEquals(q:Dequeue(), 3)
+	end
+
+	method void testPeek()
+		-- Test peek without removing elements
+		local q = _CollectionFactoryLogic:GetQueue()
+		q:Enqueue("a")
+		_AssertLogic:AssertEquals(q:Peek(), "a")
+		_AssertLogic:AssertEquals(q:Count(), 1)
+	end
+
+	method void testIsEmpty()
+		-- Test empty queue state
+		local q = _CollectionFactoryLogic:GetQueue()
+		_AssertLogic:AssertTrue(q:IsEmpty())
+		q:Enqueue(10)
+		_AssertLogic:AssertFalse(q:IsEmpty())
+	end
+
+	method void testClear()
+		-- Test clearing the queue
+		local q = _CollectionFactoryLogic:GetQueue()
+		q:Enqueue(1)
+		q:Enqueue(2)
+		q:Clear()
+		_AssertLogic:AssertTrue(q:IsEmpty())
+		_AssertLogic:AssertEquals(q:Count(), 0)
+		_AssertLogic:AssertNil(q:Dequeue())
+	end
+
+	method void testResize()
+		-- Test queue expansion
+		local q = _CollectionFactoryLogic:GetQueue()
+		q:Enqueue("x")
+		q:Enqueue("y")
+		q:Enqueue("z")
+		q:Enqueue("a")
+		q:Enqueue("b")
+		
+		_AssertLogic:AssertEquals(q:Count(), 5)
+		_AssertLogic:AssertEquals(q:Dequeue(), "x")
+		_AssertLogic:AssertEquals(q:Dequeue(), "y")
+		_AssertLogic:AssertEquals(q:Dequeue(), "z")
+		_AssertLogic:AssertEquals(q:Dequeue(), "a")
+		_AssertLogic:AssertEquals(q:Dequeue(), "b")
+	end
+
+	method void testDequeueOnEmpty()
+		-- Test dequeue on empty queue
+		local q = _CollectionFactoryLogic:GetQueue()
+		local value = q:Dequeue()
+		_AssertLogic:AssertNil(value)
+	end
+
+	method void testPeekOnEmpty()
+		-- Test peek on empty queue
+		local q = _CollectionFactoryLogic:GetQueue()
+		local value = q:Peek()
+		_AssertLogic:AssertNil(value)
+	end
+
+	method void testWrapAround()
+		-- Test circular buffer behavior
+		local q = _CollectionFactoryLogic:GetQueue()
+		
+		q:Enqueue("a")
+		q:Enqueue("b")
+		q:Enqueue("c")
+		_AssertLogic:AssertEquals(q:Dequeue(), "a")
+		q:Enqueue("d")
+		q:Enqueue("e")
+		
+		-- Verify order
+		_AssertLogic:AssertEquals(q:Dequeue(), "b")
+		_AssertLogic:AssertEquals(q:Dequeue(), "c")
+		_AssertLogic:AssertEquals(q:Dequeue(), "d")
+		_AssertLogic:AssertEquals(q:Dequeue(), "e")
+	end
+
+	method void testToArray()
+		local q = _CollectionFactoryLogic:GetQueue()
+		q:Enqueue(1)
+		q:Enqueue(2)
+		q:Enqueue(3)
+		
+		local array = q:ToArray()
+		_AssertLogic:AssertEquals(#array, 3)
+		_AssertLogic:AssertEquals(array[1], 1)
+		_AssertLogic:AssertEquals(array[2], 2)
+		_AssertLogic:AssertEquals(array[3], 3)
+		
+		-- Verify queue state is preserved after ToArray
+		_AssertLogic:AssertEquals(q:Count(), 3)
+		_AssertLogic:AssertEquals(q:Dequeue(), 1)
+	end
+
+	method void testMixedOperations()
+		local q = _CollectionFactoryLogic:GetQueue()
+		
+		-- Start with empty queue
+		_AssertLogic:AssertTrue(q:IsEmpty())
+		_AssertLogic:AssertEquals(q:Count(), 0)
+		
+		-- Add elements
+		q:Enqueue("first")
+		_AssertLogic:AssertFalse(q:IsEmpty())
+		_AssertLogic:AssertEquals(q:Count(), 1)
+		_AssertLogic:AssertEquals(q:Peek(), "first")
+		
+		-- Remove elements
+		local value = q:Dequeue()
+		_AssertLogic:AssertEquals(value, "first")
+		_AssertLogic:AssertTrue(q:IsEmpty())
+		_AssertLogic:AssertEquals(q:Count(), 0)
+		
+		-- Add more elements
+		q:Enqueue("second")
+		q:Enqueue("third")
+		_AssertLogic:AssertEquals(q:Count(), 2)
+		_AssertLogic:AssertEquals(q:Peek(), "second")
+	end
+
+	method void testLargeQueue()
+		local q = _CollectionFactoryLogic:GetQueue()
+		
+		-- Add many elements (test resize)
+		for i = 1, 100 do
+			q:Enqueue(i)
+		end
+		
+		_AssertLogic:AssertEquals(q:Count(), 100)
+		
+		-- Verify all elements come out in correct order
+		for i = 1, 100 do
+			_AssertLogic:AssertEquals(q:Dequeue(), i)
+		end
+		
+		_AssertLogic:AssertTrue(q:IsEmpty())
+	end
+
+	method void testNilValues()
+		local q = _CollectionFactoryLogic:GetQueue()
+		
+		-- Test handling of nil values
+		q:Enqueue(nil)
+		q:Enqueue("not nil")
+		q:Enqueue(nil)
+		
+		_AssertLogic:AssertEquals(q:Count(), 3)
+		_AssertLogic:AssertNil(q:Dequeue())
+		_AssertLogic:AssertEquals(q:Dequeue(), "not nil")
+		_AssertLogic:AssertNil(q:Dequeue())
+	end
+
+	method void testComplexWrapAround()
+		local q = _CollectionFactoryLogic:GetQueue()
+		
+		-- Fill initial capacity(4) and remove some
+		q:Enqueue("a")
+		q:Enqueue("b")
+		q:Enqueue("c")
+		q:Enqueue("d")
+		
+		-- Remove two elements
+		_AssertLogic:AssertEquals(q:Dequeue(), "a")
+		_AssertLogic:AssertEquals(q:Dequeue(), "b")
+		
+		-- Add more (wrap around occurs)
+		q:Enqueue("e")
+		q:Enqueue("f")
+		q:Enqueue("g")
+		q:Enqueue("h")
+		
+		-- Verify order
+		_AssertLogic:AssertEquals(q:Dequeue(), "c")
+		_AssertLogic:AssertEquals(q:Dequeue(), "d")
+		_AssertLogic:AssertEquals(q:Dequeue(), "e")
+		_AssertLogic:AssertEquals(q:Dequeue(), "f")
+		_AssertLogic:AssertEquals(q:Dequeue(), "g")
+		_AssertLogic:AssertEquals(q:Dequeue(), "h")
+		
+		_AssertLogic:AssertTrue(q:IsEmpty())
+	end
+
+end

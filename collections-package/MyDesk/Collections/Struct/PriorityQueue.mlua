@@ -1,0 +1,43 @@
+@Struct
+script PriorityQueue
+
+	method boolean IsEmpty()
+		-- Checks if the priority queue contains any elements.
+		-- Returns true if the priority queue is empty, otherwise returns false.
+		return nil
+	end
+
+	method integer Count()
+		-- Returns the number of elements in the priority queue.
+		return nil
+	end
+
+	method void Enqueue(any value, number priority)
+		-- Adds a new element with a specified priority to the priority queue.
+		-- Elements are stored based on their priority, ensuring the highest priority item can be easily accessed.
+		-- Lower priority number indicates higher priority.
+	end
+
+	method any Dequeue()
+		-- Removes and returns the element with the highest priority from the priority queue.
+		-- Returns nil if the priority queue is empty.
+		return nil
+	end
+
+	method any Peek()
+		-- Returns the element with the highest priority from the priority queue without removing it.
+		-- Returns nil if the priority queue is empty.
+		return nil
+	end
+
+	method void Clear()
+		-- Removes all elements from the priority queue.
+	end
+
+	method table ToArray()
+		-- Converts the priority queue elements into a table.
+		-- The order of elements in the resulting table is not guaranteed to be based on priority.
+		return nil
+	end
+
+end

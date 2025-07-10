@@ -1,0 +1,95 @@
+@Logic
+script AssertLogic extends Logic
+
+	method void AssertTrue(any value)
+		if not (value == true) then
+			local msg = "Expected strictly true but got " .. tostring(value) .. " (type: " .. type(value) .. ")"
+			self:_Fail(msg)
+		end
+	end
+
+	method void AssertEvalToTrue(any value)
+		if not value then -- All values except false and nil evaluate to true.
+			local msg = "Expected value to evaluate to true, but it evaluated to false or nil. Got: " .. tostring(value)
+			self:_Fail(msg)
+		end
+	end
+
+	method void AssertFalse(any value)
+		if not (value == false) then
+			local msg = "Expected strictly false but got " .. tostring(value) .. " (type: " .. type(value) .. ")"
+			self:_Fail(msg)
+		end
+	end
+
+	method void AssertEvalToFalse(any value)
+		if value then -- All values except false and nil evaluate to true.
+			local msg = "Expected value to evaluate to false, but it evaluated to true. Got: " .. tostring(value)
+			self:_Fail(msg)
+		end
+	end
+
+	method void AssertNil(any value)
+		if value ~= nil then
+			local msg = "Expected nil but got " .. tostring(value)
+			self:_Fail(msg)
+		end
+	end
+
+	method void AssertNotNil(any value)
+		if value == nil then
+			local msg = "Expected not nil but got nil"
+			self:_Fail(msg)
+		end
+	end
+
+	method void AssertEquals(any actual, any expected)
+		if not self:_DeepEquals(expected, actual) then
+			local msg = "Expected " .. tostring(expected) .. " but got " .. tostring(actual) .. " (Deep comparison failed)"
+			self:_Fail(msg)
+		end
+	end
+
+	method void AssertNotEquals(any actual, any expected)
+		if self:_DeepEquals(expected, actual) then
+			local msg = "Expected not " .. tostring(expected) .. " but got " .. tostring(actual) .. " (Deep comparison unexpectedly succeeded)"
+			self:_Fail(msg)
+		end
+	end
+
+	method void _Fail(string message)
+		log("FAIL: " .. message)
+	end
+
+	method boolean _DeepEquals(table t1, table t2)
+		if type(t1) ~= "table" or type(t2) ~= "table" then
+			return t1 == t2
+		end
+		
+		if t1 == t2 then
+			return true
+		end
+		
+		local len1 = 0
+		for k, v in pairs(t1) do
+			len1 = len1 + 1
+		end
+		local len2 = 0
+		for k, v in pairs(t2) do
+			len2 = len2 + 1
+		end
+		if len1 ~= len2 then
+			return false
+		end
+		
+		for k1, v1 in pairs(t1) do
+			local v2 = t2[k1]
+			if not self:_DeepEquals(v1, v2) then
+				return false
+			end
+		end
+		
+		return true
+	end
+
+end
