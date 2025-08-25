@@ -1,0 +1,191 @@
+@Component
+script UIStyleCheckBox extends UICompoundButton
+
+	property string StyleName = nil
+
+	property any StyleStruct = nil
+
+	property SpriteGUIRendererComponent Mark = nil
+
+	property SpriteGUIRendererComponent Frame = nil
+
+	property SpriteGUIRendererComponent Outline1 = nil
+
+	property SpriteGUIRendererComponent OutLine2 = nil
+
+	property any Tweener = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		self:SetStyle(self.StyleName)
+		
+		__base:OnBeginPlay()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void UpdateVisualState(boolean animate)
+		__base:UpdateVisualState(animate)
+		
+		if animate and self.UseAnimation then
+			self:AnimateCheckBox(self.IsOn)
+		else
+			self:SetCheckBox(self.IsOn)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void AnimateCheckBox(boolean isOn)
+		---@type Tweener
+		local tweener = self.Tweener
+		if isvalid(tweener) and tweener.IsPlaying then
+			tweener:Complete()
+		end
+		
+		if isOn then
+			tweener = _TweenLogic:MakeTween(0, 1, self.AnimationDuration, EaseType.Linear, self.CheckBoxTweenFunc)
+		else
+			tweener = _TweenLogic:MakeTween(1, 0, self.AnimationDuration, EaseType.Linear, self.CheckBoxTweenFunc)
+		end
+		
+		tweener:SetOnEndCallback(self.CheckBoxTweenCallback)
+		tweener.AutoDestroy = true
+		tweener:Play()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void CheckBoxTweenFunc(number t)
+		if not isvalid(self) or not isvalid(self.Entity) then
+			return
+		end
+		
+		self:CheckBoxTweenMark(t)
+		self:CheckBoxTweenFrame(t)
+		self:CheckBoxTweenOutline(t)
+		self:CheckBoxTweenLabel(t)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void CheckBoxTweenMark(number t)
+		local mark = self.Mark
+		if not isvalid(mark) then
+			return
+		end
+		
+		---@type UICheckBoxStyleStruct
+		local style = self.StyleStruct
+		local activeColor = style.MarkActiveColor
+		local deactiveColor = activeColor:Clone()
+		deactiveColor.a = 0
+		
+		local targetColor = Color.Lerp(deactiveColor, activeColor, t)
+		if not self.Interactable then
+			targetColor = self:GetDisabledColor(targetColor)
+		end
+		
+		mark.Color = targetColor
+	end
+
+	@ExecSpace("ClientOnly")
+	method void CheckBoxTweenFrame(number t)
+		local frame = self.Frame
+		if not isvalid(frame) then
+			return
+		end
+		
+		---@type UICheckBoxStyleStruct
+		local style = self.StyleStruct
+		local targetColor = Color.Lerp(style.FrameDeactiveColor, style.FrameActiveColor, t)
+		if not self.Interactable then
+			targetColor = self:GetDisabledColor(targetColor)
+		end
+		
+		frame.Color = targetColor
+	end
+
+	@ExecSpace("ClientOnly")
+	method void CheckBoxTweenOutline(number t)
+		local outline1 = self.Outline1
+		if isvalid(outline1) then
+			---@type UICheckBoxStyleStruct
+			local style = self.StyleStruct
+			local targetColor = Color.Lerp(style.OutlineDeactiveColor, style.OutlineActiveColor, t)
+			if not self.Interactable then
+				targetColor = self:GetDisabledColor(targetColor)
+			end
+			outline1.Color = targetColor
+		end
+		
+		local outline2 = self.OutLine2
+		if isvalid(outline2) then
+			---@type UICheckBoxStyleStruct
+			local style = self.StyleStruct
+			local targetColor = Color.Lerp(style.OutlineDeactiveColor, style.OutlineActiveColor, t)
+			if not self.Interactable then
+				targetColor = self:GetDisabledColor(targetColor)
+			end
+			outline2.Color = targetColor
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void CheckBoxTweenLabel(number t)
+		local label = self.Label
+		if not isvalid(label) then
+			return
+		end
+		
+		---@type UICheckBoxStyleStruct
+		local style = self.StyleStruct
+		local targetColor = Color.Lerp(style.LabelDeactiveColor, style.LabelActiveColor, t)
+		if not self.Interactable then
+			targetColor = self:GetDisabledColor(targetColor)
+		end
+		
+		label.FontColor = targetColor 
+	end
+
+	@ExecSpace("ClientOnly")
+	method void CheckBoxTweenCallback()
+		if isvalid(self) then
+			self.Tweener = nil
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetCheckBox(boolean isOn)
+		---@type Tweener
+		local tweener = self.Tweener
+		if isvalid(tweener) then
+			tweener:Complete()
+		end
+		
+		if isOn then
+			self:CheckBoxTweenFunc(1)
+		else
+			self:CheckBoxTweenFunc(0)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetStyle(string styleName)
+		self.StyleName = styleName
+		self:SetStyleStruct(_UICompoundButtonStyleLogic:GetCheckBoxStyle(styleName))
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetStyleStruct(UICheckBoxStyleStruct styleStruct)
+		if styleStruct == nil then
+			log_warning("Cannot assign nil to a StyleStruct")
+			return
+		end
+		
+		self.StyleStruct = styleStruct
+		
+		self.UseAnimation = styleStruct.UseAnimation
+		self.AnimationDuration = styleStruct.AnimationDuration
+		self.SoundRUID = styleStruct.SoundRUID
+		self.SoundVolume = styleStruct.SoundVolume
+		self.DisabledAlphaValue = styleStruct.DisabledAlphaValue
+	end
+
+end

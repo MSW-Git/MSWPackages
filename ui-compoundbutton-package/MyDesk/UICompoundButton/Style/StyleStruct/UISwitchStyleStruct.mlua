@@ -1,0 +1,22 @@
+@Struct
+script UISwitchStyleStruct
+
+	property boolean UseAnimation = false
+
+	property number AnimationDuration = 0
+
+	property string SoundRUID = nil
+
+	property number SoundVolume = 0
+
+	property number DisabledAlphaValue = 0
+
+	property Color HandleActiveColor = Color(0,0,0,1)
+
+	property Color HandleDeactiveColor = Color(0,0,0,1)
+
+	property Color TrackActiveColor = Color(0,0,0,1)
+
+	property Color TrackDeactiveColor = Color(0,0,0,1)
+
+end

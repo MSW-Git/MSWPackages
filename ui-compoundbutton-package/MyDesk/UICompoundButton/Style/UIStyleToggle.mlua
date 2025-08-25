@@ -1,0 +1,154 @@
+@Component
+script UIStyleToggle extends UICompoundButton
+
+	property string StyleName = nil
+
+	property any StyleStruct = nil
+
+	property SpriteGUIRendererComponent Frame = nil
+
+	property SpriteGUIRendererComponent Outline = nil
+
+	property any Tweener = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		self:SetStyle(self.StyleName)
+		
+		__base:OnBeginPlay()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void UpdateVisualState(boolean animate)
+		__base:UpdateVisualState(animate)
+		
+		if animate and self.UseAnimation then
+			self:AnimateToggle(self.IsOn)
+		else
+			self:SetToggle(self.IsOn)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void AnimateToggle(boolean isOn)
+		---@type Tweener
+		local tweener = self.Tweener
+		if isvalid(tweener) and tweener.IsPlaying then
+			tweener:Complete()
+		end
+		
+		if isOn then
+			tweener = _TweenLogic:MakeTween(0, 1, self.AnimationDuration, EaseType.Linear, self.ToggleTweenFunc)
+		else
+			tweener = _TweenLogic:MakeTween(1, 0, self.AnimationDuration, EaseType.Linear, self.ToggleTweenFunc)
+		end
+		
+		tweener:SetOnEndCallback(self.ToggleTweenCallback)
+		tweener.AutoDestroy = true
+		tweener:Play()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ToggleTweenFunc(number t)
+		if not isvalid(self) or not isvalid(self.Entity) then
+			return
+		end
+		
+		self:ToggleTweenFrame(t)
+		self:ToggleTweenOutline(t)
+		self:ToggleTweenLabel(t)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ToggleTweenFrame(number t)
+		local frame = self.Frame
+		if not isvalid(frame) then
+			return
+		end
+		
+		---@type UIToggleStyleStruct
+		local style = self.StyleStruct
+		local targetColor = Color.Lerp(style.FrameDeactiveColor, style.FrameActiveColor, t)
+		if not self.Interactable then
+			targetColor = self:GetDisabledColor(targetColor)
+		end
+		
+		frame.Color = targetColor
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ToggleTweenOutline(number t)
+		local outline = self.Outline
+		if isvalid(outline) then
+			---@type UIToggleStyleStruct
+			local style = self.StyleStruct
+			local targetColor = Color.Lerp(style.OutlineDeactiveColor, style.OutlineActiveColor, t)
+			if not self.Interactable then
+				targetColor = self:GetDisabledColor(targetColor)
+			end
+			outline.Color = targetColor
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ToggleTweenLabel(number t)
+		local label = self.Label
+		if not isvalid(label) then
+			return
+		end
+		
+		---@type UIToggleStyleStruct
+		local style = self.StyleStruct
+		local targetColor = Color.Lerp(style.LabelDeactiveColor, style.LabelActiveColor, t)
+		if not self.Interactable then
+			targetColor = self:GetDisabledColor(targetColor)
+		end
+		
+		label.FontColor = targetColor 
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ToggleTweenCallback()
+		if isvalid(self) then
+			self.Tweener = nil
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetToggle(boolean isOn)
+		---@type Tweener
+		local tweener = self.Tweener
+		if isvalid(tweener) then
+			tweener:Complete()
+		end
+		
+		if isOn then
+			self:ToggleTweenFunc(1)
+		else
+			self:ToggleTweenFunc(0)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetStyle(string styleName)
+		self.StyleName = styleName
+		self:SetStyleStruct(_UICompoundButtonStyleLogic:GetToggleStyle(styleName))
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetStyleStruct(UIToggleStyleStruct styleStruct)
+		if styleStruct == nil then
+			log_warning("Cannot assign nil to a StyleStruct")
+			return
+		end
+		
+		self.StyleStruct = styleStruct
+		
+		self.UseAnimation = styleStruct.UseAnimation
+		self.AnimationDuration = styleStruct.AnimationDuration
+		self.SoundRUID = styleStruct.SoundRUID
+		self.SoundVolume = styleStruct.SoundVolume
+		self.DisabledAlphaValue = styleStruct.DisabledAlphaValue
+	end
+
+end

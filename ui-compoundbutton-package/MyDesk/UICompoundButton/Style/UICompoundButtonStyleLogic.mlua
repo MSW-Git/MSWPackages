@@ -1,0 +1,514 @@
+@Logic
+script UICompoundButtonStyleLogic extends Logic
+
+	property table SwitchTable = {}
+
+	property table CheckBoxTable = {}
+
+	property table RadioTable = {}
+
+	property table ToggleTable = {}
+
+	property any DefaultSwitchStyle = nil
+
+	property any DefaultCheckBoxStyle = nil
+
+	property any DefaultRadioButtonStyle = nil
+
+	property any DefaultToggleStyle = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		self:InitSwitchStyle()
+		self:InitCheckBoxStyle()
+		self:InitRadioButtonStyle()
+		self:InitToggleStyle()
+	end
+
+	@ExecSpace("ClientOnly")
+	method UISwitchStyleStruct GetSwitchStyle(string id)
+		if _Util:IsNilorEmptyString(id) then
+			return self.DefaultSwitchStyle
+		end
+		
+		local style = self.SwitchTable[id]
+		if style == nil then
+			log_warning("Cannot find UISwitchStyle : " .. id)
+			return self.DefaultSwitchStyle
+		end
+		
+		return style
+	end
+
+	@ExecSpace("ClientOnly")
+	method UICheckBoxStyleStruct GetCheckBoxStyle(string id)
+		if _Util:IsNilorEmptyString(id) then
+			return self.DefaultCheckBoxStyle
+		end
+		
+		local style = self.CheckBoxTable[id]
+		if style == nil then
+			log_warning("Cannot find UICheckBoxStyle : " .. id)
+			return self.DefaultCheckBoxStyle
+		end
+		
+		return style
+	end
+
+	@ExecSpace("ClientOnly")
+	method UIRadioButtonStyleStruct GetRadioButtonStyle(string id)
+		if _Util:IsNilorEmptyString(id) then
+			return self.DefaultRadioButtonStyle
+		end
+		
+		local style = self.RadioTable[id]
+		if style == nil then
+			log_warning("Cannot find UIRadioButtonStyle : " .. id)
+			return self.DefaultRadioButtonStyle
+		end
+		
+		return style
+	end
+
+	@ExecSpace("ClientOnly")
+	method UIToggleStyleStruct GetToggleStyle(string id)
+		if _Util:IsNilorEmptyString(id) then
+			return self.DefaultToggleStyle
+		end
+		
+		local style = self.ToggleTable[id]
+		if style == nil then
+			log_warning("Cannot find UIToggleStyle : " .. id)
+			return self.DefaultToggleStyle
+		end
+		
+		return style
+	end
+
+	@ExecSpace("ClientOnly")
+	method void InitSwitchStyle()
+		local t = self.SwitchTable
+		
+		local default = UISwitchStyleStruct()
+		default.UseAnimation = true
+		default.AnimationDuration = 0.1
+		default.SoundRUID = "de344b5f1bb444189d57dc52fca2bb14"
+		default.SoundVolume = 1
+		default.DisabledAlphaValue = 0.5
+		default.HandleActiveColor = Color.FromHexCode("#606a75")
+		default.HandleDeactiveColor = Color.white
+		default.TrackActiveColor = Color.white
+		default.TrackDeactiveColor = Color.FromHexCode("#606a75")
+		self.DefaultSwitchStyle = default
+		
+		local s1 = UISwitchStyleStruct()
+		s1.UseAnimation = true
+		s1.AnimationDuration = 0.1
+		s1.SoundRUID = "de344b5f1bb444189d57dc52fca2bb14"
+		s1.SoundVolume = 1
+		s1.DisabledAlphaValue = 0.5
+		s1.HandleActiveColor = Color.FromHexCode("#0073ff")
+		s1.HandleDeactiveColor = Color.FromHexCode("#606a75")
+		s1.TrackActiveColor = Color.FromHexCode("#bedeff")
+		s1.TrackDeactiveColor = Color.FromHexCode("#dddddd")
+		t["ModernBlue"] = s1
+		
+		local s2 = UISwitchStyleStruct()
+		s2.UseAnimation = true
+		s2.AnimationDuration = 0.1
+		s2.SoundRUID = "de344b5f1bb444189d57dc52fca2bb14"
+		s2.SoundVolume = 1
+		s2.DisabledAlphaValue = 0.5
+		s2.HandleActiveColor = Color.FromHexCode("#606a75")
+		s2.HandleDeactiveColor = Color.white
+		s2.TrackActiveColor = Color.white
+		s2.TrackDeactiveColor = Color.FromHexCode("#606a75")
+		t["ClassicGray"] = s2
+		
+		local s3 = UISwitchStyleStruct()
+		s3.UseAnimation = true
+		s3.AnimationDuration = 0.1
+		s3.SoundRUID = "de344b5f1bb444189d57dc52fca2bb14"
+		s3.SoundVolume = 1
+		s3.DisabledAlphaValue = 0.5
+		s3.HandleActiveColor = Color.FromHexCode("#f9f9f9")
+		s3.HandleDeactiveColor = Color.FromHexCode("#f9f9f9")
+		s3.TrackActiveColor = Color.FromHexCode("#70d878")
+		s3.TrackDeactiveColor = Color.FromHexCode("#fb654e")
+		t["StatusIndicator"] = s3
+		
+		local s4 = UISwitchStyleStruct()
+		s4.UseAnimation = true
+		s4.AnimationDuration = 0.15
+		s4.SoundRUID = "de344b5f1bb444189d57dc52fca2bb14"
+		s4.SoundVolume = 1
+		s4.DisabledAlphaValue = 0.5
+		s4.HandleActiveColor = Color.FromHexCode("#ff6b35")
+		s4.HandleDeactiveColor = Color.FromHexCode("#f0f0f0")
+		s4.TrackActiveColor = Color.FromHexCode("#ffd4c4")
+		s4.TrackDeactiveColor = Color.FromHexCode("#e0e0e0")
+		t["SunsetOrange"] = s4
+		
+		local s5 = UISwitchStyleStruct()
+		s5.UseAnimation = true
+		s5.AnimationDuration = 0.12
+		s5.SoundRUID = "de344b5f1bb444189d57dc52fca2bb14"
+		s5.SoundVolume = 1
+		s5.DisabledAlphaValue = 0.5
+		s5.HandleActiveColor = Color.FromHexCode("#2ecc71")
+		s5.HandleDeactiveColor = Color.FromHexCode("#ecf0f1")
+		s5.TrackActiveColor = Color.FromHexCode("#a8e6cf")
+		s5.TrackDeactiveColor = Color.FromHexCode("#bdc3c7")
+		t["EmeraldGreen"] = s5
+		
+		local s6 = UISwitchStyleStruct()
+		s6.UseAnimation = true
+		s6.AnimationDuration = 0.1
+		s6.SoundRUID = "de344b5f1bb444189d57dc52fca2bb14"
+		s6.SoundVolume = 1
+		s6.DisabledAlphaValue = 0.5
+		s6.HandleActiveColor = Color.FromHexCode("#9b59b6")
+		s6.HandleDeactiveColor = Color.FromHexCode("#f8f9fa")
+		s6.TrackActiveColor = Color.FromHexCode("#d6b3e6")
+		s6.TrackDeactiveColor = Color.FromHexCode("#dee2e6")
+		t["LavenderPurple"] = s6
+	end
+
+	@ExecSpace("ClientOnly")
+	method void InitCheckBoxStyle()
+		local t = self.CheckBoxTable
+		
+		local default = UICheckBoxStyleStruct()
+		default.UseAnimation = true
+		default.AnimationDuration = 0.1
+		default.SoundRUID = "de344b5f1bb444189d57dc52fca2bb14"
+		default.SoundVolume = 1
+		default.DisabledAlphaValue = 0.5
+		default.MarkActiveColor = Color.black
+		default.FrameActiveColor = Color.white
+		default.FrameDeactiveColor = Color.white
+		default.OutlineActiveColor = Color.white
+		default.OutlineDeactiveColor = Color.white
+		default.LabelActiveColor = Color.black
+		default.LabelDeactiveColor = Color.black
+		self.DefaultCheckBoxStyle = default
+		
+		local s1 = UICheckBoxStyleStruct()
+		s1.UseAnimation = true
+		s1.AnimationDuration = 0.1
+		s1.SoundRUID = "de344b5f1bb444189d57dc52fca2bb14"
+		s1.SoundVolume = 1
+		s1.DisabledAlphaValue = 0.5
+		s1.MarkActiveColor = Color.white
+		s1.FrameActiveColor = Color.white
+		s1.FrameDeactiveColor = Color.white
+		s1.OutlineActiveColor = Color.white
+		s1.OutlineDeactiveColor = Color.white
+		s1.LabelActiveColor = Color.black
+		s1.LabelDeactiveColor = Color.black
+		t["CleanWhite"] = s1
+		
+		local s2 = UICheckBoxStyleStruct()
+		s2.UseAnimation = true
+		s2.AnimationDuration = 0.1
+		s2.SoundRUID = "de344b5f1bb444189d57dc52fca2bb14"
+		s2.SoundVolume = 1
+		s2.DisabledAlphaValue = 0.5
+		s2.MarkActiveColor = Color.white
+		s2.FrameActiveColor = Color.FromHexCode("#0099ff")
+		s2.FrameDeactiveColor = Color.white
+		s2.OutlineActiveColor = Color.FromHexCode("#0099ff")
+		s2.OutlineDeactiveColor = Color.FromHexCode("#808080")
+		s2.LabelActiveColor = Color.black
+		s2.LabelDeactiveColor = Color.black
+		t["BlueOutline"] = s2
+		
+		local s3 = UICheckBoxStyleStruct()
+		s3.UseAnimation = true
+		s3.AnimationDuration = 0.1
+		s3.SoundRUID = "de344b5f1bb444189d57dc52fca2bb14"
+		s3.SoundVolume = 1
+		s3.DisabledAlphaValue = 0.5
+		s3.MarkActiveColor = Color.FromHexCode("#0099ff")
+		s3.FrameActiveColor = Color.FromHexCode("#0099ff")
+		s3.FrameDeactiveColor = Color.white
+		s3.OutlineActiveColor = Color.FromHexCode("#0099ff")
+		s3.OutlineDeactiveColor = Color.FromHexCode("#c3d7dc")
+		s3.LabelActiveColor = Color.white
+		s3.LabelDeactiveColor = Color.black
+		t["BlueFilled"] = s3
+		
+		local s4 = UICheckBoxStyleStruct()
+		s4.UseAnimation = true
+		s4.AnimationDuration = 0.15
+		s4.SoundRUID = "de344b5f1bb444189d57dc52fca2bb14"
+		s4.SoundVolume = 1
+		s4.DisabledAlphaValue = 0.5
+		s4.MarkActiveColor = Color.white
+		s4.FrameActiveColor = Color.FromHexCode("#e74c3c")
+		s4.FrameDeactiveColor = Color.white
+		s4.OutlineActiveColor = Color.FromHexCode("#e74c3c")
+		s4.OutlineDeactiveColor = Color.FromHexCode("#95a5a6")
+		s4.LabelActiveColor = Color.FromHexCode("#2c3e50")
+		s4.LabelDeactiveColor = Color.FromHexCode("#34495e")
+		t["CoralRed"] = s4
+		
+		local s5 = UICheckBoxStyleStruct()
+		s5.UseAnimation = true
+		s5.AnimationDuration = 0.12
+		s5.SoundRUID = "de344b5f1bb444189d57dc52fca2bb14"
+		s5.SoundVolume = 1
+		s5.DisabledAlphaValue = 0.5
+		s5.MarkActiveColor = Color.FromHexCode("#f39c12")
+		s5.FrameActiveColor = Color.FromHexCode("#f39c12")
+		s5.FrameDeactiveColor = Color.white
+		s5.OutlineActiveColor = Color.FromHexCode("#f39c12")
+		s5.OutlineDeactiveColor = Color.FromHexCode("#bdc3c7")
+		s5.LabelActiveColor = Color.FromHexCode("#8b4513")
+		s5.LabelDeactiveColor = Color.FromHexCode("#2c3e50")
+		t["AmberGold"] = s5
+		
+		local s6 = UICheckBoxStyleStruct()
+		s6.UseAnimation = true
+		s6.AnimationDuration = 0.1
+		s6.SoundRUID = "de344b5f1bb444189d57dc52fca2bb14"
+		s6.SoundVolume = 1
+		s6.DisabledAlphaValue = 0.5
+		s6.MarkActiveColor = Color.white
+		s6.FrameActiveColor = Color.FromHexCode("#1abc9c")
+		s6.FrameDeactiveColor = Color.white
+		s6.OutlineActiveColor = Color.FromHexCode("#1abc9c")
+		s6.OutlineDeactiveColor = Color.FromHexCode("#7f8c8d")
+		s6.LabelActiveColor = Color.FromHexCode("#16a085")
+		s6.LabelDeactiveColor = Color.FromHexCode("#2c3e50")
+		t["TealMint"] = s6
+	end
+
+	@ExecSpace("ClientOnly")
+	method void InitRadioButtonStyle()
+		local t = self.RadioTable
+		
+		local default = UIRadioButtonStyleStruct()
+		default.UseAnimation = true
+		default.AnimationDuration = 0.1
+		default.SoundRUID = "de344b5f1bb444189d57dc52fca2bb14"
+		default.SoundVolume = 1
+		default.DisabledAlphaValue = 0.5
+		default.DotActiveColor = Color.black
+		default.FrameActiveColor = Color.white
+		default.FrameDeactiveColor = Color.white
+		default.OutlineActiveColor = Color.white
+		default.OutlineDeactiveColor = Color.white
+		default.LabelActiveColor = Color.black
+		default.LabelDeactiveColor = Color.black
+		self.DefaultRadioButtonStyle = default
+		
+		local s1 = UIRadioButtonStyleStruct()
+		s1.UseAnimation = true
+		s1.AnimationDuration = 0.1
+		s1.SoundRUID = "de344b5f1bb444189d57dc52fca2bb14"
+		s1.SoundVolume = 1
+		s1.DisabledAlphaValue = 0.5
+		s1.DotActiveColor = Color.white
+		s1.FrameActiveColor = Color.white
+		s1.FrameDeactiveColor = Color.white
+		s1.OutlineActiveColor = Color.white
+		s1.OutlineDeactiveColor = Color.white
+		s1.LabelActiveColor = Color.black
+		s1.LabelDeactiveColor = Color.black
+		t["CleanWhite"] = s1
+		
+		local s2 = UIRadioButtonStyleStruct()
+		s2.UseAnimation = true
+		s2.AnimationDuration = 0.1
+		s2.SoundRUID = "de344b5f1bb444189d57dc52fca2bb14"
+		s2.SoundVolume = 1
+		s2.DisabledAlphaValue = 0.5
+		s2.DotActiveColor = Color.white
+		s2.FrameActiveColor = Color.FromHexCode("#2a65fd")
+		s2.FrameDeactiveColor = Color.white
+		s2.OutlineActiveColor = Color.FromHexCode("#2a65fd")
+		s2.OutlineDeactiveColor = Color.FromHexCode("#c4c5d5")
+		s2.LabelActiveColor = Color.FromHexCode("#8a8fb0")
+		s2.LabelDeactiveColor = Color.FromHexCode("#8a8fb0")
+		t["CorporateBlue"] = s2
+		
+		local s3 = UIRadioButtonStyleStruct()
+		s3.UseAnimation = true
+		s3.AnimationDuration = 0.1
+		s3.SoundRUID = "de344b5f1bb444189d57dc52fca2bb14"
+		s3.SoundVolume = 1
+		s3.DisabledAlphaValue = 0.5
+		s3.DotActiveColor = Color.FromHexCode("#8265ff")
+		s3.FrameActiveColor = Color.white
+		s3.FrameDeactiveColor = Color.white
+		s3.OutlineActiveColor = Color.FromHexCode("#8265ff")
+		s3.OutlineDeactiveColor = Color.FromHexCode("#161616")
+		s3.LabelActiveColor = Color.black
+		s3.LabelDeactiveColor = Color.black
+		t["DarkPurple"] = s3
+		
+		local s4 = UIRadioButtonStyleStruct()
+		s4.UseAnimation = true
+		s4.AnimationDuration = 0.15
+		s4.SoundRUID = "de344b5f1bb444189d57dc52fca2bb14"
+		s4.SoundVolume = 1
+		s4.DisabledAlphaValue = 0.5
+		s4.DotActiveColor = Color.white
+		s4.FrameActiveColor = Color.FromHexCode("#e67e22")
+		s4.FrameDeactiveColor = Color.white
+		s4.OutlineActiveColor = Color.FromHexCode("#e67e22")
+		s4.OutlineDeactiveColor = Color.FromHexCode("#d5dbdb")
+		s4.LabelActiveColor = Color.FromHexCode("#d35400")
+		s4.LabelDeactiveColor = Color.FromHexCode("#5d6d7e")
+		t["PumpkinOrange"] = s4
+		
+		local s5 = UIRadioButtonStyleStruct()
+		s5.UseAnimation = true
+		s5.AnimationDuration = 0.12
+		s5.SoundRUID = "de344b5f1bb444189d57dc52fca2bb14"
+		s5.SoundVolume = 1
+		s5.DisabledAlphaValue = 0.5
+		s5.DotActiveColor = Color.FromHexCode("#27ae60")
+		s5.FrameActiveColor = Color.white
+		s5.FrameDeactiveColor = Color.white
+		s5.OutlineActiveColor = Color.FromHexCode("#27ae60")
+		s5.OutlineDeactiveColor = Color.FromHexCode("#a9a9a9")
+		s5.LabelActiveColor = Color.FromHexCode("#229954")
+		s5.LabelDeactiveColor = Color.FromHexCode("#424949")
+		t["ForestGreen"] = s5
+		
+		local s6 = UIRadioButtonStyleStruct()
+		s6.UseAnimation = true
+		s6.AnimationDuration = 0.1
+		s6.SoundRUID = "de344b5f1bb444189d57dc52fca2bb14"
+		s6.SoundVolume = 1
+		s6.DisabledAlphaValue = 0.5
+		s6.DotActiveColor = Color.white
+		s6.FrameActiveColor = Color.FromHexCode("#e91e63")
+		s6.FrameDeactiveColor = Color.white
+		s6.OutlineActiveColor = Color.FromHexCode("#e91e63")
+		s6.OutlineDeactiveColor = Color.FromHexCode("#bdc3c7")
+		s6.LabelActiveColor = Color.FromHexCode("#c2185b")
+		s6.LabelDeactiveColor = Color.FromHexCode("#424949")
+		t["RosePink"] = s6
+	end
+
+	@ExecSpace("ClientOnly")
+	method void InitToggleStyle()
+		local t = self.ToggleTable
+		
+		local default = UIToggleStyleStruct()
+		default.UseAnimation = true
+		default.AnimationDuration = 0.1
+		default.SoundRUID = "de344b5f1bb444189d57dc52fca2bb14"
+		default.SoundVolume = 1
+		default.DisabledAlphaValue = 0.5
+		default.FrameActiveColor = Color.FromHexCode("#0073ff")
+		default.FrameDeactiveColor = Color.FromHexCode("#dddddd")
+		default.OutlineActiveColor = Color.FromHexCode("#0073ff")
+		default.OutlineDeactiveColor = Color.FromHexCode("#dddddd")
+		default.LabelActiveColor = Color.FromHexCode("#0073ff")
+		default.LabelDeactiveColor = Color.FromHexCode("#606a75")
+		self.DefaultToggleStyle = default
+		
+		local s1 = UIToggleStyleStruct()
+		s1.UseAnimation = true
+		s1.AnimationDuration = 0.1
+		s1.SoundRUID = "de344b5f1bb444189d57dc52fca2bb14"
+		s1.SoundVolume = 1
+		s1.DisabledAlphaValue = 0.5
+		s1.FrameActiveColor = Color.white
+		s1.FrameDeactiveColor = Color.FromHexCode("#e6e6e6")
+		s1.OutlineActiveColor = Color.white
+		s1.OutlineDeactiveColor = Color.white
+		s1.LabelActiveColor = Color.FromHexCode("#f1c20a")
+		s1.LabelDeactiveColor = Color.FromHexCode("#45463b")
+		t["GoldenYellow"] = s1
+		
+		local s2 = UIToggleStyleStruct()
+		s2.UseAnimation = true
+		s2.AnimationDuration = 0.1
+		s2.SoundRUID = "de344b5f1bb444189d57dc52fca2bb14"
+		s2.SoundVolume = 1
+		s2.DisabledAlphaValue = 0.5
+		s2.FrameActiveColor = Color.FromHexCode("#eaf6fe")
+		s2.FrameDeactiveColor = Color.white
+		s2.OutlineActiveColor = Color.FromHexCode("#3190ce")
+		s2.OutlineDeactiveColor = Color.FromHexCode("#e6e6e6")
+		s2.LabelActiveColor = Color.FromHexCode("#3190ce")
+		s2.LabelDeactiveColor = Color.FromHexCode("#777777")
+		t["OceanBlue"] = s2
+		
+		local s3 = UIToggleStyleStruct()
+		s3.UseAnimation = true
+		s3.AnimationDuration = 0.1
+		s3.SoundRUID = "de344b5f1bb444189d57dc52fca2bb14"
+		s3.SoundVolume = 1
+		s3.DisabledAlphaValue = 0.5
+		s3.FrameActiveColor = Color.FromHexCode("#6746fc")
+		s3.FrameDeactiveColor = Color.white
+		s3.OutlineActiveColor = Color.FromHexCode("#6746fc")
+		s3.OutlineDeactiveColor = Color.FromHexCode("#6746fc")
+		s3.LabelActiveColor = Color.white
+		s3.LabelDeactiveColor = Color.FromHexCode("#6332e6")
+		t["RoyalPurple"] = s3
+		
+		local s4 = UIToggleStyleStruct()
+		s4.UseAnimation = true
+		s4.AnimationDuration = 0.1
+		s4.SoundRUID = "de344b5f1bb444189d57dc52fca2bb14"
+		s4.SoundVolume = 1
+		s4.DisabledAlphaValue = 0.5
+		s4.FrameActiveColor = Color.FromHexCode("#191a1d")
+		s4.FrameDeactiveColor = Color.FromHexCode("#191a1d")
+		s4.OutlineActiveColor = Color.white
+		s4.OutlineDeactiveColor = Color.white
+		s4.LabelActiveColor = Color.white
+		s4.LabelDeactiveColor = Color.white
+		t["RoyalBlack"] = s4
+		
+		local s5 = UIToggleStyleStruct()
+		s5.UseAnimation = true
+		s5.AnimationDuration = 0.15
+		s5.SoundRUID = "de344b5f1bb444189d57dc52fca2bb14"
+		s5.SoundVolume = 1
+		s5.DisabledAlphaValue = 0.5
+		s5.FrameActiveColor = Color.FromHexCode("#f39c12")
+		s5.FrameDeactiveColor = Color.FromHexCode("#f8f9fa")
+		s5.OutlineActiveColor = Color.FromHexCode("#f39c12")
+		s5.OutlineDeactiveColor = Color.FromHexCode("#e9ecef")
+		s5.LabelActiveColor = Color.FromHexCode("#d68910")
+		s5.LabelDeactiveColor = Color.FromHexCode("#495057")
+		t["WarmOrange"] = s5
+		
+		local s6 = UIToggleStyleStruct()
+		s6.UseAnimation = true
+		s6.AnimationDuration = 0.12
+		s6.SoundRUID = "de344b5f1bb444189d57dc52fca2bb14"
+		s6.SoundVolume = 1
+		s6.DisabledAlphaValue = 0.5
+		s6.FrameActiveColor = Color.FromHexCode("#16a085")
+		s6.FrameDeactiveColor = Color.FromHexCode("#f8f9fa")
+		s6.OutlineActiveColor = Color.FromHexCode("#16a085")
+		s6.OutlineDeactiveColor = Color.FromHexCode("#e9ecef")
+		s6.LabelActiveColor = Color.FromHexCode("#138d75")
+		s6.LabelDeactiveColor = Color.FromHexCode("#495057")
+		t["DeepTeal"] = s6
+		
+		local s7 = UIToggleStyleStruct()
+		s7.UseAnimation = true
+		s7.AnimationDuration = 0.1
+		s7.SoundRUID = "de344b5f1bb444189d57dc52fca2bb14"
+		s7.SoundVolume = 1
+		s7.DisabledAlphaValue = 0.5
+		s7.FrameActiveColor = Color.FromHexCode("#8e44ad")
+		s7.FrameDeactiveColor = Color.FromHexCode("#f8f9fa")
+		s7.OutlineActiveColor = Color.FromHexCode("#8e44ad")
+		s7.OutlineDeactiveColor = Color.FromHexCode("#e9ecef")
+		s7.LabelActiveColor = Color.FromHexCode("#7d3c98")
+		s7.LabelDeactiveColor = Color.FromHexCode("#495057")
+		t["RoyalViolet"] = s7
+	end
+
+end

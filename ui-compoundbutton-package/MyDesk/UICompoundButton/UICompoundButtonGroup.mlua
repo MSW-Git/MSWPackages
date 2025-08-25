@@ -1,0 +1,334 @@
+@Component
+script UICompoundButtonGroup extends Component
+
+	property table Buttons = {}
+
+	property boolean AllowAllOff = false
+
+	property boolean AllowMultipleSelection = false
+
+	property integer MaxSelectionCount = 1
+
+	property table ActiveButtons = {}
+
+	@ExecSpace("ClientOnly")
+	method void RegisterButton(UICompoundButton button)
+		if button == nil then
+			return
+		end
+		
+		-- Check if already registered
+		if self:ContainsButton(button) then
+			return
+		end
+		
+		if button.ButtonGroup ~= nil then
+			button.ButtonGroup:UnregisterButton(button)
+		end
+		
+		-- Add to buttons list
+		table.insert(self.Buttons, button)
+		
+		button.ButtonGroup = self
+		
+		-- If button is already on, add to active list
+		if button.IsOn then
+			self:AddToActiveButtons(button)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void UnregisterButton(UICompoundButton button)
+		if button == nil then
+			return
+		end
+		
+		-- Remove from buttons list
+		local index = self:GetButtonIndex(button)
+		if index == 0 then
+			button.ButtonGroup = nil
+			return
+		end
+		
+		if index > 0 then
+			table.remove(self.Buttons, index)
+		end
+		
+		-- Remove from active buttons
+		self:RemoveFromActiveButtons(button)
+		
+		-- Clear button's group reference
+		button.ButtonGroup = nil
+	end
+
+	@ExecSpace("ClientOnly")
+	method boolean TryOnButtonChanged(UICompoundButton button, boolean oldState, boolean newState, boolean sendCallback, boolean ignoreGroupRule)
+		if button == nil then
+			return false
+		end
+		
+		---@type table<UICompoundButton>
+		local buttons = self.Buttons
+		---@type table<UICompoundButton>
+		local activeButtons = self.ActiveButtons
+		
+		if newState then
+			if not ignoreGroupRule then
+				if not self.AllowMultipleSelection then
+					self:TurnOffOtherButtons(button, sendCallback)
+				else
+					if #activeButtons >= self.MaxSelectionCount then
+						-- Turn off the oldest button
+						local oldestButton = activeButtons[1]
+						if oldestButton == button then
+							return false
+						end
+						
+						if oldestButton ~= nil then
+							oldestButton:SetIsOnIgnoringGroupRule(false, sendCallback)
+						end
+					end
+				end
+			end
+			
+			self:AddToActiveButtons(button)
+		else
+			if not ignoreGroupRule then
+				-- If no buttons are on and switch off is not allowed, turn on the first button
+				if not self.AllowAllOff and #activeButtons <= 1 and #buttons > 0 then
+					return false
+				end	
+			end
+			
+			self:RemoveFromActiveButtons(button)
+		end
+		
+		return true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void TurnOffOtherButtons(UICompoundButton excludeButton, boolean sendCallback)
+		---@type table<UICompoundButton>
+		local activeButtons = self.ActiveButtons
+		
+		for i = #activeButtons, 1, -1 do
+			---@type UICompoundButton
+			local activeButton = activeButtons[i]
+			if activeButton ~= excludeButton then
+				activeButton:SetIsOnIgnoringGroupRule(false, sendCallback)
+			end
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void AddToActiveButtons(UICompoundButton button)
+		if not self:IsButtonActive(button) then
+			table.insert(self.ActiveButtons, button)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void RemoveFromActiveButtons(UICompoundButton button)
+		---@type table<UICompoundButton>
+		local activeButtons = self.ActiveButtons
+		
+		for i = #activeButtons, 1, -1 do
+			if activeButtons[i] == button then
+				table.remove(activeButtons, i)
+				break
+			end
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method boolean IsButtonActive(UICompoundButton button)
+		for _, activeButton in pairs(self.ActiveButtons) do
+			if activeButton == button then
+				return true
+			end
+		end
+		return false
+	end
+
+	@ExecSpace("ClientOnly")
+	method number GetButtonIndex(UICompoundButton button)
+		for i, b in pairs(self.Buttons) do
+			if b == button then
+				return i
+			end
+		end
+		return 0
+	end
+
+	@ExecSpace("ClientOnly")
+	method boolean ContainsButton(UICompoundButton button)
+		return self:GetButtonIndex(button) > 0
+	end
+
+	@ExecSpace("ClientOnly")
+	method void EnsureValidState()
+		-- When registering a Button in the script, it may be necessary to call this function afterward.
+		---@type table<UICompoundButton>
+		local buttons = self.Buttons
+		---@type table<UICompoundButton>
+		local activeButtons = self.ActiveButtons
+		
+		-- Ensure at least one button is on if switch off is not allowed
+		if not self.AllowAllOff and #activeButtons == 0 and #buttons > 0 then
+			local firstButton = buttons[1]
+			firstButton:SetIsOnIgnoringGroupRule(true, false)
+		end
+		
+		-- Ensure only one button is on if multiple selection is not allowed
+		if not self.AllowMultipleSelection and #activeButtons > 1 then
+			local firstActive = activeButtons[1]
+			for i = #activeButtons, 2, -1 do
+				activeButtons[i]:SetIsOnIgnoringGroupRule(false, false)
+			end
+		end
+		
+		-- Ensure max selection count is respected
+		if self.AllowMultipleSelection and #activeButtons > self.MaxSelectionCount then
+			for i = #activeButtons, self.MaxSelectionCount + 1, -1 do
+				activeButtons[i]:SetIsOnIgnoringGroupRule(false, false)
+			end
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetAllowSwitchOff(boolean allow)
+		self.AllowAllOff = allow
+		
+		-- If switch off is not allowed and no buttons are active, activate the first one
+		if not allow and #self.ActiveButtons == 0 and #self.Buttons > 0 then
+			local firstButton = self.Buttons[1]
+			firstButton:SetIsOnIgnoringGroupRule(true, true)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetAllowMultipleSelection(boolean allow)
+		---@type table<UICompoundButton>
+		local activeButtons = self.ActiveButtons
+		
+		self.AllowMultipleSelection = allow
+		
+		-- If multiple selection is disabled, ensure only one button is active
+		if not allow and #activeButtons > 1 then
+			local firstActive = activeButtons[1]
+			for i = #activeButtons, 2, -1 do
+				activeButtons[i]:SetIsOnIgnoringGroupRule(false, true)
+			end
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetMaxSelectionCount(number maxCount)
+		---@type table<UICompoundButton>
+		local activeButtons = self.ActiveButtons
+		
+		self.MaxSelectionCount = maxCount
+		
+		-- If current selection exceeds new max, remove excess buttons
+		if #activeButtons > maxCount then
+			for i = #activeButtons, maxCount + 1, -1 do
+				activeButtons[i]:SetIsOnIgnoringGroupRule(false, true)
+			end
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SelectButton(UICompoundButton button, boolean sendCallback)
+		if button == nil or not self:ContainsButton(button) then
+			return
+		end
+		
+		if sendCallback then
+			button:SetIsOn(true, sendCallback)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void DeselectButton(UICompoundButton button, boolean sendCallback)
+		if button == nil or not self:ContainsButton(button) then
+			return
+		end
+		
+		if sendCallback then
+			button:SetIsOn(false, sendCallback)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SelectAllButtons(boolean sendCallback)
+		if not self.AllowMultipleSelection then
+			return
+		end
+		
+		for _, button in pairs(self.Buttons) do
+			button:SetIsOnIgnoringGroupRule(true, sendCallback)
+		end
+		
+		if sendCallback then
+			self:SendGroupCallbacks()
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void DeselectAllButtons(boolean sendCallback)
+		if not self.AllowAllOff then
+			return
+		end
+		
+		for _, button in pairs(self.Buttons) do
+			button:SetIsOnIgnoringGroupRule(false, sendCallback)
+		end
+		
+		if sendCallback then
+			self:SendGroupCallbacks()
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SendGroupCallbacks()
+		-- Send selection changed callback
+		local event = UICompoundButtonGroupChangedEvent()
+		event.Entity = self.Entity
+		
+		self.Entity:SendEvent(event)
+	end
+
+	@ExecSpace("ClientOnly")
+	method table GetActiveButtons()
+		return self.ActiveButtons
+	end
+
+	@ExecSpace("ClientOnly")
+	method UICompoundButton GetActiveButton()
+		if #self.ActiveButtons > 0 then
+			return self.ActiveButtons[1]
+		end
+		return nil
+	end
+
+	@ExecSpace("ClientOnly")
+	method table GetAllButtons()
+		return self.Buttons
+	end
+
+	@ExecSpace("ClientOnly")
+	method number GetActiveButtonCount()
+		return #self.ActiveButtons
+	end
+
+	@ExecSpace("ClientOnly")
+	method number GetButtonCount()
+		return #self.Buttons
+	end
+
+	@ExecSpace("ClientOnly")
+	method boolean HasActiveButtons()
+		return #self.ActiveButtons > 0
+	end
+
+end

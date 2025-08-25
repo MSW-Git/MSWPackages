@@ -1,0 +1,28 @@
+@Struct
+script UICheckBoxStyleStruct
+
+	property boolean UseAnimation = false
+
+	property number AnimationDuration = 0
+
+	property string SoundRUID = nil
+
+	property number SoundVolume = 0
+
+	property number DisabledAlphaValue = 0
+
+	property Color MarkActiveColor = Color(1,1,1,1)
+
+	property Color FrameActiveColor = Color(1,1,1,1)
+
+	property Color FrameDeactiveColor = Color(1,1,1,1)
+
+	property Color OutlineActiveColor = Color(1,1,1,1)
+
+	property Color OutlineDeactiveColor = Color(1,1,1,1)
+
+	property Color LabelActiveColor = Color(0,0,0,1)
+
+	property Color LabelDeactiveColor = Color(0,0,0,1)
+
+end

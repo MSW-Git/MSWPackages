@@ -1,0 +1,178 @@
+@Component
+script UIRadioButton extends UICompoundButton
+
+	property SpriteGUIRendererComponent Dot = nil
+
+	property SpriteGUIRendererComponent Frame = nil
+
+	property SpriteGUIRendererComponent Outline = nil
+
+	property Color DotActiveColor = Color(1,1,1,1)
+
+	property Color FrameActiveColor = Color(1,1,1,1)
+
+	property Color FrameDeactiveColor = Color(1,1,1,1)
+
+	property Color OutlineActiveColor = Color(1,1,1,1)
+
+	property Color OutlineDeactiveColor = Color(1,1,1,1)
+
+	property Color LabelActiveColor = Color(1,1,1,1)
+
+	property Color LabelDeactiveColor = Color(1,1,1,1)
+
+	property any Tweener = nil
+
+	@ExecSpace("ClientOnly")
+	method void UpdateVisualState(boolean animate)
+		__base:UpdateVisualState(animate)
+		
+		if animate and self.UseAnimation then
+			self:AnimateRadioButton(self.IsOn)
+		else
+			self:SetRadioButton(self.IsOn)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void AnimateRadioButton(boolean isOn)
+		---@type Tweener
+		local tweener = self.Tweener
+		if isvalid(tweener) and tweener.IsPlaying then
+			tweener:Complete()
+		end
+		
+		if isOn then
+			tweener = _TweenLogic:MakeTween(0, 1, self.AnimationDuration, EaseType.Linear, self.RadioButtonTweenFunc)
+		else
+			tweener = _TweenLogic:MakeTween(1, 0, self.AnimationDuration, EaseType.Linear, self.RadioButtonTweenFunc)
+		end
+		
+		tweener:SetOnEndCallback(self.RadioButtonTweenCallback)
+		tweener.AutoDestroy = true
+		tweener:Play()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void RadioButtonTweenFunc(number t)
+		if not isvalid(self) or not isvalid(self.Entity) then
+			return
+		end
+		
+		self:RadioButtonTweenDot(t)
+		self:RadioButtonTweenFrame(t)
+		self:RadioButtonTweenOutline(t)
+		self:RadioButtonTweenLabel(t)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void RadioButtonTweenDot(number t)
+		local dot = self.Dot
+		if not isvalid(dot) then
+			return
+		end
+		
+		local activeColor = self.DotActiveColor
+		local deactiveColor = activeColor:Clone()
+		deactiveColor.a = 0
+		
+		local targetColor = Color.Lerp(deactiveColor, activeColor, t)
+		if not self.Interactable then
+			targetColor = self:GetDisabledColor(targetColor)
+		end
+		
+		dot.Color = targetColor
+	end
+
+	@ExecSpace("ClientOnly")
+	method void RadioButtonTweenFrame(number t)
+		local frame = self.Frame
+		if not isvalid(frame) then
+			return
+		end
+		
+		local targetColor = Color.Lerp(self.FrameDeactiveColor, self.FrameActiveColor, t)
+		if not self.Interactable then
+			targetColor = self:GetDisabledColor(targetColor)
+		end
+		
+		frame.Color = targetColor
+	end
+
+	@ExecSpace("ClientOnly")
+	method void RadioButtonTweenOutline(number t)
+		local outline = self.Outline
+		if isvalid(outline) then
+			local targetColor = Color.Lerp(self.OutlineDeactiveColor, self.OutlineActiveColor, t)
+			if not self.Interactable then
+				targetColor = self:GetDisabledColor(targetColor)
+			end
+			outline.Color = targetColor
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void RadioButtonTweenLabel(number t)
+		local label = self.Label
+		if not isvalid(label) then
+			return
+		end
+		
+		local targetColor = Color.Lerp(self.LabelDeactiveColor, self.LabelActiveColor, t)
+		if not self.Interactable then
+			targetColor = self:GetDisabledColor(targetColor)
+		end
+		
+		label.FontColor = targetColor 
+	end
+
+	@ExecSpace("ClientOnly")
+	method void RadioButtonTweenCallback()
+		if isvalid(self) then
+			self.Tweener = nil
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetRadioButton(boolean isOn)
+		---@type Tweener
+		local tweener = self.Tweener
+		if isvalid(tweener) then
+			tweener:Complete()
+		end
+		
+		if isOn then
+			self:RadioButtonTweenFunc(1)
+		else
+			self:RadioButtonTweenFunc(0)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetStyle(string styleName)
+		self:SetStyleByStruct(_UICompoundButtonStyleLogic:GetRadioButtonStyle(styleName))
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetStyleByStruct(UIRadioButtonStyleStruct styleStruct)
+		if styleStruct == nil then
+			log_warning("Cannot assign nil to a StyleStruct.")
+			return
+		end
+		
+		self.UseAnimation = styleStruct.UseAnimation
+		self.AnimationDuration = styleStruct.AnimationDuration
+		self.SoundRUID = styleStruct.SoundRUID
+		self.SoundVolume = styleStruct.SoundVolume
+		self.DisabledAlphaValue = styleStruct.DisabledAlphaValue
+		
+		self.DotActiveColor = styleStruct.DotActiveColor
+		self.FrameActiveColor = styleStruct.FrameActiveColor
+		self.FrameDeactiveColor = styleStruct.FrameDeactiveColor
+		self.OutlineActiveColor = styleStruct.OutlineActiveColor
+		self.OutlineDeactiveColor = styleStruct.OutlineDeactiveColor
+		self.LabelActiveColor = styleStruct.LabelActiveColor
+		self.LabelDeactiveColor = styleStruct.LabelDeactiveColor
+	end
+
+end
