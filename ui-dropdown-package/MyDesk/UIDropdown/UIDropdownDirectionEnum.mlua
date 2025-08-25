@@ -1,0 +1,10 @@
+@Logic
+script UIDropdownDirectionEnum extends Logic
+
+	property integer BOTTOM = 0
+
+	property integer TOP = 1
+
+	property integer CENTER = 2
+
+end

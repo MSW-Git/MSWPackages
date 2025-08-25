@@ -1,0 +1,6 @@
+@Event
+script UIDropdownValueChangedEvent extends EventType
+
+	property Entity Entity = nil
+
+end

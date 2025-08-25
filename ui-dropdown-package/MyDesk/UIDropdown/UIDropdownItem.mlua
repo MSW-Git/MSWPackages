@@ -1,0 +1,46 @@
+@Component
+script UIDropdownItem extends Component
+
+	property integer Index = 0
+
+	property table Data = {}
+
+	property TextComponent Text = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		if self.Text == nil then
+			self.Text = self.Entity.TextComponent
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetData(integer index, table data)
+		self.Index = index
+		self.Data = data
+		
+		-- Set Text
+		local textComp = self.Text
+		if textComp ~= nil then
+			textComp.Text = tostring(index)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		-- Set Text
+		local textComp = self.Text
+		if textComp ~= nil then
+			textComp.Text = ""
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("Self")
+	handler HandleButtonClickEvent(ButtonClickEvent event)
+		-- Send ButtonClickEvent to UIDropdown Entity
+		local parent = self.Entity.Parent
+		parent:SendEvent(event)
+	end
+
+end
