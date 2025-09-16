@@ -31,8 +31,7 @@ See the README file in each package for detailed usage information.
 | droptable-resolver | Provides functionality for determining which items to return based on drop tables and probability. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/droptable-resolver-package/droptable-resolver.modpackage)|
 | game-event | Provides game event system to creators. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/game-event-package/game-event-package.modpackage)|
 | collection | Provides collections to creators. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/collections-package/collections-package.modpackage)|
-| ui-compoundbutton | Provide two-state buttons(Switch, Toggle, CheckBox, RadioButton) to creators. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/ui-compoundbutton-package/ui-compoundbutton-package.modpackage)|
-| ui-dropdown | Provides dropdowns to creators. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/ui-dropdown-package/ui-dropdown-package.modpackage)|
+| ui-component | Provides ui componets and models. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/ui-component-package/ui-component-package.modpackage)|
 
 
 
