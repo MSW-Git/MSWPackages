@@ -1,0 +1,499 @@
+@Component
+script UIMultiSelectDropdown extends Component
+
+	@Description("Dim overlay")
+	property Entity Dim = nil
+
+	@Description("Main button")
+	property Entity Btn = nil
+
+	@Description("Item template")
+	property Entity Item = nil
+
+	@Description("Grid view")
+	property Entity GridView = nil
+
+	@Description("Outline border")
+	property Entity Outline = nil
+
+	@Description("Data list")
+	property table DataList = {}
+
+	@Description("Selected index table")
+	property table SelectedIndexTable = {}
+
+	@Description("Selected index list")
+	property table SelectedIndexList = {}
+
+	@Description("Text refresh callback")
+	property any OnRefreshText = nil
+
+	@Description("Button text refresh callback")
+	property any OnRefreshButtonText = nil
+
+	@Description("Placeholder text")
+	property string PlaceHolder = "UIDropdown"
+
+	@Description("Dropdown direction")
+	property integer DropdownDirection = 0
+
+	@Description("Show all items")
+	property boolean IsShowAll = false
+
+	@Description("Grid view height")
+	@HideFromInspector
+	property number GridViewHeight = 0
+
+	@Description("Use animation")
+	property boolean UseAnimation = false
+
+	@Description("Animation duration")
+	property number AnimationDuration = 0.15
+
+	@Description("Animation tweener")
+	property any Tweener = nil
+
+	@Description("Initialization flag")
+	@HideFromInspector
+	property boolean IsInitialized = false
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		self:Init()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Init()
+		if self.IsInitialized then
+			return
+		end
+		self.IsInitialized = true
+		
+		local entity = self.Entity
+		
+		if self.Dim == nil then
+			self.Dim = entity:GetChildByName("Img_Dim")
+		end
+		
+		if self.Btn == nil then
+			self.Btn = entity:GetChildByName("Btn")
+		end
+		
+		if self.GridView == nil then
+			self.GridView = entity:GetChildByName("GridView")
+		end
+		
+		if self.Item == nil then
+			self.Item = entity:GetChildByName("Item")
+		end
+		
+		if self.Outline == nil then
+			self.Outline = entity:GetChildByName("Img_Outline")
+		end
+		
+		self:Build()
+		self:InvalidateBtnText()
+		
+		-- Test DataList
+		self:SetDataList({{"Item1"}, {"Item2"}, {"Item3"}})
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Build()
+		if not self:IsValid() then
+			log_warning("UIMultiSelectDropdown is not valid.")
+			return
+		end
+		
+		local item = self.Item
+		local gridView = self.GridView
+		local outline = self.Outline
+		
+		item.Enable = false
+		gridView.Enable = false
+		outline.Enable = false
+		
+		local gridViewComp = gridView.GridViewComponent
+		gridViewComp.ItemEntity = item
+		gridViewComp.OnRefresh = self.OnRefresh
+		gridViewComp.OnClear = self.OnClear
+		
+		self.GridViewHeight = gridView.UITransformComponent.RectSize.y
+		
+		self.Btn:ConnectEvent(ButtonClickEvent, self.OnClickBtn)
+		gridView:ConnectEvent(ButtonClickEvent, self.OnClickItem)
+		self.Dim:ConnectEvent(ButtonClickEvent, self.CloseDropdown)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnRefresh(integer index, Entity entity)
+		index += 1
+		entity.UIMultiSelectDropdownItem:SetData(index, self.DataList[index], self.SelectedIndexTable[index] ~= nil)
+		
+		local textComp = entity.UIMultiSelectDropdownItem.Text
+		if textComp == nil then
+			return
+		end
+		
+		local onRefreshText = self.OnRefreshText
+		if onRefreshText then
+			onRefreshText(index, textComp)
+		else
+			self:OnRefreshTextDefault(index, textComp)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClear(integer index, Entity entity)
+		entity.UIMultiSelectDropdownItem:Clear()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetDataList(table dataList)
+		self.DataList = dataList
+		self:Invalidate()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Invalidate()
+		local gridView = self.GridView
+		local gridViewComp = gridView.GridViewComponent
+		
+		local dataList = self.DataList
+		local totalCount = dataList == nil and 0 or #dataList
+		
+		gridViewComp.TotalCount = totalCount
+		gridViewComp:Refresh(true, true)
+	end
+
+	@ExecSpace("ClientOnly")
+	method boolean IsValid()
+		local dim = self.Dim
+		if dim == nil then
+			return false
+		end
+		
+		local btn = self.Btn
+		if btn == nil or btn.ButtonComponent == nil then
+			return false
+		end
+		
+		local gridView = self.GridView
+		if gridView == nil or gridView.GridViewComponent == nil then
+			return false
+		end
+		
+		local item = self.Item
+		if item == nil or item.UIMultiSelectDropdownItem == nil then
+			return false
+		end
+		
+		return true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetSelectedIndex(integer index, boolean sendCallback)
+		local selectedIndexTable = self.SelectedIndexTable
+		local selectedIndexList = self.SelectedIndexList
+		
+		if selectedIndexTable[index] == nil then
+			selectedIndexTable[index] = true
+			table.insert(selectedIndexList, index)
+		else
+			selectedIndexTable[index] = nil
+			for i = 1, #selectedIndexList do
+				if selectedIndexList[i] == index then
+					table.remove(selectedIndexList, i)
+					break
+				end
+			end	
+		end
+		
+		self.GridView.GridViewComponent:RefreshIndex(index - 1)
+		self:InvalidateBtnText()
+		
+		if sendCallback then
+			local evt = UIDropdownValueChangedEvent()
+			evt.Entity = self.Entity
+			self.Entity:SendEvent(evt)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void InvalidateBtnText()
+		local btnTextComp = self.Btn.TextComponent
+		if btnTextComp == nil then
+			return
+		end
+		
+		local onRefreshButtonText = self.OnRefreshButtonText
+		
+		local selectedIndexList = self.SelectedIndexList
+		if onRefreshButtonText then
+			onRefreshButtonText(selectedIndexList, btnTextComp)
+		else
+			self:OnRefreshButtonTextDefault(selectedIndexList, btnTextComp)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnRefreshTextDefault(integer index, TextComponent textComp)
+		local data = self.DataList[index]
+		
+		local str = nil
+		if data == nil then
+			str = ""
+		else
+			str = tostring(index)
+		end
+		
+		textComp.Text = str
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnRefreshButtonTextDefault(table selectedIndexList, TextComponent textComp)
+		if #selectedIndexList == 0 then
+			textComp.Text = self.PlaceHolder
+		else
+			textComp.Text = table.concat(selectedIndexList, ",")
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method table GetSelectedDataList()
+		local selectedDataList = {}
+		
+		local dataList = self.DataList
+		if dataList == nil then
+			return selectedDataList
+		end
+		
+		local selectedIndexList = self.SelectedIndexList
+		for i = 1, #selectedIndexList do
+			local index = selectedIndexList[i]
+			local data = dataList[index]
+			if data ~= nil then
+				selectedDataList[#selectedDataList + 1] = data
+			end
+		end
+		
+		return selectedDataList
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn()
+		local gridView = self.GridView
+		local enable = not gridView.Enable
+		if enable then
+			self:OpenDropdown()
+		else
+			self:CloseDropdown()
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickItem(ButtonClickEvent event)
+		local item = event.Entity
+		self:SetSelectedIndex(item.UIMultiSelectDropdownItem.Index, true)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OpenDropdown()
+		local gridView = self.GridView
+		local gridViewComp = gridView.GridViewComponent
+		local outlineComp = self.Outline
+		
+		local dataList = self.DataList
+		local totalCount = dataList == nil and 0 or #dataList
+		
+		-- Don't show the grid if there are no items.
+		if totalCount == 0 then
+			return
+		end
+		
+		if self.IsShowAll then
+			local padding = gridViewComp.Padding
+			local spacingY = gridViewComp.Spacing.y
+			local itemHeight = gridViewComp.CellSize.y + spacingY
+			self.GridViewHeight = itemHeight * totalCount - spacingY + padding.top + padding.bottom
+		end
+		
+		-- Set Position
+		self:SetGridViewPosition()
+		self:SetOutlinePosition()
+		
+		-- Reset GridView
+		gridViewComp:Refresh(true, true)
+		
+		if self.UseAnimation then
+			self:SetCanvasInteractable(false)
+			self:AnimateFading(true)
+		end
+		
+		self:SetBtnIconFlipY(true)
+		gridView.Enable = true
+		
+		if outlineComp ~= nil then
+			outlineComp.Enable = true
+		end
+		
+		self.Dim.Enable = true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void CloseDropdown()
+		local gridView = self.GridView
+		local gridViewComp = gridView.GridViewComponent
+		local outlineComp = self.Outline
+		
+		if self.UseAnimation then
+			self:SetCanvasInteractable(false)
+			self:AnimateFading(false)
+		else
+			gridView.Enable = false
+		end
+		
+		self:SetBtnIconFlipY(false)
+		
+		if outlineComp ~= nil then
+			outlineComp.Enable = false
+		end
+		
+		self.Dim.Enable = false
+	end
+
+	@ExecSpace("ClientOnly")
+	method void AnimateInTweenCallback()
+		if isvalid(self) then
+			self.Tweener = nil
+		end
+		
+		self:SetCanvasInteractable(true)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void AnimateOutTweenCallback()
+		if isvalid(self) then
+			self.Tweener = nil
+		end
+		
+		local gridView = self.GridView
+		gridView.Enable = false
+	end
+
+	@ExecSpace("ClientOnly")
+	method void AnimateFading(boolean isOn)
+		local gridView = self.GridView
+		
+		---@type Tweener
+		local tweener = self.Tweener
+		if isvalid(tweener) and tweener.IsPlaying then
+			tweener:Complete()
+		end
+		
+		local duration = self.AnimationDuration
+		local canvasGroupComp = gridView.CanvasGroupComponent
+		
+		if isOn then
+			canvasGroupComp.GroupAlpha = 0
+			tweener = _TweenLogic:MakeTween(0, 1, duration, EaseType.Linear, self.AnimateFadingTweenFunc)
+			tweener:SetOnEndCallback(self.AnimateInTweenCallback)
+		else
+			canvasGroupComp.GroupAlpha = 1
+			tweener = _TweenLogic:MakeTween(1, 0, duration, EaseType.Linear, self.AnimateFadingTweenFunc)
+			tweener:SetOnEndCallback(self.AnimateOutTweenCallback)
+		end
+		
+		tweener.AutoDestroy = true
+		tweener:Play()
+		
+		self.Tweener = tweener
+	end
+
+	@ExecSpace("ClientOnly")
+	method void AnimateFadingTweenFunc(number t)
+		if not isvalid(self) then
+			return
+		end
+		
+		local gridView = self.GridView
+		if not isvalid(gridView) then
+			return
+		end
+		
+		local canvasGroupComp = gridView.CanvasGroupComponent
+		if not isvalid(canvasGroupComp) then
+			return
+		end
+		
+		canvasGroupComp.GroupAlpha = t
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetCanvasInteractable(boolean isInteractable)
+		local gridView = self.GridView
+		
+		local canvasGroupComp = gridView.CanvasGroupComponent
+		if canvasGroupComp == nil then
+			canvasGroupComp = gridView:AddComponent(CanvasGroupComponent)
+		end
+		
+		canvasGroupComp.Interactable = isInteractable
+		canvasGroupComp.BlocksRaycasts = isInteractable
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetBtnIconFlipY(boolean filpY)
+		local btnIcon = self.Btn:GetChildByName("Img_Icon")
+		if btnIcon ~= nil then
+			btnIcon.SpriteGUIRendererComponent.FlipY = filpY
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetGridViewPosition()
+		local gridView = self.GridView
+		local transform = gridView.UITransformComponent
+		transform.RectSize.y = self.GridViewHeight
+		
+		local direction = self.DropdownDirection
+		local btnHeight = self.Btn.UITransformComponent.RectSize.y
+		if direction == _UIDropdownDirectionEnum.TOP then
+			transform.Pivot = FastVector2(0.5, 0)
+			transform.anchoredPosition.y = btnHeight / 2
+		elseif direction == _UIDropdownDirectionEnum.CENTER then
+			transform.Pivot = FastVector2(0.5, 0.5)
+			transform.anchoredPosition.y = 0
+		else
+			transform.Pivot = FastVector2(0.5, 1)
+			transform.anchoredPosition.y = -btnHeight / 2
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetOutlinePosition()
+		local outline = self.Outline
+		if outline == nil then
+			return
+		end
+		
+		local outlineWidth = 3
+		local btnHeight = self.Btn.UITransformComponent.RectSize.y
+		local outlineTransform = outline.UITransformComponent
+		outlineTransform.RectSize.y = self.GridViewHeight + btnHeight + outlineWidth * 2
+		
+		local direction = self.DropdownDirection
+		if direction == _UIDropdownDirectionEnum.TOP then
+			outlineTransform.Pivot = FastVector2(0.5, 0)
+			outlineTransform.anchoredPosition.y = - btnHeight / 2 - outlineWidth
+		elseif direction == _UIDropdownDirectionEnum.CENTER then
+			outlineTransform.Pivot = FastVector2(0.5, 0.5)
+			outlineTransform.anchoredPosition.y = 0
+			outlineTransform.RectSize.y -= btnHeight
+		else
+			outlineTransform.Pivot = FastVector2(0.5, 1)
+			outlineTransform.anchoredPosition.y = btnHeight / 2 + outlineWidth
+		end
+	end
+
+end

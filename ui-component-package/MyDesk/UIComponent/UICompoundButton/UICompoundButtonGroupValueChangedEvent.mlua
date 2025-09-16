@@ -1,0 +1,6 @@
+@Event
+script UICompoundButtonGroupValueChangedEvent extends EventType
+
+	property Entity Entity = nil
+
+end

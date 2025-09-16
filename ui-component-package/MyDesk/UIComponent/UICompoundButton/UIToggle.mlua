@@ -1,0 +1,166 @@
+@Component
+script UIToggle extends UICompoundButton
+
+	@Description("Frame sprite component")
+	property SpriteGUIRendererComponent Frame = nil
+
+	@Description("Outline sprite component")
+	property SpriteGUIRendererComponent Outline = nil
+
+	@Description("Frame color when active")
+	property Color FrameActiveColor = Color(1,1,1,1)
+
+	@Description("Frame color when inactive")
+	property Color FrameDeactiveColor = Color(1,1,1,1)
+
+	@Description("Outline color when active")
+	property Color OutlineActiveColor = Color(1,1,1,1)
+
+	@Description("Outline color when inactive")
+	property Color OutlineDeactiveColor = Color(1,1,1,1)
+
+	@Description("Label color when active")
+	property Color LabelActiveColor = Color(1,1,1,1)
+
+	@Description("Label color when inactive")
+	property Color LabelDeactiveColor = Color(1,1,1,1)
+
+	@Description("Animation tweener")
+	@HideFromInspector
+	property any Tweener = nil
+
+	@ExecSpace("ClientOnly")
+	method void UpdateVisualState(boolean animate)
+		__base:UpdateVisualState(animate)
+		
+		if animate and self.UseAnimation then
+			self:AnimateToggle(self.IsOn)
+		else
+			self:SetToggle(self.IsOn)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void AnimateToggle(boolean isOn)
+		---@type Tweener
+		local tweener = self.Tweener
+		if isvalid(tweener) and tweener.IsPlaying then
+			tweener:Complete()
+		end
+		
+		local duration = self.AnimationDuration
+		if isOn then
+			tweener = _TweenLogic:MakeTween(0, 1, duration, EaseType.Linear, self.ToggleTweenFunc)
+		else
+			tweener = _TweenLogic:MakeTween(1, 0, duration, EaseType.Linear, self.ToggleTweenFunc)
+		end
+		
+		tweener:SetOnEndCallback(self.ToggleTweenCallback)
+		tweener.AutoDestroy = true
+		tweener:Play()
+		
+		self.Tweener = tweener
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ToggleTweenFunc(number t)
+		if not isvalid(self) or not isvalid(self.Entity) then
+			return
+		end
+		
+		self:ToggleTweenFrame(t)
+		self:ToggleTweenOutline(t)
+		self:ToggleTweenLabel(t)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ToggleTweenFrame(number t)
+		local frame = self.Frame
+		if not isvalid(frame) then
+			return
+		end
+		
+		local targetColor = Color.Lerp(self.FrameDeactiveColor, self.FrameActiveColor, t)
+		if not self.Interactable then
+			targetColor = self:GetDisabledColor(targetColor)
+		end
+		
+		frame.Color = targetColor
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ToggleTweenOutline(number t)
+		local outline = self.Outline
+		if isvalid(outline) then
+			local targetColor = Color.Lerp(self.OutlineDeactiveColor, self.OutlineActiveColor, t)
+			if not self.Interactable then
+				targetColor = self:GetDisabledColor(targetColor)
+			end
+			outline.Color = targetColor
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ToggleTweenLabel(number t)
+		local label = self.Label
+		if not isvalid(label) then
+			return
+		end
+		
+		local targetColor = Color.Lerp(self.LabelDeactiveColor, self.LabelActiveColor, t)
+		if not self.Interactable then
+			targetColor = self:GetDisabledColor(targetColor)
+		end
+		
+		label.FontColor = targetColor 
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ToggleTweenCallback()
+		if isvalid(self) then
+			self.Tweener = nil
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetToggle(boolean isOn)
+		---@type Tweener
+		local tweener = self.Tweener
+		if isvalid(tweener) then
+			tweener:Complete()
+		end
+		
+		if isOn then
+			self:ToggleTweenFunc(1)
+		else
+			self:ToggleTweenFunc(0)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetStyle(string styleName)
+		self:SetStyleByStruct(_UICompoundButtonStyleLogic:GetToggleStyle(styleName))
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetStyleByStruct(UIToggleStyleStruct styleStruct)
+		if styleStruct == nil then
+			log_warning("Cannot assign nil to a StyleStruct.")
+			return
+		end
+		
+		self.UseAnimation = styleStruct.UseAnimation
+		self.AnimationDuration = styleStruct.AnimationDuration
+		self.SoundRUID = styleStruct.SoundRUID
+		self.SoundVolume = styleStruct.SoundVolume
+		self.DisabledAlphaValue = styleStruct.DisabledAlphaValue
+		
+		self.FrameActiveColor = styleStruct.FrameActiveColor
+		self.FrameDeactiveColor = styleStruct.FrameDeactiveColor
+		self.OutlineActiveColor = styleStruct.OutlineActiveColor
+		self.OutlineDeactiveColor = styleStruct.OutlineDeactiveColor
+		self.LabelActiveColor = styleStruct.LabelActiveColor
+		self.LabelDeactiveColor = styleStruct.LabelDeactiveColor
+	end
+
+end

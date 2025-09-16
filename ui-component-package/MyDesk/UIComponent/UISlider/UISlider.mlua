@@ -1,0 +1,137 @@
+@Component
+script UISlider extends Component
+
+	@Description("Slider component reference")
+	property SliderComponent Slider = nil
+
+	@Description("Text component for value display")
+	property TextComponent Text = nil
+
+	@Description("Apply multiplier to slider value")
+	property boolean UseMultiplier = false
+
+	@Description("Multiplier value")
+	property number Multiplier = 1
+
+	@Description("Decimal places to display")
+	property integer RenderPrecision = 1
+
+	@Description("Suffix string for display")
+	property string RenderPostfixStr = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		
+		local slider = self.Slider
+		if slider == nil then
+			local sliderEntity = entity:GetChildByName("Slider")
+			if sliderEntity ~= nil then
+				slider = sliderEntity.SliderComponent
+				self.Slider = slider	
+			end
+		end
+		
+		local text = self.Text
+		if text == nil then
+			local textEntity = entity:GetChildByName("Text")
+			if textEntity ~= nil then
+				text = textEntity.TextComponent
+				self.Text = text	
+			end
+		end
+		
+		if text ~= nil and slider ~= nil then
+			slider.Entity:ConnectEvent(SliderValueChangedEvent, self.OnSliderValueChanged)
+		end
+		
+		self:UpdateText()
+	end
+
+	@ExecSpace("ClientOnly")
+	method number GetValue()
+		local value = self.Slider.Value
+		
+		if self.UseMultiplier then
+			return value * self.Multiplier
+		end
+		
+		return value
+	end
+
+	@ExecSpace("ClientOnly")
+	method number GetPrecisionValue(integer precision)
+		local value = self.Slider.Value
+		
+		if self.UseMultiplier then
+			value *= self.Multiplier
+		end
+		
+		return self:RoundValue(value, precision)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void UpdateText()
+		local slider = self.Slider
+		local text = self.Text
+		
+		if slider == nil or text == nil then
+			return
+		end
+		
+		local value = self:GetValue()
+		local precision = self.RenderPrecision
+		local roundedValue = self:RoundValue(value, precision)
+		
+		local resultText = string.format("%." .. precision .. "f", roundedValue)
+		
+		local postfixStr = self.RenderPostfixStr
+		if not _Util:IsNilorEmptyString(postfixStr) then
+			resultText = resultText .. postfixStr
+		end
+		
+		text.Text = resultText
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnSliderValueChanged(SliderValueChangedEvent evt)
+		self:UpdateText()
+	end
+
+	@ExecSpace("ClientOnly")
+	method number RoundValue(number value, integer precision)
+		local multiplier = 10 ^ precision
+		return math.floor(value * multiplier + 0.5) / multiplier
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetValue(number value)
+		local slider = self.Slider
+		if slider == nil then
+			return
+		end
+		
+		slider.Value = value
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetMinMaxValue(number min, number max)
+		local slider = self.Slider
+		if slider == nil then
+			return
+		end
+		
+		if min > max then
+			return
+		end
+		
+		if min > slider.MaxValue then
+			slider.MaxValue = max
+			slider.MinValue = min
+		else
+			slider.MinValue = max
+			slider.MaxValue = max
+		end
+	end
+
+end

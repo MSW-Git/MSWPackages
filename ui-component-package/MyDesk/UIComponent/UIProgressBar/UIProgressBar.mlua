@@ -1,0 +1,142 @@
+@Component
+script UIProgressBar extends Component
+
+	@Description("Value image component")
+	property SpriteGUIRendererComponent Img_Value = nil
+
+	@Description("Background value image component")
+	property SpriteGUIRendererComponent Img_BackValue = nil
+
+	@Description("Text component")
+	property TextComponent Text = nil
+
+	@Description("Current value")
+	property number Value = 0
+	
+	@Description("Maximum value")
+	property number MaxValue = 100
+
+	@Description("Render precision")
+	property integer RenderPrecision = 0
+
+	@Description("Text display format: 0=Percent(%), 1=Current/Max, 2=Current only")
+	property integer RenderTextType = 0
+
+	@Description("Use animation")
+	property boolean UseAnimation = false
+
+	@Description("Animation duration")
+	property number AnimationDuration = 0.2
+
+	@Description("Animation tweener")
+	property any Tweener = nil
+
+	@HideFromInspector
+	property boolean IsInitialized = false
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		self:Init()
+	end
+	
+	@ExecSpace("ClientOnly")
+	method boolean Init()
+		if self.IsInitialized then
+			return false
+		end
+		self.IsInitialized = true
+		
+		local entity = self.Entity
+		
+		if self.Img_Value == nil then
+			local child = entity:GetChildByName("Img_Value")
+			if child ~= nil then
+				self.Img_Value = child.SpriteGUIRendererComponent
+			end
+		end
+		
+		if self.Img_BackValue == nil then
+			local child = entity:GetChildByName("Img_BackValue")
+			if child ~= nil then
+				self.Img_BackValue = child.SpriteGUIRendererComponent
+			end
+		end
+		
+		if self.Text == nil then
+			local child = entity:GetChildByName("Text")
+			if child ~= nil then
+				self.Text = child.TextComponent
+			end
+		end
+		
+		self:UpdateImage()
+		self:UpdateText()
+
+		return true
+	end
+
+	@ExecSpace("ClientOnly")
+	method number GetPrecisionValue(integer precision)
+		return self:RoundValue(self.Value, precision)
+	end
+
+	@ExecSpace("ClientOnly")
+	method number GetPercentValue()
+		return math.clamp(self.Value / self.MaxValue, 0, 1)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetValue(number value)
+		self.Value = value
+		
+		self:UpdateImage()
+		self:UpdateText()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void UpdateImage()
+		-- override & implement this function
+	end
+
+	@ExecSpace("ClientOnly")
+	method void UpdateText()
+		local img_value = self.Img_Value
+		local text = self.Text
+		
+		if img_value == nil or text == nil then
+			return
+		end
+		
+		local value = self.Value
+		local maxValue = self.MaxValue
+		local precision = self.RenderPrecision
+		local roundedValue = self:RoundValue(value, precision)
+		
+		local resultText = nil
+		local renderTextType = self.RenderTextType
+		if renderTextType == 1 then
+			-- "0 / 1"
+			local fmt = string.format("%%.%df / %%.%df", precision, precision)
+			local roundedMaxValue = self:RoundValue(maxValue, precision)
+			resultText = string.format(fmt, roundedValue, roundedMaxValue)
+		elseif renderTextType == 2 then
+			-- "0"
+			local fmt = string.format("%%.%df", precision)
+			resultText = string.format(fmt, roundedValue)
+		else
+			-- "0%"
+			local percent = self:RoundValue(value / maxValue, precision)
+			local fmt = string.format("%%.%df%%%%", precision)
+			resultText = string.format(fmt, roundedValue)
+		end
+		 
+		text.Text = resultText
+	end
+
+	@ExecSpace("ClientOnly")
+	method number RoundValue(number value, integer precision)
+		local multiplier = 10 ^ precision
+		return math.floor(value * multiplier + 0.5) / multiplier
+	end
+
+end

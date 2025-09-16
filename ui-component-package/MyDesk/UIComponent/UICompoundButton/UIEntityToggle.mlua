@@ -1,0 +1,71 @@
+@Component
+script UIEntityToggle extends UICompoundButton
+	
+	@Description("Button component for on state")
+	property ButtonComponent OnStateButton = nil
+	
+	@Description("Button component for off state")
+	property ButtonComponent OffStateButton = nil
+	
+	@ExecSpace("ClientOnly")
+	method void SetupComponents()
+		-- do nothing
+	end
+	
+	@ExecSpace("ClientOnly")
+	method void SetupEvents()
+		-- Connect click event
+		-- Connect button state change events
+		local onStateButton = self.OnStateButton
+		local offStateButton = self.OffStateButton
+		
+		if isvalid(onStateButton) then
+			onStateButton.Entity:ConnectEvent(ButtonClickEvent, self.OnClick)
+			onStateButton.Entity:ConnectEvent(ButtonStateChangeEvent, self.OnButtonStateChanged)
+		end
+		
+		if isvalid(offStateButton) then
+			offStateButton.Entity:ConnectEvent(ButtonClickEvent, self.OnClick)
+			offStateButton.Entity:ConnectEvent(ButtonStateChangeEvent, self.OnButtonStateChanged)
+		end
+	end
+	
+	@ExecSpace("ClientOnly")
+	method void UpdateVisualState(boolean animate)
+		__base:UpdateVisualState(animate)
+		
+		self:UpdateToggleVisualState(self.IsOn)
+	end
+	
+	@ExecSpace("ClientOnly")
+	method void UpdateToggleVisualState(boolean isOn)
+		local onStateButton = self.OnStateButton
+		if isvalid(onStateButton) then
+			onStateButton.Entity.Enable = isOn
+		end
+		
+		local offStateButton = self.OffStateButton
+		if isvalid(offStateButton) then
+			offStateButton.Entity.Enable = not isOn
+		end
+	end
+	
+	@ExecSpace("ClientOnly")
+	method void SetInteractable(boolean interactable)
+		self.Interactable = interactable
+		
+		local onStateButton = self.OnStateButton
+		if isvalid(onStateButton) then
+			onStateButton.Enable = interactable
+		end
+		
+		local offStateButton = self.OffStateButton
+		if isvalid(offStateButton) then
+			offStateButton.Enable = interactable
+		end
+		
+		-- Update visual state to show disabled state
+		self:UpdateVisualState(false)
+	end
+	
+end

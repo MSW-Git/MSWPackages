@@ -1,0 +1,301 @@
+@Component
+script UIPagination extends Component
+
+	@Description("First page button")
+	property Entity First = nil
+
+	@Description("Last page button")
+	property Entity Last = nil
+
+	@Description("Previous page button")
+	property Entity Prev = nil
+
+	@Description("Next page button")
+	property Entity Next = nil
+
+	@Description("Current page number")
+	property integer CurrentPage = 1
+
+	@Description("Total page count")
+	property integer TotalPages = 1
+
+	@Description("Scroll layout container")
+	property Entity ScrollLayout = nil
+
+	@Description("Page item template")
+	property Entity Item = nil
+
+	@Description("Pagination item entities")
+	property table PaginationItems = {}
+
+	@HideFromInspector
+	property boolean IsInitialized = false
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		self:Init()
+	end
+
+	@ExecSpace("ClientOnly")
+	method boolean Init()
+		if self.IsInitialized then
+			return false
+		end
+		self.IsInitialized = true
+		
+		self:InitBasicButtons()
+		
+		local entity = self.Entity
+		
+		self.ScrollLayout = entity:GetChildByName("ScrollLayout")
+		self.ScrollLayout.Enable = true
+		
+		self.Item = entity:GetChildByName("Item")
+		self.Item.Enable = false
+		
+		-- Update initial state
+		self:UpdatePagination()
+		
+		-- Test Code
+		--[[
+		self.Entity:ConnectEvent(UIPaginationItemClickedEvent, function(evt)
+			self:SetPage(evt.PageNumber)
+		end)
+		]]
+		
+		return true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void InitBasicButtons()
+		local entity = self.Entity
+		
+		local first = self.First
+		if first == nil then
+			first = entity:GetChildByName("First")
+			self.First = first
+		end
+		
+		if first ~= nil then
+			first:ConnectEvent(ButtonClickEvent, self.OnFirstClick)
+		end
+		
+		local last = self.Last
+		if last == nil then
+			last = entity:GetChildByName("Last")
+			self.Last = last
+		end
+		
+		if last ~= nil then
+			last:ConnectEvent(ButtonClickEvent, self.OnLastClick)
+		end
+		
+		local prev = self.Prev
+		if prev == nil then
+			prev = entity:GetChildByName("Prev")
+			self.Prev = prev
+		end
+		
+		if prev ~= nil then
+			prev:ConnectEvent(ButtonClickEvent, self.OnPrevClick)
+		end
+		
+		local next = self.Next
+		if next == nil then
+			next = entity:GetChildByName("Next")
+			self.Next = next
+		end
+		
+		if next ~= nil then
+			next:ConnectEvent(ButtonClickEvent, self.OnNextClick)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetPage(integer pageNumber)
+		if pageNumber < 1 or pageNumber > self.TotalPages then
+			return
+		end
+		
+		if pageNumber ~= self.CurrentPage then
+			self.CurrentPage = pageNumber
+			self:UpdatePagination()
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetTotalPages(integer totalPages)
+		if totalPages < 1 then
+			return
+		end
+		
+		self.TotalPages = totalPages
+		if self.CurrentPage > totalPages then
+			self.CurrentPage = totalPages
+		end
+		self:UpdatePagination()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetPageAndTotalPages(integer pageNumber, integer totalPages)
+		
+		if pageNumber < 1 or totalPages < 1 then
+			return
+		end
+		
+		if pageNumber > totalPages then
+			return
+		end
+		
+		self.TotalPages = totalPages
+		self.CurrentPage = pageNumber
+		self:UpdatePagination()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnFirstClick()
+		self:SetPage(1)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnLastClick()
+		self:SetPage(self.TotalPages)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnPrevClick()
+		local newPage = self.CurrentPage - 1
+		if newPage >= 1 then
+			self:SetPage(newPage)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnNextClick()
+		local newPage = self.CurrentPage + 1
+		if newPage <= self.TotalPages then
+			self:SetPage(newPage)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnPaginationItemClick(UIPaginationItem item)
+		self:SendItemClickedEvent(item.PageNumber)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void UpdatePagination()
+		-- Update button enable/disable states
+		self:UpdateButtonStates()
+		
+		-- Update page number buttons (implemented in subclasses)
+		self:UpdatePageNumberButtons()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void UpdateButtonStates()
+		local currentPage = self.CurrentPage
+		local totalPages = self.TotalPages
+		
+		local first = self.First
+		if first ~= nil then
+			self:SetButtonInteractable(first, (currentPage > 1))
+		end
+		
+		local last = self.Last
+		if last ~= nil then
+			self:SetButtonInteractable(last, (currentPage < totalPages))
+		end
+		
+		local prev = self.Prev
+		if prev ~= nil then
+			self:SetButtonInteractable(prev, (currentPage > 1))
+		end
+		
+		local next = self.Next
+		if next ~= nil then
+			self:SetButtonInteractable(next, (currentPage < totalPages))
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void UpdatePageNumberButtons()
+		-- Default implementation: hide all page items
+		local pagenationItems = self.PaginationItems
+		for i = 1, #pagenationItems do
+			local item = pagenationItems[i]
+			if item ~= nil then
+				item.Enable = false
+			end
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetButtonInteractable(Entity entity, boolean interactable)
+		if entity == nil then
+			return
+		end
+		
+		local buttonComp = entity.ButtonComponent
+		if buttonComp ~= nil then
+			buttonComp.Enable = interactable
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method Entity GetItem(integer index)
+		local items = self.PaginationItems
+		return items[index]
+	end
+
+	@ExecSpace("ClientOnly")
+	method Entity GetSelectedItem()
+		local item = self:GetItemByPageNumber(self.CurrentPage)
+		return item
+	end
+
+	@ExecSpace("ClientOnly")
+	method Entity GetItemByPageNumber(integer pageNumber)
+		---@type table<Entity>
+		local items = self.PaginationItems
+		for i = 1, #items do
+			local item = items[i]
+			if item == nil or item.Enable == false then
+				continue
+			end
+			
+			local comp = item.UIPaginationItem
+			if comp == nil then
+				continue
+			end
+			
+			if comp.Ellipsis then
+				continue
+			end
+			
+			if comp.PageNumber == pageNumber then
+				return item
+			end
+		end
+		
+		return nil
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SendItemClickedEvent(integer pageNumber)
+		local event = UIPaginationItemClickedEvent()
+		event.PageNumber = pageNumber
+		self.Entity:SendEvent(event)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ResizeUI()
+		-- override in subclass
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ResizeScrollLayout()
+		-- override in subclass
+	end
+
+end

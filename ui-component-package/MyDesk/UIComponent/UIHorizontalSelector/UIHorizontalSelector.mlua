@@ -1,0 +1,381 @@
+@Component
+script UIHorizontalSelector extends Component
+	
+	@Description("Text component")
+	property TextComponent Text = nil
+	
+	@Description("Scroll layout")
+	property Entity ScrollLayout = nil
+	
+	@Description("Item template")
+	property Entity Item = nil
+	
+	@Description("Previous button")
+	property Entity Btn_Prev = nil
+	
+	@Description("Next button")
+	property Entity Btn_Next = nil
+	
+	@Description("Loop selection")
+	property boolean IsLoop = false
+	
+	@Description("Use indicator")
+	property boolean UseIndicator = true
+	
+	@Description("Selected indicator color")
+	property Color IndicatorSelectColor = Color(0, 0, 0, 0)
+	
+	@Description("Deselected indicator color")
+	property Color IndicatorDeselectColor = Color(0, 0, 0, 0)
+	
+	@Description("Selected index")
+	@HideFromInspector
+	property integer SelectedIndex = 0
+	
+	@Description("String list")
+	@HideFromInspector
+	property table StringList = {}
+	
+	@Description("Use animation")
+	property boolean UseAnimation = false
+	
+	@Description("Animation duration")
+	property number AnimationDuration = 0.2
+	
+	@Description("Animation tweener")
+	@HideFromInspector
+	property any Tweener = nil
+	
+	@Description("Text update flag")
+	@HideFromInspector
+	property boolean IsTextUpdatedInAnim = false
+	
+	@HideFromInspector
+	property boolean IsInitialized = false
+	
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		self:Init()
+	end
+	
+	@ExecSpace("ClientOnly")
+	method void Init()
+		if self.IsInitialized then
+			return
+		end
+		self.IsInitialized = true
+		
+		local entity = self.Entity
+		
+		if self.Text == nil then
+			self.Text = entity:GetChildByName("Text").TextComponent
+		end
+		
+		local scrollLayout = self.ScrollLayout
+		if scrollLayout == nil then
+			scrollLayout = entity:GetChildByName("ScrollLayout")
+			self.ScrollLayout = scrollLayout
+		end
+		
+		scrollLayout.Visible = self.UseIndicator
+		
+		if self.Item == nil then
+			self.Item = entity:GetChildByName("Item")
+		end
+		
+		self.Item.Enable = false
+		
+		local btnPrev = self.Btn_Prev
+		if btnPrev == nil then
+			btnPrev = entity:GetChildByName("Btn_Prev")
+			self.Btn_Prev = btnPrev
+		end
+		
+		if btnPrev ~= nil then
+			btnPrev:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Prev)
+		end
+		
+		local btnNext = self.Btn_Next
+		if btnNext == nil then
+			btnNext = entity:GetChildByName("Btn_Next")
+			self.Btn_Next = btnNext
+		end
+		
+		if btnNext ~= nil then
+			btnNext:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Next)
+		end
+	end
+	
+	@ExecSpace("ClientOnly")
+	method void SetStringList(table stringList)
+		self:Clear()
+		
+		self.StringList = stringList
+		if stringList == nil then
+			return
+		end
+		
+		local scrollLayout = self.ScrollLayout
+		local children = scrollLayout.Children
+		
+		local originalItem = self.Item
+		local i = 1
+		for i = 1, #stringList do
+			local item = children[i]
+			if item == nil then
+				item = _SpawnService:SpawnByEntity(originalItem, "Item" .. tostring(i), Vector3.zero, scrollLayout)
+			end
+			item.SpriteGUIRendererComponent.Color = self.IndicatorDeselectColor
+			item.Enable = true
+		end
+		
+		self:SetSelectedIndex(1, false)
+	end
+	
+	@ExecSpace("ClientOnly")
+	method void SetUseIndicator(boolean use)
+		self.UseIndicator = use
+		self.ScrollLayout.Visible = use
+	end
+	
+	@ExecSpace("ClientOnly")
+	method void Prev()
+		-- Do not allow button clicks while a tweener is playing.
+		if self.Tweener then
+			return
+		end
+		
+		local stringList = self.StringList
+		if stringList == nil then
+			return
+		end
+		
+		local index = self.SelectedIndex - 1
+		if index <= 0 then
+			if not self.IsLoop then
+				return
+			end
+			
+			index = #stringList
+		end
+		
+		self:SetSelectedIndex(index, self.UseAnimation)
+	end
+	
+	@ExecSpace("ClientOnly")
+	method void Next()
+		-- Do not allow button clicks while a tweener is playing.
+		if self.Tweener then
+			return
+		end
+		
+		local stringList = self.StringList
+		if stringList == nil then
+			return
+		end
+		
+		local index = self.SelectedIndex + 1
+		if index > #stringList then
+			if not self.IsLoop then
+				return
+			end
+			
+			index = 1
+		end
+		
+		self:SetSelectedIndex(index, self.UseAnimation)
+	end
+	
+	@ExecSpace("ClientOnly")
+	method void SetSelectedIndex(integer index, boolean useAnim)
+		local stringList = self.StringList
+		if stringList == nil then
+			return
+		end
+		
+		if index <= 0 or index > #stringList then
+			return
+		end
+		
+		local prevIndex = self.SelectedIndex
+		if prevIndex == index then
+			return
+		end
+		
+		local children = self.ScrollLayout.Children
+		if prevIndex > 0 and prevIndex <= #children then
+			local selectedItem = children[prevIndex]
+			if selectedItem then
+				selectedItem.SpriteGUIRendererComponent.Color = self.IndicatorDeselectColor
+			end
+		end
+		
+		self.SelectedIndex = index
+		if index > 0 and index <= #children then
+			local selectedItem = children[index]
+			if selectedItem then
+				selectedItem.SpriteGUIRendererComponent.Color = self.IndicatorSelectColor
+			end
+		end
+		
+		local str = self:GetString()
+		if not useAnim then
+			self.Text.Text = str
+		else
+			local isMoveLeft = self:IsMoveLeft(prevIndex, index)
+			self:SetTextAnimated(str, isMoveLeft)
+		end
+		
+		local evt = UIHorizontalSelectorIndexChangedEvent()
+		evt.Index = index
+		self.Entity:SendEvent(evt)
+	end
+	
+	@ExecSpace("ClientOnly")
+	method boolean IsMoveLeft(integer prevIndex, integer index)
+		local count = #self.StringList
+		local isMoveLeft = prevIndex > index
+		
+		if self.IsLoop then
+			if prevIndex == 1 and index == count then
+				isMoveLeft = true
+			elseif prevIndex == count and index == 1 then
+				isMoveLeft = false
+			end
+		end
+		
+		return isMoveLeft
+	end
+	
+	@ExecSpace("ClientOnly")
+	method void SetTextAnimated(string str, boolean isMoveLeft)
+		---@type Tweener
+		local tweener = self.Tweener
+		if isvalid(tweener) and tweener.IsPlaying then
+			tweener:Complete()
+		end
+		
+		if isMoveLeft then
+			tweener = _TweenLogic:MakeTween(0, 1, self.AnimationDuration, EaseType.Linear, self.TextTweenLeftFunc)
+		else
+			tweener = _TweenLogic:MakeTween(0, 1, self.AnimationDuration, EaseType.Linear, self.TextTweenRightFunc)
+		end
+		
+		tweener:SetOnEndCallback(self.TextTweenCallback)
+		tweener.AutoDestroy = true
+		tweener:Play()
+		
+		self.Tweener = tweener
+	end
+	
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Prev()
+		self:Prev()
+	end
+	
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Next()
+		self:Next()
+	end
+	
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		self.SelectedIndex = 0
+		self.StringList = nil
+		self.Text.Text = ""
+		
+		local scrollLayout = self.ScrollLayout
+		local children = scrollLayout.Children
+		for i = 1, #children do
+			local item = children[i]
+			item.Enable = false
+		end
+		
+		---@type Tweener
+		local tweener = self.Tweener
+		if isvalid(tweener) then
+			tweener:Complete()
+		end
+		self.Tweener = nil
+		self.IsTextUpdatedInAnim = false
+	end
+	
+	@ExecSpace("ClientOnly")
+	method void TextTweenLeftFunc(number t)
+		if not isvalid(self) or not isvalid(self.Entity) then
+			return
+		end
+		
+		local text = self.Text
+		if not isvalid(text) then
+			return
+		end
+		
+		local moveDist = 150
+		local anchoredPosX = -moveDist * t
+		if t > 0.5 then
+			anchoredPosX += moveDist
+		end
+		text.Entity.UITransformComponent.anchoredPosition.x = anchoredPosX
+		
+		local alpha = math.abs(1 - 2 * t)
+		text.FontColor.a = alpha
+		
+		if t > 0.5 and self.IsTextUpdatedInAnim == false then
+			text.Text = self:GetString()
+			self.IsTextUpdatedInAnim = true
+		end
+	end
+	
+	@ExecSpace("ClientOnly")
+	method void TextTweenRightFunc(number t)
+		if not isvalid(self) or not isvalid(self.Entity) then
+			return
+		end
+		
+		local text = self.Text
+		if not isvalid(text) then
+			return
+		end
+		
+		local moveDist = 150
+		local anchoredPosX = moveDist * t
+		if t > 0.5 then
+			anchoredPosX -= moveDist
+		end
+		text.Entity.UITransformComponent.anchoredPosition.x = anchoredPosX
+		
+		local alpha = math.abs(1 - 2 * t)
+		text.FontColor.a = alpha
+		
+		if t > 0.5 and self.IsTextUpdatedInAnim == false then
+			text.Text = self:GetString()
+			self.IsTextUpdatedInAnim = true
+		end
+	end
+	
+	@ExecSpace("ClientOnly")
+	method void TextTweenCallback()
+		if isvalid(self) then
+			self.Tweener = nil
+			self.IsTextUpdatedInAnim = false
+		end
+	end
+	
+	@ExecSpace("ClientOnly")
+	method string GetString()
+		local stringList = self.StringList
+		if stringList == nil then
+			return ""
+		end
+		
+		local index = self.SelectedIndex
+		local str = stringList[index]
+		if str == nil then
+			str = "Selected Item " .. tostring(index)
+		end
+		
+		return str
+	end
+	
+end

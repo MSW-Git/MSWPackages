@@ -1,0 +1,747 @@
+@Component
+script UIScrollPicker extends Component
+
+	@Description("Viewport entity")
+	property Entity Viewport = nil
+
+	@Description("Item entity template")
+	property Entity Item = nil
+
+	@Description("Loop mode (true: 99->100->1->2, false: 1->2->3...)")
+	property boolean IsLoop = true
+
+	@Description("Drag sensitivity")
+	property number DragSensitivity = 1
+
+	@Description("Use inertia")
+	property boolean UseInertia = true
+
+	@Description("Inertia ease type (0: QuadEaseOut, 1: Linear)")
+	property integer IneritaEaseType = 0
+
+	@Description("Inertia distance factor")
+	property number InertiaDistFactor = 10
+
+	@Description("Inertia duration factor")
+	property number IneritaDurationFactor = 2
+
+	@Description("Inertia max distance")
+	property integer IneritaMaxDist = 1600
+
+	@Description("Selected text color")
+	property Color SelectedTextColor = Color(0,0,0,1)
+
+	@Description("Deselected text color")
+	property Color DeselectedTextColor = Color(0,0,0,1)
+
+	@Description("Text refresh callback")
+	property any OnRefreshText = nil
+
+	@Description("Viewport size")
+	@HideFromInspector
+	property Vector2 ViewportSize = Vector2(0, 0)
+
+	@Description("Item size")
+	@HideFromInspector
+	property Vector2 ItemSize = Vector2(0, 0)
+
+	@Description("Item entities")
+	@HideFromInspector
+	property table ItemEntities = {}
+
+	@Description("Current value")
+	@HideFromInspector
+	property any CurrentValue = nil
+
+	@Description("Current value index")
+	@HideFromInspector
+	property integer CurrentValueIndex = 0
+
+	@Description("Current item index")
+	@HideFromInspector
+	property integer CurrentItemIndex = 0
+
+	@Description("Visible item count")
+	@HideFromInspector
+	property integer VisibleItemCount = 0
+
+	@Description("Is pressed flag")
+	@HideFromInspector
+	property boolean IsPressed = false
+
+	@Description("Is pointer over flag")
+	@HideFromInspector
+	property boolean IsPointerOver = false
+
+	@Description("Previous touch position")
+	@HideFromInspector
+	property Vector2 PreviousTouchPosition = Vector2(0,0)
+
+	@Description("First touch position")
+	@HideFromInspector
+	property Vector2 FirstTouchPosition = Vector2(0,0)
+
+	@Description("Inertia previous value")
+	@HideFromInspector
+	property number IneritaPrevValue = 0
+
+	@Description("Animation tweener")
+	@HideFromInspector
+	property any Tweener = nil
+
+	@HideFromInspector
+	property boolean IsValid = false
+
+	@HideFromInspector
+	property boolean IsInitialized = false
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		self:Init()
+	end
+
+	@ExecSpace("ClientOnly")
+	method boolean Init()
+		if self.IsInitialized then
+			return false
+		end
+		self.IsInitialized = true
+		
+		self:InitProperties()
+		self:InitItemEntities()
+		return true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void InitProperties()
+		local entity = self.Entity
+		
+		local viewport = self.Viewport
+		if viewport == nil then
+			viewport = entity:GetChildByName("Viewport")
+			self.Viewport = viewport
+		end
+		
+		local item = self.Item
+		if item == nil then
+			item = entity:GetChildByName("Item")
+			self.Item = item
+		end
+		
+		if viewport == nil or item == nil then
+			return
+		end
+		
+		local itemTransform = item.UITransformComponent
+		itemTransform.AlignmentOption = AlignmentType.Center
+		itemTransform.Pivot = Vector2(0.5, 0.5)
+		item.Enable = false
+		
+		local viewportRect = viewport.UITransformComponent.RectSize
+		self.ViewportSize = Vector2(viewportRect.x, viewportRect.y)
+		
+		local itemRect = itemTransform.RectSize
+		self.ItemSize = Vector2(itemRect.x, itemRect.y)
+		
+		local visibleCount = math.floor(self.ViewportSize.y / self.ItemSize.y) + 4
+		if visibleCount % 2 == 0 then
+			visibleCount += 1
+		end
+		self.VisibleItemCount = visibleCount
+	end
+
+	@ExecSpace("ClientOnly")
+	method void InitItemEntities()
+		-- Create and initialize item entities for the scroll picker
+		local items = self.ItemEntities
+		local itemSize = self.ItemSize
+		local visibleItemCount = self.VisibleItemCount
+		
+		local posX = 0
+		local posY = itemSize.y * (visibleItemCount // 2)
+		
+		local viewport = self.Viewport
+		local originalItem = self.Item
+		for i = 1, visibleItemCount do
+			local pos = FastVector3(posX, posY, 0)
+			local item = _SpawnService:SpawnByEntity(originalItem, "Item" .. i, pos, viewport)
+			item.UIScrollPickerItem:SetParent(self, i)
+			
+			posY -= itemSize.y
+			table.insert(items, item)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Rebuild()
+		-- Rebuild the scroll picker with current data
+		local dataCount = self:GetDataCount()
+		if dataCount == 0 then
+			self:Clear()
+			return
+		end
+		
+		---@type table<Entity>
+		local items = self.ItemEntities
+		local itemSize = self.ItemSize
+		local viewportSize = self.ViewportSize
+		local visibleItemCount = self.VisibleItemCount
+		
+		local posX = 0
+		local divValue = visibleItemCount // 2
+		local posY = itemSize.y * divValue
+		local index = -divValue + 1
+		
+		local onRefreshText = self.OnRefreshText
+		
+		for i = 1, visibleItemCount do
+			local item = items[i]
+			item.UITransformComponent.Position = FastVector3(posX, posY, 0)
+			 
+			local valueIndex = (index - 1) % dataCount + 1
+			local value = self:GetDataValue(valueIndex)
+			item.UIScrollPickerItem:SetValue(valueIndex, value)
+			
+			if onRefreshText ~= nil then
+				onRefreshText(item)
+			else
+				self:OnRefreshTextDefault(item)
+			end
+			
+			posY -= itemSize.y
+			index += 1
+		end
+		
+		self.CurrentValueIndex = 1
+		self.CurrentItemIndex = divValue + 1
+		self.CurrentValue = self:GetDataValue(1)
+		self.IsValid = true
+		
+		self:UpdateTextAlpha(true)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetValueIndex(integer index, boolean sendCallback)
+		-- Set the selected value by index
+		if not self.IsValid then
+			return
+		end
+		
+		local dist = self:GetDistToValueIndex(index)
+		if dist == nil then
+			return
+		end
+		
+		self:ClearTweener(false)
+		self:DragDist(dist, sendCallback)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void DragDist(number dist, boolean sendCallback)
+		-- Move items by the specified distance
+		if not self.IsValid then
+			return
+		end
+		
+		local itemSizeY = self.ItemSize.y
+		local visibleItemCount = self.VisibleItemCount
+		local dataCount = self:GetDataCount()
+		
+		local len = itemSizeY * visibleItemCount
+		local top = len / 2
+		local bottom = -top
+		
+		---@type table<Entity>
+		local items = self.ItemEntities
+		if not self.IsLoop then
+			local nearestItem = self:GetNearestItem()
+			local nearestPos = nearestItem.UITransformComponent.Position.y
+			local nearestIndex = nearestItem.UIScrollPickerItem.ValueIndex
+			
+			local vari = (dataCount - 1) * itemSizeY
+			local maxDist = (dataCount - nearestIndex) * itemSizeY - nearestPos
+			local minDist = maxDist - vari
+			
+			dist = math.clamp(dist, minDist, maxDist)
+		end
+		
+		local onRefreshText = self.OnRefreshText
+		
+		for i = 1, #items do
+			local item = items[i]
+			local comp = item.UIScrollPickerItem
+			local index = comp.ValueIndex
+			local curPosY = item.UITransformComponent.Position.y
+			
+			local nextPosY = curPosY + dist
+			if nextPosY > top then
+				local loop = (nextPosY - top) // len + 1
+				nextPosY -= len * loop
+				index = index + visibleItemCount * loop
+			elseif nextPosY < bottom then
+				local loop = (bottom - nextPosY) // len + 1
+				nextPosY += len * loop
+				index = index - visibleItemCount * loop
+			end
+			
+			index = (index - 1) % dataCount + 1
+			item.UITransformComponent.Position.y = nextPosY
+			
+			comp:SetValue(index, self:GetDataValue(index))
+			if onRefreshText ~= nil then
+				onRefreshText(item)
+			else
+				self:OnRefreshTextDefault(item)
+			end
+		end
+		
+		local nearestItemComp = self:GetNearestItem().UIScrollPickerItem
+		local currentValueIndex = nearestItemComp.ValueIndex
+		
+		self.CurrentItemIndex = nearestItemComp.ItemIndex
+		
+		local prevValueIndex = self.CurrentValueIndex
+		self.CurrentValueIndex = currentValueIndex
+		
+		local prevValue = self.CurrentValue
+		local value = self:GetDataValue(currentValueIndex)
+		self.CurrentValue = value
+		
+		if sendCallback and prevValue ~= value then
+			local evt = UIScrollPickerValueChangedEvent()
+			evt.PrevIndex = prevValueIndex
+			evt.PrevValue = prevValue
+			evt.Index = currentValueIndex
+			evt.Value = value
+			self.Entity:SendEvent(evt)
+		end
+		
+		self:UpdateTextAlpha(false)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		self.CurrentValue = 0
+		self.CurrentValueIndex = 0
+		self.CurrentItemIndex = 0
+		self.IsValid = false
+	end
+
+	@ExecSpace("ClientOnly")
+	method any GetDataValue(integer index)
+		-- Get data value at specified index (override this function)
+		return nil
+	end
+
+	@ExecSpace("ClientOnly")
+	method integer GetDataCount()
+		-- Get total data count (override this function)
+		return 0
+	end
+
+	@ExecSpace("ClientOnly")
+	method boolean IsValidTouch(integer touchId)
+		-- Check if the touch ID is valid for the current platform
+		if Environment:IsPCPlatform() then
+			if touchId ~= -1 then
+				return false
+			end
+		end
+		
+		return true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void BeginInertia(number scrollDelta)
+		-- Start inertia animation with scroll delta
+		self:BeginInertiaByDist(scrollDelta * self.InertiaDistFactor)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void BeginInertiaByDist(number dist)
+		-- Start inertia animation with distance
+		if not self.IsValid then
+			return
+		end
+		
+		---@type Tweener
+		local tweener = self.Tweener
+		if isvalid(tweener) and tweener.IsPlaying then
+			tweener:Complete()
+		end
+		
+		local easeType = EaseType.QuadEaseOut
+		local ineritaEaseType = self.IneritaEaseType
+		
+		if ineritaEaseType == 1 then
+			easeType = EaseType.CubicEaseOut
+		elseif ineritaEaseType == 2 then
+			easeType = EaseType.QuintEaseOut
+		end
+		
+		local maxDist = self.IneritaMaxDist
+		dist = math.clamp(dist, -maxDist, maxDist)
+		
+		local moveDist = self:GetMoveDist(dist)
+		local duration = math.abs(moveDist) / 1000 * self.IneritaDurationFactor
+		
+		self.IneritaPrevValue = 0
+		tweener = _TweenLogic:MakeTween(0, moveDist, duration, easeType, self.InertiaTweenFunc)
+		tweener:SetOnEndCallback(self.InertiaTweenCallback)
+		tweener.AutoDestroy = true
+		tweener:Play()
+		
+		self.Tweener = tweener
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ClearTweener(boolean complete)
+		-- Clear the current animation tweener
+		---@type Tweener
+		local tweener = self.Tweener
+		if isvalid(tweener) and tweener.IsPlaying then
+			if complete then
+				tweener:Complete()
+			else
+				tweener:Stop()
+				tweener:Destroy()
+			end
+			
+			tweener:Destroy()
+		end
+		
+		self.Tweener = nil
+	end
+
+	@ExecSpace("ClientOnly")
+	method void InertiaTweenFunc(number value)
+		if not isvalid(self) or not isvalid(self.Entity) then
+			return
+		end
+		
+		local prevValue = self.IneritaPrevValue
+		local moveDist = value - prevValue
+		self.IneritaPrevValue = value
+		
+		self:DragDist(moveDist, true)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void InertiaTweenCallback()
+		if isvalid(self) then
+			self.Tweener = nil
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method number GetMoveDist(number dist)
+		-- Calculate the optimal move distance to snap items to center positions.
+		-- This function takes a desired distance and calculates the actual distance needed
+		-- to move the nearest item in the specified direction to the exact center position.
+		-- It ensures that items snap to proper positions rather than stopping at arbitrary points.
+		
+		local isNegativePos = dist > 0
+		-- Get the distance to the nearest item in the movement direction
+		local nearestCenterDist = self:GetClosestDistInDirection(isNegativePos)
+		
+		local absDist = math.abs(dist)
+		local nearestCenterAbsDist = math.abs(nearestCenterDist)
+		
+		local size = self.ItemSize.y
+		-- Calculate how many item positions we need to move past the nearest item
+		-- and add the distance needed to center that item
+		local targetDist = (absDist - nearestCenterAbsDist) // size * size + nearestCenterAbsDist
+		
+		-- Restore the original direction
+		if not isNegativePos then
+			targetDist = -targetDist
+		end
+		
+		return targetDist
+	end
+
+	@ExecSpace("ClientOnly")
+	method Entity GetNearestItem()
+		-- Get the item closest to the center
+		---@type table<Entity>
+		local items = self.ItemEntities
+		
+		local index = 0
+		local minDist = math.maxinteger
+		for i = 1, #items do
+			local item = items[i]
+			local posY = item.UITransformComponent.Position.y
+			local dist = math.abs(posY)
+			if minDist > dist then
+				minDist = dist
+				index = i
+			end
+		end
+		
+		return items[index]
+	end
+
+	@ExecSpace("ClientOnly")
+	method integer GetNearestValueIndex()
+		-- Get the value index of the nearest item
+		local item = self:GetNearestItem()
+		return item.UIScrollPickerItem.ValueIndex
+	end
+
+	@ExecSpace("ClientOnly")
+	method number GetClosestDist()
+		-- Get the distance to the closest item
+		---@type table<Entity>
+		local items = self.ItemEntities
+		
+		local result = 0
+		local minDist = math.maxinteger
+		
+		for i = 1, #items do
+			local item = items[i]
+			local posY = item.UITransformComponent.Position.y
+			
+			local absDist = math.abs(posY)
+			if minDist > absDist then
+				minDist = absDist
+				result = posY
+			end
+		end
+		
+		return result
+	end
+
+	@ExecSpace("ClientOnly")
+	method number GetClosestDistInDirection(boolean isNegativePos)
+		-- Get the closest distance in the specified direction
+		---@type table<Entity>
+		local items = self.ItemEntities
+		
+		local minDist = math.maxinteger
+		for i = 1, #items do
+			local item = items[i]
+			local posY = item.UITransformComponent.Position.y
+			
+			if isNegativePos then
+				if posY > 0 then
+					continue
+				end
+			else
+				if posY < 0 then
+					continue
+				end
+			end
+			
+			local dist = math.abs(posY)
+			if minDist > dist then
+				minDist = dist
+			end
+		end
+		
+		if isNegativePos then
+			minDist = -minDist
+		end
+		
+		return minDist
+	end
+
+	@ExecSpace("ClientOnly")
+	method number GetDistToValueIndex(integer index)
+		-- Calculate distance to move to the specified value index
+		local nearestItem = self:GetNearestItem()
+		local pos = nearestItem.UITransformComponent.Position.y
+		local curIndex = nearestItem.UIScrollPickerItem.ValueIndex
+		local dataCount = self:GetDataCount()
+		
+		local dist = 0
+		local indexGap = -1
+		
+		if not self.IsLoop then
+			indexGap = index - curIndex
+		else
+			local indexGap1 = index - curIndex
+			local indexGap2 = index - curIndex - dataCount
+			if math.abs(indexGap1) < math.abs(indexGap2) then
+				indexGap = indexGap1
+			else
+				indexGap = indexGap2
+			end
+		end
+		
+		dist = indexGap * self.ItemSize.y - pos
+		return dist
+	end
+
+	@ExecSpace("ClientOnly")
+	method void UpdateTextAlpha(boolean force)
+		-- Update text alpha for all items based on selection
+		---@type table<Entity>
+		local items = self.ItemEntities
+		local itemIndex = self.CurrentItemIndex
+		
+		for i = 1, #items do
+			local comp = items[i].UIScrollPickerItem
+			comp:SetSelected(i == itemIndex, force)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnRefreshTextDefault(Entity entity)
+		-- Default text refresh function (override this function)
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("Self")
+	handler HandleUITouchBeginDragEvent(UITouchBeginDragEvent event)
+		-- Handle touch begin drag event
+		if self.IsPressed then
+			return
+		end
+		
+		if not self:IsValidTouch(event.TouchId) then
+			return
+		end
+		
+		local uiPoint = _UILogic:ScreenToUIPosition(event.TouchPoint)
+		self.IsPressed = true
+		self.PreviousTouchPosition = uiPoint
+		
+		if math.abs(self:GetClosestDist()) < 1 then
+			self.FirstTouchPosition = uiPoint
+		else
+			self.FirstTouchPosition = nil
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("Self")
+	handler HandleUITouchDragEvent(UITouchDragEvent event)
+		-- Handle touch drag event
+		if not self.IsPressed then
+			return
+		end
+		
+		if not self:IsValidTouch(event.TouchId) then
+			return
+		end
+		
+		self:ClearTweener(false)
+		
+		local uiPoint = _UILogic:ScreenToUIPosition(event.TouchPoint)
+		local deltaPoint = uiPoint - self.PreviousTouchPosition
+		self.PreviousTouchPosition = uiPoint
+		
+		self:DragDist(deltaPoint.y * self.DragSensitivity, true)
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("Self")
+	handler HandleUITouchEndDragEvent(UITouchEndDragEvent event)
+		-- Handle touch end drag event
+		if not self.IsPressed then
+			return
+		end
+		
+		if not self:IsValidTouch(event.TouchId) then
+			return
+		end
+		
+		local firstTouchPosition = self.FirstTouchPosition
+		local previousTouchPosition = self.PreviousTouchPosition
+		
+		self.IsPressed = false
+		self.FirstTouchPosition = Vector2.zero
+		self.PreviousTouchPosition = Vector2.zero
+		
+		local uiPoint = _UILogic:ScreenToUIPosition(event.TouchPoint)
+		local delta = uiPoint.y - previousTouchPosition.y
+		
+		if self.UseInertia and math.abs(delta) > 5 then
+			self:BeginInertia(delta)
+			return
+		end
+		
+		if firstTouchPosition ~= nil then
+			local touchDist = uiPoint.y - firstTouchPosition.y
+			if math.abs(touchDist) < self.ItemSize.y / 2 then
+				if touchDist > 0 then
+					self:BeginInertiaByDist(-0.001)
+				else
+					self:BeginInertiaByDist(0.001)
+				end
+				
+				return
+			end
+		end
+		
+		local dist = self:GetClosestDist()
+		self:BeginInertiaByDist(dist)
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("Self")
+	handler HandleUITouchEnterEvent(UITouchEnterEvent event)
+		-- Handle touch enter event
+		if self.IsPointerOver then
+			return
+		end
+		
+		local TouchId = event.TouchId
+		local TouchPoint = event.TouchPoint
+		
+		if not self:IsValidTouch(TouchId) then
+			return
+		end
+		
+		self.IsPointerOver = true
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("Self")
+	handler HandleUITouchExitEvent(UITouchExitEvent event)
+		-- Handle touch exit event
+		if not self.IsPointerOver then
+			return
+		end
+		
+		local TouchId = event.TouchId
+		local TouchPoint = event.TouchPoint
+		
+		if not self:IsValidTouch(TouchId) then
+			return
+		end
+		
+		self.IsPointerOver = false
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("Service", "InputService")
+	handler HandleMouseScrollEvent(MouseScrollEvent event)
+		-- Handle mouse scroll event
+		if not self.IsPointerOver then
+			return
+		end
+		
+		if self.IsPressed then
+			return
+		end
+		
+		self:ClearTweener(false)
+		
+		local itemSizeY = self.ItemSize.y
+		local ScrollDelta = event.ScrollDelta
+		if ScrollDelta > 0 then
+			self:DragDist(itemSizeY, true)
+		else
+			self:DragDist(-itemSizeY, true)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("Self")
+	handler HandleUITouchDownEvent(UITouchDownEvent event)
+		-- Handle touch down event
+		self:ClearTweener(false)
+	end
+
+end

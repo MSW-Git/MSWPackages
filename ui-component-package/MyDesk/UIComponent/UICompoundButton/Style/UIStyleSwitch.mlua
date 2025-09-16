@@ -1,0 +1,225 @@
+@Component
+script UIStyleSwitch extends UICompoundButton
+
+	@Description("Name of the style to apply")
+	property string StyleName = nil
+
+	@Description("Style structure data")
+	@HideFromInspector
+	property any StyleStruct = nil
+
+	@Description("Handle sprite component")
+	property SpriteGUIRendererComponent Handle = nil
+
+	@Description("Track sprite component")
+	property SpriteGUIRendererComponent Track = nil
+
+	@Description("Handle X offset from track edges")
+	property number HandleOffsetX = 0
+
+	@Description("Handle animation tweener")
+	@HideFromInspector
+	property any HandleTweener = nil
+
+	@Description("Track animation tweener")
+	@HideFromInspector
+	property any TrackTweener = nil
+
+	@ExecSpace("ClientOnly")
+	method boolean Init()
+		if self.IsInitialized then
+			return true
+		end
+		self:SetStyle(self.StyleName)
+		
+		return __base:Init()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void UpdateVisualState(boolean animate)
+		__base:UpdateVisualState(animate)
+		
+		if self.Handle ~= nil then
+			if animate and self.UseAnimation then
+				self:AnimateSwitchHandle(self.IsOn)
+			else
+				self:SetSwitchHandle(self.IsOn)
+			end
+		end
+		
+		if self.Track ~= nil then
+			if animate and self.UseAnimation then
+				self:AnimateSwitchTrack(self.IsOn)
+			else
+				self:SetSwitchTrack(self.IsOn)
+			end
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void AnimateSwitchHandle(boolean isOn)
+		---@type Tweener
+		local tweener = self.HandleTweener
+		if isvalid(tweener) and tweener.IsPlaying then
+			tweener:Complete()
+		end
+		
+		local duration = self.AnimationDuration
+		if isOn then
+			tweener = _TweenLogic:MakeTween(0, 1, duration, EaseType.Linear, self.SwitchHandleTweenFunc)
+		else
+			tweener = _TweenLogic:MakeTween(1, 0, duration, EaseType.Linear, self.SwitchHandleTweenFunc)
+		end
+		
+		tweener:SetOnEndCallback(self.SwitchHandleTweenCallback)
+		tweener.AutoDestroy = true
+		tweener:Play()
+		
+		self.HandleTweener = tweener
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SwitchHandleTweenFunc(number t)
+		if not isvalid(self) or not isvalid(self.Entity) then
+			return
+		end
+		
+		local handle = self.Handle
+		local track = self.Track
+		if not isvalid(handle) or not isvalid(track) then
+			return
+		end
+		
+		local handleEntity = handle.Entity
+		local trackEntity = track.Entity
+		if not isvalid(handleEntity) or not isvalid(trackEntity) then
+			return
+		end
+		
+		local trackSize = trackEntity.UITransformComponent.RectSize.x
+		local handleSize = handleEntity.UITransformComponent.RectSize.x
+		local offsetX = self.HandleOffsetX
+		
+		local startX = offsetX
+		local endX = trackSize - offsetX - handleSize
+		handleEntity.UITransformComponent.anchoredPosition.x = (endX - startX) * t + startX
+		
+		---@type UISwitchStyleStruct
+		local style = self.StyleStruct
+		local deactiveColor = style.HandleDeactiveColor
+		local activeColor = style.HandleActiveColor
+		
+		local targetColor = Color.Lerp(deactiveColor, activeColor, t)
+		if not self.Interactable then
+			targetColor = self:GetDisabledColor(targetColor)
+		end
+		
+		handle.Color = targetColor
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SwitchHandleTweenCallback()
+		if isvalid(self) then
+			self.HandleTweener = nil
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetSwitchHandle(boolean isOn)
+		---@type Tweener
+		local tweener = self.HandleTweener
+		if isvalid(tweener) then
+			tweener:Complete()
+		end
+		
+		local t = isOn and 1 or 0
+		self:SwitchHandleTweenFunc(t)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void AnimateSwitchTrack(boolean isOn)
+		---@type Tweener
+		local tweener = self.TrackTweener
+		if isvalid(tweener) and tweener.IsPlaying then
+			tweener:Complete()
+		end
+		
+		if isOn then
+			tweener = _TweenLogic:MakeTween(0, 1, self.AnimationDuration, EaseType.Linear, self.SwitchTrackTweenFunc)
+		else
+			tweener = _TweenLogic:MakeTween(1, 0, self.AnimationDuration, EaseType.Linear, self.SwitchTrackTweenFunc)
+		end
+		
+		tweener:SetOnEndCallback(self.SwitchTrackTweenCallback)
+		tweener.AutoDestroy = true
+		tweener:Play()
+		
+		self.TrackTweener = tweener
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SwitchTrackTweenFunc(number t)
+		if not isvalid(self) or not isvalid(self.Entity) then
+			return
+		end
+		
+		local track = self.Track
+		if not isvalid(track) then
+			return
+		end
+		
+		---@type UISwitchStyleStruct
+		local style = self.StyleStruct
+		local deactiveColor = style.TrackDeactiveColor
+		local activeColor = style.TrackActiveColor
+		
+		local targetColor = Color.Lerp(deactiveColor, activeColor, t)
+		if not self.Interactable then
+			targetColor = self:GetDisabledColor(targetColor)
+		end
+		
+		track.Color = targetColor
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SwitchTrackTweenCallback()
+		if isvalid(self) then
+			self.TrackTweener = nil
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetSwitchTrack(boolean isOn)
+		---@type Tweener
+		local tweener = self.TrackTweener
+		if isvalid(tweener) then
+			tweener:Complete();
+		end
+		
+		local t = isOn and 1 or 0
+		self:SwitchTrackTweenFunc(t)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetStyle(string styleName)
+		self.StyleName = styleName
+		self:SetStyleStruct(_UICompoundButtonStyleLogic:GetSwitchStyle(styleName))
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetStyleStruct(UISwitchStyleStruct styleStruct)
+		if styleStruct == nil then
+			log_warning("Cannot assign nil to a StyleStruct")
+			return
+		end
+		
+		self.StyleStruct = styleStruct
+		
+		self.UseAnimation = styleStruct.UseAnimation
+		self.AnimationDuration = styleStruct.AnimationDuration
+		self.SoundRUID = styleStruct.SoundRUID
+		self.SoundVolume = styleStruct.SoundVolume
+		self.DisabledAlphaValue = styleStruct.DisabledAlphaValue
+	end
+
+end

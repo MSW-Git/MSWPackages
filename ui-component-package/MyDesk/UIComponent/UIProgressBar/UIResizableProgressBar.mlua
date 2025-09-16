@@ -1,0 +1,121 @@
+@Component
+script UIResizableProgressBar extends UIProgressBar
+
+	@HideFromInspector
+	property number OriginalWidth = 0
+	
+	@ExecSpace("ClientOnly")
+	method boolean Init()
+		if not __base:Init() then
+			return false
+		end
+		
+		local imgValue = self.Img_Value
+		if imgValue == nil then
+			return
+		end
+		
+		self.OriginalWidth = imgValue.Entity.UITransformComponent.RectSize.x
+		self:UpdateImage()
+		self:UpdateText()
+
+		return true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void UpdateImage()
+		local imgValue = self.Img_Value
+		if imgValue == nil then
+			return
+		end
+		
+		if self.UseAnimation then
+			if self:PlayTweener() then
+				return
+			end
+		end
+		
+		local width = self.OriginalWidth * self:GetPercentValue()
+		imgValue.Entity.UITransformComponent.RectSize.x = width
+	end
+
+	@ExecSpace("ClientOnly")
+	method boolean PlayTweener()
+		---@type Tweener
+		local tweener = self.Tweener
+		if isvalid(tweener) and tweener.IsPlaying then
+			tweener:Stop()
+			tweener:Destroy()
+			self.Tweener = nil
+		end
+		
+		local imgValue = self.Img_Value
+		local imgBackValue = self.Img_BackValue
+		
+		if imgValue == nil or imgBackValue == nil then
+			return false
+		end
+		
+		local imgTransform = imgValue.Entity.UITransformComponent
+		local imgBackTransform = imgBackValue.Entity.UITransformComponent
+
+		local curValue = imgTransform.RectSize.x
+		local curBackValue = imgBackTransform.RectSize.x
+		local nextValue = self.OriginalWidth * self:GetPercentValue()
+		
+		local duration = self.AnimationDuration
+
+		if nextValue <= curValue then
+			imgTransform.RectSize.x = nextValue
+			tweener = _TweenLogic:MakeTween(curBackValue, nextValue, duration, EaseType.Linear, self.TweenBackValueFunc)
+		else
+			imgBackTransform.RectSize.x = nextValue
+			-- anim curValue to NextValue
+			tweener = _TweenLogic:MakeTween(curValue, nextValue, duration, EaseType.Linear, self.TweenValueFunc)
+		end
+		
+		tweener:SetOnEndCallback(self.TweenCallback)
+		tweener.AutoDestroy = true
+		tweener:Play()
+		
+		self.Tweener = tweener
+		
+		return true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void TweenValueFunc(number value)
+		if not isvalid(self) or not isvalid(self.Entity) then
+			return
+		end
+		
+		local imgValue = self.Img_Value
+		if not isvalid(imgValue) then
+			return
+		end
+		
+		imgValue.Entity.UITransformComponent.RectSize.x = value
+	end
+
+	@ExecSpace("ClientOnly")
+	method void TweenBackValueFunc(number value)
+		if not isvalid(self) or not isvalid(self.Entity) then
+			return
+		end
+		
+		local imgBackValue = self.Img_BackValue
+		if not isvalid(imgBackValue) then
+			return
+		end
+		
+		imgBackValue.Entity.UITransformComponent.RectSize.x = value
+	end
+
+	@ExecSpace("ClientOnly")
+	method void TweenCallback()
+		if isvalid(self) then
+			self.Tweener = nil
+		end
+	end
+
+end

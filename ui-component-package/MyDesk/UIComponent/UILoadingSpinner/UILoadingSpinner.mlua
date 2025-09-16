@@ -1,0 +1,52 @@
+@Component
+script UILoadingSpinner extends Component
+
+	@Description("Rotation angle")
+	property number RotationAngle = 0
+
+	@Description("Update interval")
+	property number Interval = 0
+
+	@Description("Rotation image")
+	property UITransformComponent Img_Rotation = nil
+
+	@HideFromInspector
+	property number Acc = 0
+
+	@HideFromInspector
+	property boolean IsInitialized = false
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		self:Init()
+	end
+	
+	@ExecSpace("ClientOnly")
+	method void Init()
+		if self.IsInitialized then
+			return
+		end
+		self.IsInitialized = true
+		
+		if self.Img_Rotation == nil then
+			local imgRotationEntity = self.Entity:GetChildByName("Img_Rotation")
+			if imgRotationEntity ~= nil then
+				self.Img_Rotation = imgRotationEntity.UITransformComponent
+			end
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnUpdate(number delta)
+		local acc = self.Acc + delta
+		if acc < self.Interval then
+			self.Acc = acc
+			return
+		end
+		self.Acc = 0
+		
+		local zRot = self.Img_Rotation.ZRotation
+		self.Img_Rotation.ZRotation = (zRot - self.RotationAngle) % 360
+	end
+
+end

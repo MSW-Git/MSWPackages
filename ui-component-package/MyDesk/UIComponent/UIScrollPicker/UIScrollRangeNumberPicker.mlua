@@ -1,0 +1,115 @@
+@Component
+script UIScrollRangeNumberPicker extends UIScrollPicker
+
+	@Description("Minimum value")
+	property number MinValue = 0
+
+	@Description("Maximum value")
+	property number MaxValue = 0
+
+	@Description("Value gap")
+	property integer Gap = 0
+
+	@Description("Data count")
+	@HideFromInspector
+	property integer DataCount = 0
+
+	@Description("Render precision")
+	property integer RenderPrecision = 0
+
+	@ExecSpace("ClientOnly")
+	method boolean Init()
+		if not __base:Init() then
+			return false
+		end
+		
+		self:SetValueRange(self.MinValue, self.MaxValue, self.Gap)
+		return true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetValueRange(number minValue, number maxValue, number gap)
+		if minValue > maxValue or gap <= 0 then
+			return
+		end
+		
+		self.MinValue = minValue
+		self.MaxValue = maxValue
+		self.Gap = gap
+		self.DataCount = math.floor((maxValue - minValue) / gap) + 1
+		
+		self:Rebuild()
+	end
+
+	@ExecSpace("ClientOnly")
+	method any GetDataValue(integer index)
+		local gap = self.Gap
+		if gap <= 0 then
+			return nil
+		end
+		
+		local value = self.MinValue + (index - 1) * gap
+		
+		if value > self.MaxValue then
+			return self.MaxValue
+		end
+		
+		return value
+	end
+
+	@ExecSpace("ClientOnly")
+	method integer GetDataCount()
+		return self.DataCount
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetValue(number value, boolean sendCallback)
+		if not self.IsValid then
+			return
+		end
+		
+		local minValue = self.MinValue
+		local maxValue = self.MaxValue
+		local gap = self.Gap
+		
+		if gap <= 0 then
+			return
+		end
+		
+		if value < minValue or value > maxValue then
+			return
+		end
+		
+		local closestValue = minValue + math.floor((value - minValue) / gap + 0.5) * gap
+		
+		if closestValue < minValue then
+			closestValue = minValue
+		elseif closestValue > maxValue then
+			closestValue = maxValue
+		end
+				
+		local index = math.floor((closestValue - minValue) / gap) + 1
+		
+		self:SetValueIndex(index, sendCallback)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnRefreshTextDefault(Entity entity)
+		local precision = self.RenderPrecision
+		
+		---@type UIScrollPickerItem
+		local item = entity.UIScrollPickerItem
+		local value = item.Value
+		local roundedValue = self:RoundValue(value, precision)
+		local resultText = string.format("%." .. precision .. "f", roundedValue)
+		
+		item:SetText(resultText)
+	end
+
+	@ExecSpace("ClientOnly")
+	method number RoundValue(number value, integer precision)
+		local multiplier = 10 ^ precision
+		return math.floor(value * multiplier + 0.5) / multiplier
+	end
+
+end

@@ -1,0 +1,94 @@
+@Component
+script UIFilledProgressBar extends UIProgressBar
+
+	@ExecSpace("ClientOnly")
+	method void UpdateImage()
+		local imgValue = self.Img_Value
+		if imgValue == nil then
+			return
+		end
+		
+		if self.UseAnimation then
+			if self:PlayTweener() then
+				return
+			end
+		end
+		
+		imgValue.FillAmount = self:GetPercentValue()
+	end
+
+	@ExecSpace("ClientOnly")
+	method boolean PlayTweener()
+		---@type Tweener
+		local tweener = self.Tweener
+		if isvalid(tweener) and tweener.IsPlaying then
+			tweener:Stop()
+			tweener:Destroy()
+			self.Tweener = nil
+		end
+		
+		local imgValue = self.Img_Value
+		local imgBackValue = self.Img_BackValue
+		
+		if imgValue == nil or imgBackValue == nil then
+			return false
+		end
+		
+		local duration = self.AnimationDuration
+		local curValue = imgValue.FillAmount
+		local curBackValue = imgBackValue.FillAmount
+		local nextValue = self:GetPercentValue()
+
+		if nextValue <= curValue then
+			imgValue.FillAmount = nextValue
+			tweener = _TweenLogic:MakeTween(curBackValue, nextValue, duration, EaseType.Linear, self.TweenBackValueFunc)
+		else
+			imgBackValue.FillAmount = nextValue
+			tweener = _TweenLogic:MakeTween(curValue, nextValue, duration, EaseType.Linear, self.TweenValueFunc)
+		end
+		
+		tweener:SetOnEndCallback(self.TweenCallback)
+		tweener.AutoDestroy = true
+		tweener:Play()
+		
+		self.Tweener = tweener
+		
+		return true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void TweenValueFunc(number value)
+		if not isvalid(self) or not isvalid(self.Entity) then
+			return
+		end
+		
+		local imgValue = self.Img_Value
+		if not isvalid(imgValue) then
+			return
+		end
+		
+		imgValue.FillAmount = value
+	end
+
+	@ExecSpace("ClientOnly")
+	method void TweenBackValueFunc(number value)
+		if not isvalid(self) or not isvalid(self.Entity) then
+			return
+		end
+		
+		local imgBackValue = self.Img_BackValue
+		if not isvalid(imgBackValue) then
+			return
+		end
+		
+		imgBackValue.FillAmount = value
+	end
+
+	@ExecSpace("ClientOnly")
+	method void TweenCallback()
+		if isvalid(self) then
+			self.Tweener = nil
+		end
+	end
+
+end

@@ -1,0 +1,23 @@
+{
+  "Id": "",
+  "GameId": "",
+  "EntryKey": "sprite://bfd2ff72ab4f4b83b982a0e621c81d9c",
+  "ContentType": "x-mod/sprite",
+  "Content": "",
+  "Usage": 0,
+  "UsePublish": 1,
+  "UseService": 0,
+  "CoreVersion": "1.25.0.0",
+  "StudioVersion": "0.1.0.0",
+  "DynamicLoading": 0,
+  "ContentProto": {
+    "Use": "Json",
+    "Json": {
+      "upload_keyname": "84/52/84525e495b084eb6adf1d11aecf67f2a/sprite/bfd2ff72ab4f4b83b982a0e621c81d9c/638923751255328627",
+      "upload_hash": "6D776C91C1FF7687BE0292ECF5D397E6167FC23D6D8EAAF3FC00678B98378AA1",
+      "name": "UILoadingSpinner5",
+      "resource_guid": "bfd2ff72ab4f4b83b982a0e621c81d9c",
+      "resource_version": "68b65022d47460f766741578"
+    }
+  }
+}

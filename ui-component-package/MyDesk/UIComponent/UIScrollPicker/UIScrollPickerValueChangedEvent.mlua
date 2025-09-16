@@ -1,0 +1,12 @@
+@Event
+script UIScrollPickerValueChangedEvent extends EventType
+
+	property integer PrevIndex = 0
+
+	property any PrevValue = nil
+
+	property integer Index = 0
+
+	property any Value = nil
+
+end

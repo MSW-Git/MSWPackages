@@ -1,0 +1,217 @@
+@Component
+script UIFixedPagination extends UIPagination
+
+	@Description("Block size for pagination")
+	property integer BlockSize = 5
+
+	@Description("Current block start page")
+	property integer BlockStart = 1
+
+	@Description("Current block end page")
+	property integer BlockEnd = 1
+
+	@ExecSpace("ClientOnly")
+	method void MoveToPrevBlock()
+		-- Move to previous block
+		local blockSize = self.BlockSize
+		local currentPage = self.CurrentPage
+		local blockIndex = math.floor((currentPage - 1) / blockSize)
+		local targetBlockIndex = blockIndex - 1
+		
+		local targetBlockStart = targetBlockIndex * blockSize + 1
+		if targetBlockStart >= 1 then
+			self:SendItemClickedEvent(targetBlockStart)
+		else
+			self:SendItemClickedEvent(1)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void MoveToNextBlock()
+		-- Move to next block
+		local blockSize = self.BlockSize
+		local currentPage = self.CurrentPage
+		local blockIndex = math.floor((currentPage - 1) / blockSize)
+		local targetBlockIndex = blockIndex + 1
+		
+		local targetBlockStart = targetBlockIndex * blockSize + 1
+		if targetBlockStart <= self.TotalPages then
+			self:SendItemClickedEvent(targetBlockStart)
+		else
+			-- Move to last page
+			self:SendItemClickedEvent(self.TotalPages)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnPrevClick()
+		self:MoveToPrevBlock()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnNextClick()
+		self:MoveToNextBlock()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void UpdatePageNumberButtons()
+		local currnetPage = self.CurrentPage
+		local totalPages = self.TotalPages
+		local blockSize = self.BlockSize
+		
+		if currnetPage < 1 or totalPages < 1 then
+			log_warning("UpdatePageNumberButtons: currnetPage or totalPages is less than 1")
+			return
+		end
+		
+		if currnetPage > totalPages then
+			log_warning("UpdatePageNumberButtons: currnetPage is greater than totalPages")
+			return
+		end
+		
+		if blockSize < 1 then
+			log_warning("UpdatePageNumberButtons: blockSize is less than 1")
+			return
+		end
+		
+		local prevEnabledItemCount = 0
+		---@type table<Entity>
+		local paginationItems = self.PaginationItems
+		for i = 1, #paginationItems do
+			local item = paginationItems[i]
+			if item.Enable then
+				prevEnabledItemCount += 1
+			end
+		end
+		
+		-- Calculate the block that contains the current page
+		local blockIndex = math.floor((currnetPage - 1) / blockSize)
+		local blockStart = blockIndex * blockSize + 1
+		local blockEnd = math.min(blockStart + blockSize - 1, totalPages)
+		
+		local enabledItemCount = blockEnd - blockStart + 1
+		
+		local index = 1
+		local originalItem = self.Item
+		local scrollLayout = self.ScrollLayout
+		
+		while index <= enabledItemCount do
+			local item = paginationItems[index]
+			if item == nil then
+				item = _SpawnService:SpawnByEntity(originalItem, "Item", Vector3.zero, scrollLayout)
+				item.UIPaginationItem:SetParent(self, index)
+				paginationItems[index] = item
+			else
+				item.Enable = true
+			end
+			
+			local itemComp = item.UIPaginationItem
+			itemComp:SetPageNumber(blockStart + index - 1)
+			itemComp:SetSelected(false)
+			index += 1
+		end
+		
+		-- Disable remaining items
+		while index <= #paginationItems do
+			local item = paginationItems[index]
+			if item ~= nil then
+				item.Enable = false
+			end
+		
+			index += 1
+		end
+		
+		-- Update text
+		for i = 1, enabledItemCount do
+			local item = paginationItems[i]
+			item.UIPaginationItem:UpdateText()
+		end
+		
+		-- Set item selected
+		local selectedItem = self:GetSelectedItem()
+		if selectedItem ~= nil then
+			selectedItem.UIPaginationItem:SetSelected(true)
+		end
+		
+		self.BlockStart = blockStart
+		self.BlockEnd = blockEnd
+		
+		-- Resize scroll layout if enabled item count is modified
+		if prevEnabledItemCount ~= enabledItemCount then
+			self:ResizeUI()
+		end
+		
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetBlockSize(integer blockSize)
+		if blockSize < 1 then
+			return
+		end
+		
+		self.BlockSize = blockSize
+		self:UpdatePagination()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ResizeUI()
+		self:ResizeScrollLayout()
+		
+		local entity = self.Entity
+		
+		-- UIPagination's ScrollLayout
+		local comp = entity.ScrollLayoutGroupComponent
+		local paddingLeft = comp.Padding.left
+		local paddingRight = comp.Padding.right
+		local spacing = comp.Spacing
+		
+		local childCount = 1	-- 1 is for self.ScrollLayout
+		local totalWidth = self.ScrollLayout.UITransformComponent.RectSize.x
+		
+		local prev = self.Prev
+		if prev ~= nil then
+			totalWidth += prev.UITransformComponent.RectSize.x
+			childCount += 1
+		end
+		
+		local next = self.Next
+		if next ~= nil then
+			totalWidth += next.UITransformComponent.RectSize.x
+			childCount += 1
+		end
+		
+		local first = self.First
+		if first ~= nil then
+			totalWidth += first.UITransformComponent.RectSize.x
+			childCount += 1
+		end
+		
+		local last = self.Last
+		if last ~= nil then
+			totalWidth += last.UITransformComponent.RectSize.x
+			childCount += 1
+		end
+		
+		totalWidth += paddingLeft + paddingRight + (childCount - 1) * spacing
+		entity.UITransformComponent.RectSize.x = totalWidth
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ResizeScrollLayout()
+		local blockCount = self.BlockEnd - self.BlockStart + 1
+		local itemWidth = self.Item.UITransformComponent.RectSize.x
+		
+		local scrollLayout = self.ScrollLayout
+		if scrollLayout == nil then
+			return
+		end
+		
+		local comp = scrollLayout.ScrollLayoutGroupComponent
+		local padding = comp.Padding.left
+		local spacing = comp.Spacing
+		
+		local totalWidth = blockCount * itemWidth + (blockCount - 1) * spacing + padding
+		scrollLayout.UITransformComponent.RectSize.x = totalWidth
+	end
+
+end

@@ -1,0 +1,10 @@
+@Event
+script UITimePickerValueChangedEvent extends EventType
+
+	property integer Hour = 0
+
+	property integer Minute = 0
+
+	property integer Second = 0
+
+end

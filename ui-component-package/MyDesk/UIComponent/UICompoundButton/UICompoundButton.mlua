@@ -1,0 +1,236 @@
+@Component
+script UICompoundButton extends Component
+
+	@Description("Text component for button label")
+	property TextComponent Label = nil
+
+	@Description("Button group this button belongs to")
+	property UICompoundButtonGroup ButtonGroup = nil
+
+	@Description("Entity for on state")
+	property Entity OnStateEntity = nil
+
+	@Description("Entity for off state")
+	property Entity OffStateEntity = nil
+
+	@Description("Button state (true = on, false = off)")
+	property boolean IsOn = false
+
+	@Description("Whether button is interactable")
+	property boolean Interactable = true
+
+	@Description("Alpha value when not interactable (0.0 to 1.0)")
+	property number DisabledAlphaValue = 0.5
+
+	@Description("Use animation for state transitions")
+	property boolean UseAnimation = true
+
+	@Description("Animation duration in seconds")
+	property number AnimationDuration = 0.1
+
+	@Description("Sound RUID for button click")
+	property string SoundRUID = nil
+
+	@Description("Sound volume (0.0 to 1.0)")
+	property number SoundVolume = 1
+
+	@Description("Listen for button state events")
+	property boolean UseButtonStateChangedEvent = false
+
+	@HideFromInspector
+	property boolean IsInitialized = false
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		self:Init()
+	end
+
+	@ExecSpace("ClientOnly")
+	method boolean Init()
+		if self.IsInitialized then
+			return false
+		end
+		self.IsInitialized = true
+		
+		self:SetupComponents()
+		self:SetupEvents()
+		self:UpdateVisualState(false)
+		
+		local buttonGroup = self.ButtonGroup
+		if buttonGroup ~= nil then
+			buttonGroup:RegisterButton(self)
+		end
+
+		return true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetupComponents()
+		local entity = self.Entity
+		if entity.ButtonComponent == nil then
+			entity:AddComponent(ButtonComponent)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetupEvents()
+		local entity = self.Entity
+		entity:ConnectEvent(ButtonClickEvent, self.OnClick)
+		
+		if self.UseButtonStateChangedEvent then
+			entity:ConnectEvent(ButtonStateChangeEvent, self.OnButtonStateChanged)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetIsOn(boolean value, boolean sendCallback)
+		-- Don't change if value is the same
+		local oldState = self.IsOn
+		if oldState == value then
+			return
+		end
+		
+		local buttonGroup = self.ButtonGroup
+		if buttonGroup ~= nil then
+			if not buttonGroup:OnButtonChanged(self, oldState, value, sendCallback, false) then
+				return
+			end
+		end
+		
+		self.IsOn = value
+		self:UpdateVisualState(sendCallback)
+		
+		if sendCallback then
+			self:SendCallbacks()
+			
+			if buttonGroup ~= nil then
+				buttonGroup:SendGroupCallbacks()
+			end
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetIsOnWithoutNotify(boolean value)
+		self:SetIsOn(value, false)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Toggle()
+		self:SetIsOn(not self.IsOn, true)
+		self:PlaySound()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClick()
+		if not self.Interactable then
+			return
+		end
+		
+		self:Toggle()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnButtonStateChanged(ButtonStateChangeEvent event)
+		-- Handle button state changes (hover, pressed, etc.)
+		local state = event.state
+		
+		if state == ButtonState.Hover then
+			self:OnHover()
+		elseif state == ButtonState.Normal then
+			self:OnUnhover()
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetIsOnIgnoringGroupRule(boolean value, boolean sendCallback)
+		local oldState = self.IsOn
+		if oldState == value then
+			return
+		end
+		self.IsOn = value
+		
+		local buttonGroup = self.ButtonGroup
+		if buttonGroup ~= nil then
+			buttonGroup:OnButtonChanged(self, oldState, value, sendCallback, true)
+		end
+		
+		self:UpdateVisualState(sendCallback)
+		
+		if sendCallback then
+			self:SendCallbacks()
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetInteractable(boolean interactable)
+		self.Interactable = interactable
+		
+		local buttonComp = self.Entity.ButtonComponent
+		if isvalid(buttonComp) then
+			buttonComp.Enable = interactable
+		end
+		
+		-- Update visual state to show disabled state
+		self:UpdateVisualState(false)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void UpdateVisualState(boolean animate)
+		-- Override this method
+		local onStateEntity = self.OnStateEntity
+		local offStateEntity = self.OffStateEntity
+		
+		local isOn = self.IsOn
+		
+		if isvalid(onStateEntity) then
+			onStateEntity.Enable = isOn
+		end
+		
+		if isvalid(offStateEntity) then
+			offStateEntity.Enable = not isOn
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnHover()
+		-- Override this method to add hover effects
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnUnhover()
+		-- Override this method to remove hover effects
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SendCallbacks()
+		local entity = self.Entity
+		
+		local event = UICompoundButtonValueChangedEvent()
+		event.Entity = entity
+		event.Value = self.IsOn
+		
+		entity:SendEvent(event)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void PlaySound()
+		local soundRUID = self.SoundRUID
+		if _Util:IsNilorEmptyString(soundRUID) then
+			return
+		end
+		
+		_SoundService:PlaySound(soundRUID, self.SoundVolume)
+	end
+
+	@ExecSpace("ClientOnly")
+	method Color GetDisabledColor(Color color)
+		local v = color:Grayscale()
+		return Color(v, v, v, self.DisabledAlphaValue)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetStyle(string styleName)
+		-- override this function
+	end
+
+end

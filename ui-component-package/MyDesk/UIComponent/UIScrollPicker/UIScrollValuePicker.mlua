@@ -1,0 +1,62 @@
+@Component
+script UIScrollValuePicker extends UIScrollPicker
+
+	@Description("Data value list")
+	property table DataValueList = {}
+
+	@ExecSpace("ClientOnly")
+	method void SetDataValueList(table list)
+		self.DataValueList = list
+		self:Rebuild()
+	end
+
+	@ExecSpace("ClientOnly")
+	method any GetDataValue(integer index)
+		local list = self.DataValueList
+		if list == nil then
+			return nil
+		end
+		
+		return list[index]
+	end
+
+	@ExecSpace("ClientOnly")
+	method integer GetDataCount()
+		local list = self.DataValueList
+		if list == nil then
+			return 0
+		end
+		
+		return #list
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetValue(any value, boolean sendCallback)
+		if not self.IsValid then
+			return
+		end
+		
+		local index = nil
+		local list = self.DataValueList
+		for i = 1, #list do
+			if value == list[i] then
+				index = i
+				break
+			end
+		end
+		
+		if index == nil then
+			return
+		end
+		
+		self:SetValueIndex(index, sendCallback)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnRefreshTextDefault(Entity entity)
+		---@type UIScrollPickerItem
+		local item = entity.UIScrollPickerItem
+		item:SetText(tostring(item.ValueIndex))
+	end
+
+end

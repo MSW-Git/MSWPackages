@@ -1,0 +1,379 @@
+@Component
+script UINumberPadInput extends Component
+	
+	@Description("Title text")
+	property Entity Text_Title = nil
+	
+	@Description("Value text")
+	property Entity Text_Value = nil
+	
+	@Description("Value slider")
+	property SliderComponent Slider = nil
+	
+	@Description("Number 0 button")
+	property Entity Btn_0 = nil
+	
+	@Description("Number 1 button")
+	property Entity Btn_1 = nil
+	
+	@Description("Number 2 button")
+	property Entity Btn_2 = nil
+	
+	@Description("Number 3 button")
+	property Entity Btn_3 = nil
+	
+	@Description("Number 4 button")
+	property Entity Btn_4 = nil
+	
+	@Description("Number 5 button")
+	property Entity Btn_5 = nil
+	
+	@Description("Number 6 button")
+	property Entity Btn_6 = nil
+	
+	@Description("Number 7 button")
+	property Entity Btn_7 = nil
+	
+	@Description("Number 8 button")
+	property Entity Btn_8 = nil
+	
+	@Description("Number 9 button")
+	property Entity Btn_9 = nil
+	
+	@Description("Min value button")
+	property Entity Btn_Min = nil
+	
+	@Description("Max value button")
+	property Entity Btn_Max = nil
+	
+	@Description("Minus button")
+	property Entity Btn_Minus = nil
+	
+	@Description("Plus button")
+	property Entity Btn_Plus = nil
+	
+	@Description("Clear button")
+	property Entity Btn_Clear = nil
+	
+	@Description("Close button")
+	property Entity Btn_Close = nil
+	
+	@Description("Enter button")
+	property Entity Btn_Enter = nil
+	
+	@Description("Minimum value")
+	property integer MinValue = 0
+	
+	@Description("Maximum value")
+	property integer MaxValue = 1000
+	
+	@Description("Default value")
+	property integer DefaultValue = 0
+	
+	@Description("Enter callback function (value: integer)")
+	@HideFromInspector
+	property any EnterCallback = nil
+	
+	@Description("Close callback function (no parameters)")
+	@HideFromInspector
+	property any CloseCallback = nil
+	
+	@Description("Current value")
+	property integer Value = 0
+	
+	@HideFromInspector
+	property boolean IsReady = false
+	
+	@HideFromInspector
+	property boolean IgnoreSliderValueChangedEvent = false
+	
+	@HideFromInspector
+	property boolean IsInitialized = false
+	
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		self:Init()
+	end
+	
+	@ExecSpace("ClientOnly")
+	method void Init()
+		if self.IsInitialized then
+			return
+		end
+		self.IsInitialized = true
+		
+		local slider = self.Slider
+		if slider ~= nil then
+			slider.Entity:ConnectEvent(SliderValueChangedEvent, self.OnSliderValueChanged)
+		end
+		
+		local btn0 = self.Btn_0
+		if btn0 ~= nil then
+			btn0:ConnectEvent(ButtonClickEvent, function()
+				self:OnClickBtn_KeyPad(0)
+			end)
+		end
+		
+		local btn1 = self.Btn_1
+		if btn1 ~= nil then
+			btn1:ConnectEvent(ButtonClickEvent, function()
+				self:OnClickBtn_KeyPad(1)
+			end)
+		end
+		
+		local btn2 = self.Btn_2
+		if btn2 ~= nil then
+			btn2:ConnectEvent(ButtonClickEvent, function()
+				self:OnClickBtn_KeyPad(2)
+			end)
+		end
+		
+		local btn3 = self.Btn_3
+		if btn3 ~= nil then
+			btn3:ConnectEvent(ButtonClickEvent, function()
+				self:OnClickBtn_KeyPad(3)
+			end)
+		end
+		
+		local btn4 = self.Btn_4
+		if btn4 ~= nil then
+			btn4:ConnectEvent(ButtonClickEvent, function()
+				self:OnClickBtn_KeyPad(4)
+			end)
+		end
+		
+		local btn5 = self.Btn_5
+		if btn5 ~= nil then
+			btn5:ConnectEvent(ButtonClickEvent, function()
+				self:OnClickBtn_KeyPad(5)
+			end)
+		end
+		
+		local btn6 = self.Btn_6
+		if btn6 ~= nil then
+			btn6:ConnectEvent(ButtonClickEvent, function()
+				self:OnClickBtn_KeyPad(6)
+			end)
+		end
+		
+		local btn7 = self.Btn_7
+		if btn7 ~= nil then
+			btn7:ConnectEvent(ButtonClickEvent, function()
+				self:OnClickBtn_KeyPad(7)
+			end)
+		end
+		
+		local btn8 = self.Btn_8
+		if btn8 ~= nil then
+			btn8:ConnectEvent(ButtonClickEvent, function()
+				self:OnClickBtn_KeyPad(8)
+			end)
+		end
+		
+		local btn9 = self.Btn_9
+		if btn9 ~= nil then
+			btn9:ConnectEvent(ButtonClickEvent, function()
+				self:OnClickBtn_KeyPad(9)
+			end)
+		end
+		
+		local btnMin = self.Btn_Min
+		if btnMin ~= nil then
+			btnMin:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Min)
+		end
+		
+		local btnMax = self.Btn_Max
+		if btnMax ~= nil then
+			btnMax:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Max)
+		end
+		
+		local btnPlus = self.Btn_Plus
+		if btnPlus ~= nil then
+			btnPlus:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Plus)
+		end
+		
+		local btnMinus = self.Btn_Minus
+		if btnMinus ~= nil then
+			btnMinus:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Minus)
+		end
+		
+		local btnClear = self.Btn_Clear
+		if btnClear ~= nil then
+			btnClear:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Clear)
+		end
+		
+		local btnClose = self.Btn_Close
+		if btnClose ~= nil then
+			btnClose:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Close)
+		end
+		
+		local btnEnter = self.Btn_Enter
+		if btnEnter ~= nil then
+			btnEnter:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Enter)
+		end
+	end
+	
+	@ExecSpace("ClientOnly")
+	method void Open(integer value, integer minValue, integer maxValue, any enterCallback, any closeCallback)
+		if minValue > maxValue then
+			log_error("UINumberPadInput:Open Error. minValue is greager than maxValue.")
+			return
+		end
+		
+		if value < minValue or value > maxValue then
+			log_error("UINumberPadInput:Open Error. value is not valid.")
+			return
+		end
+		
+		self.IsReady = false
+		self.IgnoreSliderValueChangedEvent = true
+		
+		self.DefaultValue = value
+		self.Value = value
+		self.MinValue = minValue
+		self.MaxValue = maxValue
+		self.EnterCallback = enterCallback
+		self.CloseCallback = closeCallback
+		
+		self:InitSliderValues(value, minValue, maxValue)
+		self:UpdateText()
+		
+		self.IsReady = true
+		self.IgnoreSliderValueChangedEvent = false
+		self.Entity.Enable = true
+	end
+	
+	@ExecSpace("ClientOnly")
+	method void SetValue(integer value)
+		local clampValue = math.floor(math.clamp(value, self.MinValue, self.MaxValue) + 0.5)
+		if clampValue == self.Value then
+			return
+		end
+		
+		self.Value = clampValue
+		self:UpdateText()
+		
+		local slider = self.Slider
+		if slider == nil then
+			return
+		end
+		
+		self.IgnoreSliderValueChangedEvent = true
+		slider.Value = clampValue
+		self.IgnoreSliderValueChangedEvent = false
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Enter()
+		local callback = self.EnterCallback
+		local value = self.Value
+		self:Clear()
+		
+		if callback ~= nil then
+			callback(value)
+			return
+		end
+	end
+	
+	@ExecSpace("ClientOnly")
+	method void Close()
+		local callback = self.CloseCallback
+		self:Clear()
+		
+		if callback ~= nil then
+			callback()
+			return
+		end
+	end
+	
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		self.IsReady = false
+		self.Entity.Enable = false
+		
+		self.CloseCallback = nil
+		self.EnterCallback = nil
+	end
+	
+	@ExecSpace("ClientOnly")
+	method void InitSliderValues(integer value, integer minValue, integer maxValue)
+		local slider = self.Slider
+		if slider == nil then
+			return
+		end
+		
+		if minValue > maxValue then
+			return
+		end
+		
+		if minValue > slider.MaxValue then
+			slider.MaxValue = maxValue
+			slider.MinValue = minValue
+		else
+			slider.MinValue = minValue
+			slider.MaxValue = maxValue
+		end
+		
+		slider.Value = value
+	end
+	
+	@ExecSpace("ClientOnly")
+	method void OnSliderValueChanged(SliderValueChangedEvent evt)
+		if not self.IsReady then
+			return
+		end
+		
+		if self.IgnoreSliderValueChangedEvent then
+			return
+		end
+		
+		self.Value = evt.Value
+		self:UpdateText()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void UpdateText()
+		self.Text_Value.TextComponent.Text = tostring(self.Value)
+	end
+	
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Close()
+		self:Close()
+	end
+	
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Enter()
+		self:Enter()
+	end
+	
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Clear()
+		self:SetValue(self.DefaultValue)
+	end
+	
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_KeyPad(integer num)
+		self:SetValue(self.Value * 10 + num)
+	end
+	
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Min()
+		self:SetValue(self.MinValue)
+	end
+	
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Max()
+		self:SetValue(self.MaxValue)
+	end
+	
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Plus()
+		self:SetValue(self.Value + 1)
+	end
+	
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn_Minus()
+		self:SetValue(self.Value - 1)
+	end
+	
+end

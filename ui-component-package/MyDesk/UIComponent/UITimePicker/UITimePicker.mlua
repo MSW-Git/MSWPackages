@@ -1,0 +1,468 @@
+@Component
+script UITimePicker extends Component
+
+	@Description("Currently selected hour (0-23)")
+	property integer Hour = 0
+
+	@Description("Currently selected minute (0-59)")
+	property integer Minute = 0
+
+	@Description("Currently selected second (0-59)")
+	property integer Second = 0
+
+	@Description("Use 24-hour format (true) or 12-hour format with AM/PM (false)")
+	property boolean Is24Hour = false
+
+	@Description("Current time is PM (true) or AM (false) - only used in 12-hour format")
+	@HideFromInspector
+	property boolean IsPm = false
+
+	@Description("Hour picker component")
+	property UIScrollRangeNumberPicker HourPicker = nil
+
+	@Description("Minute picker component")
+	property UIScrollRangeNumberPicker MinutePicker = nil
+
+	@Description("Second picker component")
+	property UIScrollRangeNumberPicker SecondPicker = nil
+
+	@Description("AM/PM button group for 12-hour format")
+	property UICompoundButtonGroup MeridiemButtonGroup = nil
+
+	@Description("AM button component")
+	property UICompoundButton Btn_Am = nil
+
+	@Description("PM button component")
+	property UICompoundButton Btn_Pm = nil
+
+	@HideFromInspector
+	property boolean IsInitialized = false
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		self:Init()
+	end
+
+	@ExecSpace("ClientOnly")
+	method boolean Init()
+		if self.IsInitialized then
+			return false
+		end
+		self.IsInitialized = true
+		
+		self:InitPicker()
+		self:InitMeridiemButtonGroup()
+		self:Rebuild()
+		
+		return true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void InitPicker()
+		local entity = self.Entity
+		
+		local hourPicker = self.HourPicker
+		if hourPicker == nil then
+			local child = entity:GetChildByName("HourPicker")
+			if child ~= nil then
+				hourPicker = child.UIScrollRangeNumberPicker
+				self.HourPicker = hourPicker
+			end
+		end
+		
+		if hourPicker ~= nil then
+			hourPicker:Init()
+			hourPicker.Entity:ConnectEvent(UIScrollPickerValueChangedEvent, self.OnHourPickerValueChanged)
+		end
+		
+		local minutePicker = self.MinutePicker
+		if minutePicker == nil then
+			local child = entity:GetChildByName("MinutePicker")
+			if child ~= nil then
+				minutePicker = child.UIScrollRangeNumberPicker
+				self.MinutePicker = minutePicker
+			end
+		end
+		
+		if minutePicker ~= nil then
+			minutePicker:Init()
+			minutePicker.Entity:ConnectEvent(UIScrollPickerValueChangedEvent, self.OnMinutePickerValueChanged)
+		end
+		
+		local secondPicker = self.SecondPicker
+		if secondPicker == nil then
+			local child = entity:GetChildByName("SecondPicker")
+			if child ~= nil then
+				secondPicker = child.UIScrollRangeNumberPicker
+				self.SecondPicker = secondPicker
+			end
+		end
+		
+		if secondPicker ~= nil then
+			secondPicker:Init()
+			secondPicker.Entity:ConnectEvent(UIScrollPickerValueChangedEvent, self.OnSecondPickerValueChanged)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void InitMeridiemButtonGroup()
+		if self.Is24Hour then
+			return
+		end
+		
+		local entity = self.Entity
+		
+		local meridiemButtonGroup = self.MeridiemButtonGroup
+		if meridiemButtonGroup == nil then
+			local child = entity:GetChildByName("MeridiemButtonGroup")
+			if child ~= nil then
+				meridiemButtonGroup = child.UICompoundButtonGroup
+				self.MeridiemButtonGroup = meridiemButtonGroup
+			end
+		end
+		
+		if meridiemButtonGroup == nil then
+			return
+		end
+		
+		local btn_Am = self.Btn_Am
+		if btn_Am ~= nil then
+			btn_Am:Init()
+			meridiemButtonGroup:RegisterButton(btn_Am)
+		end
+		
+		local btn_Pm = self.Btn_Pm
+		if btn_Pm ~= nil then
+			btn_Pm:Init()
+			meridiemButtonGroup:RegisterButton(btn_Pm)
+		end
+		
+		if meridiemButtonGroup ~= nil then
+			meridiemButtonGroup.Entity:ConnectEvent(UICompoundButtonGroupValueChangedEvent, self.OnMeridiemButtonGroupValueChanged)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Rebuild()
+		local hourPicker = self.HourPicker
+		local minutePicker = self.MinutePicker
+		local secondPicker = self.SecondPicker
+		local meridiemButtonGroup = self.MeridiemButtonGroup
+		
+		if hourPicker ~= nil then
+			-- 24-hour format: 1-23
+			hourPicker:SetValueRange(0, 23, 1)
+			hourPicker.RenderPrecision = 0
+			
+			if self.Is24Hour then
+				hourPicker.OnRefreshText = function(item)
+					local comp = item.UIScrollPickerItem
+					local hourValue = comp.Value
+					comp:SetText(string.format("%02d", hourValue))
+				end
+			else
+				-- 12-hour format
+				hourPicker.OnRefreshText = function(item)
+					local comp = item.UIScrollPickerItem
+					local hourValue = comp.Value
+					local hourText = string.format("%02d", hourValue)
+					if hourValue == 0 then
+						hourText = "12"
+					elseif hourValue > 12 then
+						hourText = string.format("%02d", hourValue - 12)
+					end
+					
+					comp:SetText(hourText)
+				end
+			end
+			hourPicker:SetValue(self.Hour, false)
+		end
+		
+		self:UpdateMeridiemButtonGroup(false)
+		
+		if minutePicker ~= nil then
+			minutePicker:SetValueRange(0, 59, 1)
+			minutePicker.RenderPrecision = 0
+			minutePicker.OnRefreshText = function(item)
+				local comp = item.UIScrollPickerItem
+				local minuteValue = comp.Value
+				comp:SetText(string.format("%02d", minuteValue))
+			end
+			minutePicker:SetValue(self.Minute, false)
+		end
+		
+		if secondPicker ~= nil then
+			secondPicker:SetValueRange(0, 59, 1)
+			secondPicker.RenderPrecision = 0
+			secondPicker.OnRefreshText = function(item)
+				local comp = item.UIScrollPickerItem
+				local secondValue = comp.Value
+				comp:SetText(string.format("%02d", secondValue))
+			end
+			secondPicker:SetValue(self.Second, false)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void UpdateMeridiemButtonGroup(boolean sendCallback)
+		if self.Is24Hour then
+			return
+		end
+		
+		local meridiemButtonGroup = self.MeridiemButtonGroup
+		if meridiemButtonGroup == nil then
+			return
+		end
+		
+		if #meridiemButtonGroup.Buttons ~= 2 then
+			return
+		end
+		
+		local targetButton = self:GetMeridiemButton(self.IsPm)
+		if targetButton == nil then
+			return
+		end
+		
+		meridiemButtonGroup:SelectButton(targetButton, false)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnHourPickerValueChanged(UIScrollPickerValueChangedEvent evt)
+		-- HourPicker now always uses 0-23 range
+		local newHour = evt.Value
+		self.Hour = newHour
+		
+		if not self.Is24Hour then
+			local isPm = false
+			if newHour == 0 then
+				isPm = false  -- 12 AM (midnight)
+			elseif newHour == 12 then
+				isPm = true   -- 12 PM (noon)
+			elseif newHour < 12 then
+				isPm = false  -- 1-11 AM
+			else
+				isPm = true   -- 13-23 PM (1-11 PM)
+			end
+			
+			self.IsPm = isPm
+			self:UpdateMeridiemButtonGroup(false)
+		end
+		
+		local timeChangedEvt = UITimePickerValueChangedEvent()
+		timeChangedEvt.Hour = self.Hour
+		timeChangedEvt.Minute = self.Minute
+		timeChangedEvt.Second = self.Second
+		self.Entity:SendEvent(timeChangedEvt)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnMinutePickerValueChanged(UIScrollPickerValueChangedEvent evt)
+		local newMinute = evt.Value
+		self.Minute = newMinute
+		
+		local timeChangedEvt = UITimePickerValueChangedEvent()
+		timeChangedEvt.Hour = self.Hour
+		timeChangedEvt.Minute = self.Minute
+		timeChangedEvt.Second = self.Second
+		self.Entity:SendEvent(timeChangedEvt)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnSecondPickerValueChanged(UIScrollPickerValueChangedEvent evt)
+		local newSecond = evt.Value
+		self.Second = newSecond
+		
+		local timeChangedEvt = UITimePickerValueChangedEvent()
+		timeChangedEvt.Hour = self.Hour
+		timeChangedEvt.Minute = self.Minute
+		timeChangedEvt.Second = self.Second
+		self.Entity:SendEvent(timeChangedEvt)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnMeridiemButtonGroupValueChanged(UICompoundButtonGroupValueChangedEvent evt)
+		-- AM/PM switch is not used in 24-hour format
+		if self.Is24Hour then
+			return
+		end
+		
+		local meridiemButtonGroup = self.MeridiemButtonGroup
+		if meridiemButtonGroup == nil then
+			return
+		end
+		
+		local activeButton = meridiemButtonGroup:GetActiveButton()
+		if activeButton == nil then
+			return
+		end
+		
+		self.IsPm = activeButton == self:GetMeridiemButton(true)
+		self:UpdateMeridiemButtonGroup(false)
+		
+		local beforeHour = self.Hour
+		local hour = beforeHour
+		if self.IsPm then
+			-- PM: Convert 1-11 to 13-23, keep 12 as is
+			if hour >= 1 and hour <= 11 then
+				hour = hour + 12
+			elseif hour == 0 then
+				hour = 12  -- 12 AM (midnight) -> 12 PM (noon)
+			end
+		else
+			-- AM: Convert 13-23 to 1-11, convert 12 to 0
+			if hour >= 13 and hour <= 23 then
+				hour = hour - 12
+			elseif hour == 12 then
+				hour = 0  -- 12 PM (noon) -> 12 AM (midnight)
+			end
+		end
+		
+		if beforeHour == hour then
+			return
+		end
+		self.Hour = hour
+		
+		local hourPicker = self.HourPicker
+		if hourPicker ~= nil then
+			hourPicker:SetValue(hour, false)
+		end
+		
+		local timeChangedEvt = UITimePickerValueChangedEvent()
+		timeChangedEvt.Hour = self.Hour
+		timeChangedEvt.Minute = self.Minute
+		timeChangedEvt.Second = self.Second
+		self.Entity:SendEvent(timeChangedEvt)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetTime12h(integer hour, integer minute, integer second, boolean isPm, boolean sendCallback)
+		-- Input validation
+		if hour < 1 or hour > 12 then
+			return
+		end
+		
+		if minute < 0 or minute > 59 then
+			return
+		end
+		
+		if second < 0 or second > 59 then
+			return
+		end
+		
+		local hour24 = 0
+		if hour == 12 then
+			if isPm then
+				hour24 = 12  -- PM 12:00 = 12:00
+			else
+				hour24 = 0   -- AM 12:00 = 0:00
+			end
+		else
+			if isPm then
+				hour24 = hour + 12  -- PM 1-11:00 = 13-23:00
+			else
+				hour24 = hour       -- AM 1-11:00 = 1-11:00
+			end
+		end
+		
+		self.Hour = hour24
+		self.Minute = minute
+		self.Second = second
+		
+		local hourPicker = self.HourPicker
+		local minutePicker = self.MinutePicker
+		local secondPicker = self.SecondPicker
+		local meridiemButtonGroup = self.MeridiemButtonGroup
+		
+		if hourPicker ~= nil then
+			-- HourPicker always uses 0-23 range
+			hourPicker:SetValue(hour24, false)
+		end
+		if minutePicker ~= nil then
+			minutePicker:SetValue(minute, false)
+		end
+		if secondPicker ~= nil then
+			secondPicker:SetValue(second, false)
+		end
+		
+		self:UpdateMeridiemButtonGroup(false)
+		
+		if sendCallback then
+			local evt = UITimePickerValueChangedEvent()
+			evt.Hour = self.Hour
+			evt.Minute = self.Minute
+			evt.Second = self.Second
+			self.Entity:SendEvent(evt)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetTime(integer hour, integer minute, integer second, boolean sendCallback)
+		-- Input validation
+		if hour < 0 or hour > 23 then
+			return
+		end
+		if minute < 0 or minute > 59 then
+			return
+		end
+		if second < 0 or second > 59 then
+			return
+		end
+		
+		self.Hour = hour
+		self.Minute = minute
+		self.Second = second
+		
+		local hourPicker = self.HourPicker
+		local minutePicker = self.MinutePicker
+		local secondPicker = self.SecondPicker
+		local meridiemButtonGroup = self.MeridiemButtonGroup
+		
+		-- HourPicker now always uses 0-23 range
+		if hourPicker ~= nil then
+			hourPicker:SetValue(hour, false)
+		end
+		
+		-- Set IsPm for 12-hour format
+		local isPm = false
+		if not self.Is24Hour then
+			if hour == 0 then
+				isPm = false  -- Midnight = AM
+			elseif hour == 12 then
+				isPm = true   -- Noon = PM
+			elseif hour < 12 then
+				isPm = false  -- AM 1-11:00
+			else
+				isPm = true   -- PM 1-11:00 (13-23:00)
+			end
+			
+			self.IsPm = isPm
+			self:UpdateMeridiemButtonGroup(false)
+		end
+		
+		if minutePicker ~= nil then
+			minutePicker:SetValue(minute, false)
+		end
+		
+		if secondPicker ~= nil then
+			secondPicker:SetValue(second, false)
+		end
+		
+		if sendCallback then
+			local evt = UITimePickerValueChangedEvent()
+			evt.Hour = self.Hour
+			evt.Minute = self.Minute
+			evt.Second = self.Second
+			self.Entity:SendEvent(evt)
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method UICompoundButton GetMeridiemButton(boolean isPm)
+		if isPm then
+			return self.Btn_Pm
+		end
+		
+		return self.Btn_Am
+	end
+
+end

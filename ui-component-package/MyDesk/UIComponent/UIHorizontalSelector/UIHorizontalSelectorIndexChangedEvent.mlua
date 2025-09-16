@@ -1,0 +1,6 @@
+@Event
+script UIHorizontalSelectorIndexChangedEvent extends EventType
+
+	property integer Index = 0
+
+end

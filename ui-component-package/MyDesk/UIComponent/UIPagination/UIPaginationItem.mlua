@@ -1,0 +1,113 @@
+@Component
+script UIPaginationItem extends Component
+
+	@HideFromInspector
+	property integer PageNumber = 0
+
+	@HideFromInspector
+	property integer Index = 0
+
+	@HideFromInspector
+	property boolean Ellipsis = false
+
+	property Entity DefaultEntity = nil
+
+	property Entity SelectedEntity = nil
+
+	@HideFromInspector
+	property UIPagination ParentPagination = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		self:Init()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Init()
+		local entity = self.Entity
+		
+		local defaultEntity = self.DefaultEntity
+		if defaultEntity == nil then
+			defaultEntity = entity:GetChildByName("Default")
+			self.DefaultEntity = defaultEntity
+		end
+		
+		if defaultEntity ~= nil then
+			defaultEntity:ConnectEvent(ButtonClickEvent, self.OnClickBtn)
+		end
+		
+		local selectedEntity = self.SelectedEntity
+		if selectedEntity == nil then
+			selectedEntity = entity:GetChildByName("Selected")
+			self.SelectedEntity = selectedEntity
+		end
+		
+		if selectedEntity ~= nil then
+			selectedEntity:ConnectEvent(ButtonClickEvent, self.OnClickBtn)
+			selectedEntity.Enable = false
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetParent(UIPagination parentPagination, integer index)
+		self.ParentPagination = parentPagination
+		self.Index = index
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnClickBtn()
+		-- Connect event with handler passed from parent pagination
+		local parentPagination = self.ParentPagination
+		if parentPagination ~= nil then
+			parentPagination:OnPaginationItemClick(self)
+		end		
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetPageNumber(integer pageNumber)
+		self.PageNumber = pageNumber
+	end
+
+	@ExecSpace("ClientOnly")
+	method void UpdateText()
+		---@type string
+		local text = nil
+		if self.Ellipsis then
+			text = "..."
+		else
+			text = tostring(self.PageNumber)
+		end
+		
+		local defaultEntity = self.DefaultEntity
+		if defaultEntity ~= nil then
+			local textComponent = defaultEntity.TextComponent
+			if textComponent ~= nil then
+				textComponent.Text = text
+			end
+		end
+		
+		local selectedEntity = self.SelectedEntity
+		if selectedEntity ~= nil then
+			local textComponent = selectedEntity.TextComponent
+			if textComponent ~= nil then
+				textComponent.Text = text
+			end
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetSelected(boolean selected)
+		local selectedEntity = self.SelectedEntity
+		if selectedEntity == nil then
+			return
+		end
+		
+		if self.Ellipsis then
+			selectedEntity.Enable = false
+			return
+		end
+		
+		selectedEntity.Enable = selected
+	end
+
+end

@@ -1,0 +1,92 @@
+@Component
+script UIScrollPickerItem extends Component
+
+	@Description("Parent scroll picker")
+	@HideFromInspector
+	property UIScrollPicker Parent = nil
+
+	@Description("Item text component")
+	@HideFromInspector
+	property TextComponent TextComp = nil
+
+	@Description("Current item value")
+	@HideFromInspector
+	property any Value = nil
+
+	@Description("Current item index")
+	@HideFromInspector
+	property integer ValueIndex = 0
+
+	@Description("Item index")
+	@HideFromInspector
+	property integer ItemIndex = 0
+
+	@Description("Is item selected")
+	@HideFromInspector
+	property boolean IsSelected = false
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		self:Init()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Init()
+		local textComp = self.TextComp
+		if textComp == nil then
+			local textEntity = self.Entity:GetChildByName("Text")
+			if textEntity ~= nil then
+				self.TextComp = textEntity.TextComponent	
+			end
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetParent(UIScrollPicker parent, integer itemIndex)
+		self.Parent = parent
+		self.ItemIndex = itemIndex
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetValue(number valueIndex, integer value)
+		self.Value = value
+		self.ValueIndex = valueIndex
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetText(string str)
+		local textComp = self.TextComp
+		if textComp == nil then
+			return
+		end
+		
+		textComp.Text = str
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetSelected(boolean selected, boolean force)
+		if not force then
+			if self.IsSelected == selected then
+				return
+			end
+		end
+		self.IsSelected = selected
+		
+		local textComp = self.TextComp
+		if textComp == nil then
+			return
+		end
+		
+		local parent = self.Parent
+		if parent == nil then
+			return
+		end
+			
+		if selected then
+			textComp.FontColor = self.Parent.SelectedTextColor
+		else
+			textComp.FontColor = self.Parent.DeselectedTextColor
+		end
+	end
+
+end

@@ -1,0 +1,6 @@
+@Event
+script UIPaginationItemClickedEvent extends EventType
+
+	property integer PageNumber = 0
+
+end
