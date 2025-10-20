@@ -1,10 +1,10 @@
 @Logic
 script DropLogic extends Logic
-	
+
 	property number Epsilon = 0.000001
-	
+
 	property integer MaxRollCount = 100
-	
+
 	method boolean DropSingle(integer dropId, integer rollCount, number rateMul, integer countMul, table outResultList)
 		--[[
 		Determines the items to drop using the DropSingle DataSet.
@@ -86,7 +86,7 @@ script DropLogic extends Logic
 		
 		return true
 	end
-	
+
 	method boolean DropMulti(integer dropId, integer rollCount, number rateMul, integer countMul, table outResultList)
 		--[[
 		Determines the items to drop using the DropMulti DataSet.
@@ -170,7 +170,7 @@ script DropLogic extends Logic
 		
 		return true
 	end
-	
+
 	method void SimulateDropSingle(integer dropId, integer rollCount, number rateMul, integer countMul)
 		--[[
 		Simulates drops using the DropSingle DataSet and logs the results along with the data.
@@ -297,7 +297,7 @@ script DropLogic extends Logic
 		
 		log(table.concat(resultList, "\n"))
 	end
-	
+
 	method void SimulateDropMulti(integer dropId, integer rollCount, number rateMul, integer countMul)
 		--[[
 		Simulates drops using the DropMulti DataSet and logs the results along with the data.
@@ -395,7 +395,7 @@ script DropLogic extends Logic
 		
 		log(table.concat(resultList, "\n"))
 	end
-	
+
 	method boolean RandomDropSingle(integer dropSingleGroupId, integer rollCount, table outResultList)
 		--[[
 		Determines the items to drop using the DropSingleGroup DataSet.
@@ -451,7 +451,7 @@ script DropLogic extends Logic
 		
 		return true
 	end
-	
+
 	method boolean SelectDropSingle(integer dropSingleGroupId, integer index, integer openCount, boolean outResultList)
 		--[[
 		Determines the item to drop using the DropSingleGroup DataSet.
@@ -514,5 +514,5 @@ script DropLogic extends Logic
 		
 		return true
 	end
-	
+
 end

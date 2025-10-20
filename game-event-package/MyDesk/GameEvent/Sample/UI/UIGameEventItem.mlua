@@ -1,16 +1,16 @@
 @Component
 script UIGameEventItem extends Component
-	
+
 	property Entity BG = nil
-	
+
 	property TextComponent Text_Status = nil
-	
+
 	property TextComponent Text_Date = nil
-	
+
 	property Entity Banner = nil
 
 	property any Struct = nil
-	
+
 	@ExecSpace("ClientOnly")
 	method void OnBeginPlay()
 		local entity = self.Entity
@@ -24,7 +24,7 @@ script UIGameEventItem extends Component
 		local btn = entity:GetChildByName("Btn")
 		btn:ConnectEvent(ButtonClickEvent, self.OnClickBtn)
 	end
-	
+
 	@ExecSpace("ClientOnly")
 	method void Init(integer defEnum)
 		local modelName = _GameEventDefTypeEnum:GetBannnerModelName(defEnum)	
@@ -32,17 +32,17 @@ script UIGameEventItem extends Component
 			log_error(string.format("Cannot find modelName. GameEvent DefEnum : %d", defEnum))
 			return
 		end
-
+		
 		local modelId = _EntryService:GetModelIdByName(modelName)
 		if _Util:IsNilorEmptyString(modelId) then
 			log_error(string.format("Cannot find modelId. modelName : %s", modelName))
 			return
 		end
-
+		
 		local banner = _SpawnService:SpawnByModelId(modelId, "Banner", FastVector3.zero, self.BG)
 		self.Banner = banner
 	end
-	
+
 	@ExecSpace("ClientOnly")
 	method void Set(GameEventStruct s)
 		self.Struct = s
@@ -51,13 +51,13 @@ script UIGameEventItem extends Component
 		---@type GameEventScheduleData
 		local scheduleData = s.ScheduleData
 		self:SetDate(scheduleData.StartTime, scheduleData.EndTime)
-
+		
 		local banner = self.Banner
 		if isvalid(banner) then
 			banner.UIGameEventBanner:Set(s)
 		end
 	end
-	
+
 	@ExecSpace("ClientOnly")
 	method void SetStatus(integer status)
 		local text = nil
@@ -73,7 +73,7 @@ script UIGameEventItem extends Component
 		
 		self.Text_Status.Text = text
 	end
-	
+
 	@ExecSpace("ClientOnly")
 	method void SetDate(integer startTime, integer endTime)
 		local startDate = DateTime(startTime)
@@ -84,14 +84,15 @@ script UIGameEventItem extends Component
 		
 		self.Text_Date.Text = string.format("%s ~ %s", startDateStr, endDateStr)
 	end
-	
+
 	@ExecSpace("ClientOnly")
 	method void OnClickBtn()
 		local banner = self.Banner
 		if not isvalid(banner) then
 			return
 		end
-
+		
 		banner.UIGameEventBanner:OnClick(self.Struct)
 	end
+
 end

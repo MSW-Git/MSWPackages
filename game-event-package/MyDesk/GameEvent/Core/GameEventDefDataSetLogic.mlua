@@ -15,20 +15,20 @@ script GameEventDefDataSetLogic extends Logic
 			if not _Util:IsNilorEmptyString(disable) then
 				continue
 			end
-
+		
 			local defEnum = _GameEventDefTypeEnum:ToEnum(row:GetItem("Type"))
 			if defEnum == _GameEventDefTypeEnum.None then
 				log_error(string.format("GameEventDefData defEnum is invalid. RowNum : %d", i))
 				continue
 			end
-
+		
 			---@type GameEventDefData
 			local data = _GameEventDefTypeEnum:CreateData(defEnum)
 			if data == nil then
 				log_error(string.format("GameEventDefData Creation Fail. DefEnum : %d, RowNum : %d", defEnum, i))
 				continue
 			end
-
+		
 			if not data:Load(row) then
 				return false
 			end

@@ -11,18 +11,24 @@ script DateTimeLogic extends Logic
 		return DateTime.UtcNow.Elapsed + self.ServerTimeOffset
 	end
 
+	method integer GetTimeElapsedWithoutOffset()
+		return DateTime.UtcNow.Elapsed
+	end
+
 	method any GetLocalDateTime()
 		return _UtilLogic:GetLocalTimeFrom(DateTime(self:GetTimeElapsed()))
 	end
 
 	@ExecSpace("ServerOnly")
 	method void SetServerTimeOffset(integer serverTimeOffset)
+		local prev = self.ServerTimeOffset
 		self.ServerTimeOffset = serverTimeOffset
 		
 		local timeStr = self:GetDateTime():ToFormattedString("yyyy-MM-dd HH:mm:ss")
 		log("ServerTime Changed. " .. timeStr)
 		
 		local event = ServerTimeOffsetChangedEvent()
+		event.PrevServerTimeOffset = prev
 		event.ServerTimeOffset = serverTimeOffset
 		
 		self:SendEvent(event)

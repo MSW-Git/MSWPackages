@@ -1,14 +1,14 @@
 @Logic
 script GMGameEventToolLogic extends Logic
-	
+
 	property string ScheduleDSName = "GameEvent"
-	
+
 	property string ScheduleDSTag = "Tag"
-	
+
 	property string UserDSName = "GameEvent"
-	
+
 	property table ScheduleDataTable = {}
-	
+
 	@ExecSpace("ServerOnly")
 	method GameEventScheduleData GetData(integer id)
 		return self.ScheduleDataTable[id]
@@ -24,7 +24,7 @@ script GMGameEventToolLogic extends Logic
 		table.initialize(self.ScheduleDataTable, outScheduleDataList)
 		return true
 	end
-	
+
 	@ExecSpace("ServerOnly")
 	method boolean GetScheduleDataTableAndWait(table outTable)
 		local ds = _DataStorageService:GetGlobalDataStorage(self.ScheduleDSName)
@@ -60,7 +60,7 @@ script GMGameEventToolLogic extends Logic
 		
 		return true
 	end
-	
+
 	@ExecSpace("ServerOnly")
 	method boolean GetScheduleDataListAndWait(table outList)
 		local ds = _DataStorageService:GetGlobalDataStorage(self.ScheduleDSName)
@@ -96,7 +96,7 @@ script GMGameEventToolLogic extends Logic
 		
 		return true
 	end
-	
+
 	@ExecSpace("Server")
 	method void RequestScheduleDataList(boolean isEdit)
 		if not _AdminLogic:IsAdmin(senderUserId) then
@@ -110,7 +110,7 @@ script GMGameEventToolLogic extends Logic
 		
 		self:ResponseScheduleDataList(outList, isEdit, senderUserId)
 	end
-	
+
 	@ExecSpace("Client")
 	method void ResponseScheduleDataList(table dataList, boolean isEdit)
 		local ui = _GameEventSampleUILogic:GetToolUI()
@@ -126,7 +126,7 @@ script GMGameEventToolLogic extends Logic
 			page_view.UIGMGameEventToolSchedule:Apply(dataList)
 		end
 	end
-	
+
 	@ExecSpace("Server")
 	method void RequestSetScheduleData(GameEventScheduleData data)
 		if not _AdminLogic:IsAdmin(senderUserId) then
@@ -160,7 +160,7 @@ script GMGameEventToolLogic extends Logic
 		
 		self:ResponseSetScheduleData(data, senderUserId)
 	end
-	
+
 	@ExecSpace("Client")
 	method void ResponseSetScheduleData(GameEventScheduleData data)
 		local ui = _GameEventSampleUILogic:GetToolUI()
@@ -173,7 +173,7 @@ script GMGameEventToolLogic extends Logic
 		tool.Popup_EditSchedule_Edit.Enable = false
 		tool.Page_EditSchedule.UIGMGameEventToolEditSchedule:OnSetData(data)
 	end
-	
+
 	@ExecSpace("Server")
 	method void RequestDeleteScheduleData(integer id)
 		if not _AdminLogic:IsAdmin(senderUserId) then
@@ -198,7 +198,7 @@ script GMGameEventToolLogic extends Logic
 		
 		self:ResponseDeleteScheduleData(id, senderUserId)
 	end
-	
+
 	@ExecSpace("Client")
 	method void ResponseDeleteScheduleData(integer id)
 		local ui = _GameEventSampleUILogic:GetToolUI()
@@ -210,7 +210,7 @@ script GMGameEventToolLogic extends Logic
 		tool.Popup_EditSchedule_Delete.Enable = false
 		tool.Page_EditSchedule.UIGMGameEventToolEditSchedule:OnDeleteData(id)
 	end
-	
+
 	@ExecSpace("Server")
 	method void RequestUserDataList(string profileCode, boolean isEdit)
 		if not _AdminLogic:IsAdmin(senderUserId) then
@@ -224,7 +224,7 @@ script GMGameEventToolLogic extends Logic
 		
 		self:ResponseUserDataList(profileCode, isEdit, deserTable, senderUserId)
 	end
-	
+
 	@ExecSpace("ServerOnly")
 	method table GetUserDeserTableAndWait(string profileCode)
 		local ds = _DataStorageService:GetUserDataStorage(profileCode)
@@ -240,7 +240,7 @@ script GMGameEventToolLogic extends Logic
 		
 		return _HttpService:JSONDecode(sdsValue)
 	end
-	
+
 	@ExecSpace("Client")
 	method void ResponseUserDataList(string profileCode, boolean isEdit, table deserTable)
 		local ui = _GameEventSampleUILogic:GetToolUI()
@@ -263,7 +263,7 @@ script GMGameEventToolLogic extends Logic
 			page_view.UIGMGameEventToolUser:Apply(profileCode, dataList)
 		end
 	end
-	
+
 	@ExecSpace("ClientOnly")
 	method void InvokeRequestEditUserDataList(string profileCode, table dataList)
 		local deserTable = {}
@@ -275,13 +275,13 @@ script GMGameEventToolLogic extends Logic
 			if not userData:SerializeFromTool(dbItem) then
 				return	
 			end
-
+		
 			deserTable[#deserTable + 1] = dbItem
 		end
 		
 		self:RequestEditUserDataList(profileCode, deserTable)
 	end
-	
+
 	@ExecSpace("Server")
 	method void RequestEditUserDataList(string profileCode, table deserTable)
 		if not _AdminLogic:IsAdmin(senderUserId) then

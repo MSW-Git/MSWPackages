@@ -1,8 +1,8 @@
 @Struct
 script GameEventExpRateDefData extends GameEventDefData
-	
+
 	property number ExpRate = 0
-	
+
 	method boolean Load(any dataRow)
 		if not __base:Load(dataRow) then
 			return false
@@ -17,14 +17,13 @@ script GameEventExpRateDefData extends GameEventDefData
 			return false
 		end
 		self.ExpRate = expRate
-
+		
 		return true
 	end
 
 	method void OnActive(GameEventStruct s)
 		_GameEventExpRateLogic:Update()
 	end
-
 
 	method void OnGrace(GameEventStruct s)
 		_GameEventExpRateLogic:Update()
@@ -33,4 +32,5 @@ script GameEventExpRateDefData extends GameEventDefData
 	method void OnClose(GameEventStruct s)
 		_GameEventExpRateLogic:Update()
 	end
+
 end

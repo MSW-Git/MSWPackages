@@ -1,12 +1,12 @@
 @Struct
 script GameEventDefData
-	
+
 	property integer DefId = 0
-	
+
 	property integer TypeEnum = 0
-	
+
 	property boolean ShowBanner = false
-	
+
 	method boolean Load(any dataRow)
 		---@type UserDataRow
 		local row = dataRow
@@ -31,7 +31,7 @@ script GameEventDefData
 		
 		return true
 	end
-	
+
 	method void OnStatusChanged(GameEventStruct s, integer status)
 		if status == _GameEventStatusEnum.Awaiting then
 			self:OnAwaiting(s)
@@ -45,29 +45,29 @@ script GameEventDefData
 			self:OnClose(s)
 		end
 	end
-		
+
 	method void OnAwaiting(GameEventStruct s)
 		-- Optional: Implement in child struct.
 	end
-	
+
 	method void OnPreview(GameEventStruct s)
 		-- Optional: Implement in child struct.
 	end
-	
+
 	method void OnActive(GameEventStruct s)
 		-- Optional: Implement in child struct.
 	end
-	
+
 	method void OnGrace(GameEventStruct s)
 		-- Optional: Implement in child struct.
 	end
-	
+
 	method void OnClose(GameEventStruct s)
 		-- Optional: Implement in child struct.
 	end
-	
+
 	method void OnLoadedUserData(Entity userEntity, GameEventStruct s)
 		-- Optional: Implement in child struct.
 	end
-	
+
 end

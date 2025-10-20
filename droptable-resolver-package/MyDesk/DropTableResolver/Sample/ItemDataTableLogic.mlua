@@ -1,7 +1,8 @@
 @Logic
 script ItemDataTableLogic extends Logic
+
 	property table DataTable = {}
-	
+
 	method boolean Load()
 		---@type table<integer, ItemData>
 		local dataTable = self.DataTable
@@ -24,8 +25,9 @@ script ItemDataTableLogic extends Logic
 		
 		return true
 	end
-	
+
 	method ItemData GetData(integer itemId)
 		return self.DataTable[itemId]
 	end
+
 end

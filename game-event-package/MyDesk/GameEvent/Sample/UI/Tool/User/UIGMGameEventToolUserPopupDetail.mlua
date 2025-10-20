@@ -39,7 +39,7 @@ script UIGMGameEventToolUserPopupDetail extends Component
 	method void Set(UserGameEventData userData)
 		self.Id.Text = tostring(userData.Id)
 		self.DefId.Text = tostring(userData.DefId)
-	
+		
 		local success, result = pcall(_HttpService.JSONEncode, _HttpService, userData.Value)
 		if not success then
 			log_error(string.format("JSONDecode Error. Id : %d, DefId : %d, Error : %s", userData.Id, userData.DefId, result))
@@ -47,7 +47,7 @@ script UIGMGameEventToolUserPopupDetail extends Component
 		else
 			self.Value.Text = result
 		end 
-
+		
 		local timeOffset = self.Parent.TimeOffset
 		self.UpdateDate.Text = _UtilGMTool:ElapsedTimeToString(userData.UpdateTime, timeOffset)
 	end

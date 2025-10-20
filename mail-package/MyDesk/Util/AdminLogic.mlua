@@ -3,6 +3,17 @@ script AdminLogic extends Logic
 
 	@ExecSpace("ServerOnly")
 	method boolean IsAdmin(string userId)
+		--[[
+		You need to add a condition to filter whether the user is an administrator.
+		]]
+		return true
+	end
+
+	@ExecSpace("ClientOnly")
+	method boolean IsAdminLocalPlayer()
+		--[[
+		You need to add a condition to filter whether the user is an administrator.
+		]]
 		return true
 	end
 

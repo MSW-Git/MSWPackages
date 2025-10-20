@@ -1,8 +1,8 @@
 @Logic
 script GameEventExpRateLogic extends Logic
-	
+
 	property number ExpRate = 0
-	
+
 	method void Update()
 		local resultRate = 0
 		
@@ -27,5 +27,5 @@ script GameEventExpRateLogic extends Logic
 		
 		self.ExpRate = resultRate
 	end
-	
+
 end

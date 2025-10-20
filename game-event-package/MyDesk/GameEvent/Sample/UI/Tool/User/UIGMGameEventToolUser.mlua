@@ -18,7 +18,7 @@ script UIGMGameEventToolUser extends Component
 		local entity = self.Entity
 		
 		self.Text_Name = entity:GetChildByName("Text_Name").TextComponent
-
+		
 		local item = entity:GetChildByName("Item")
 		item.Enable = false
 		self.Item = item
@@ -29,7 +29,7 @@ script UIGMGameEventToolUser extends Component
 		gridViewComp.OnClear = self.OnClear
 		gridViewComp.Entity:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Detail)
 		self.GridViewComp = gridViewComp
-
+		
 		local scroll_bottom = entity:GetChildByName("Scroll_Bottom")
 		self.Text_ProfileCode = scroll_bottom:GetChildByName("Text_ProfileCode").TextComponent
 		
@@ -65,7 +65,7 @@ script UIGMGameEventToolUser extends Component
 		if _Util:IsNilorEmptyString(profileCode) then
 			return
 		end
-
+		
 		_GMGameEventToolLogic:RequestUserDataList(profileCode, false)
 	end
 
@@ -85,4 +85,5 @@ script UIGMGameEventToolUser extends Component
 		
 		self.Parent:OpenPopup_UserDetail(data)
 	end
+
 end

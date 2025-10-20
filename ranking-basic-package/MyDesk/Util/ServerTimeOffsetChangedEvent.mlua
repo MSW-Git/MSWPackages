@@ -3,4 +3,6 @@ script ServerTimeOffsetChangedEvent extends EventType
 
 	property integer ServerTimeOffset = 0
 
+	property integer PrevServerTimeOffset = 0
+
 end

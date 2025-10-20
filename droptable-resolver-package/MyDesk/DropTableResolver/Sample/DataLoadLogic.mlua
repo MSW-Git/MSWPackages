@@ -3,7 +3,7 @@ script DataLoadLogic extends Logic
 
 	method void OnBeginPlay()
 		-- DataSets must be loaded in order due to interdependencies.
-
+		
 		_ItemRankEnum:Init()
 		
 		if not _ItemDataTableLogic:Load() then

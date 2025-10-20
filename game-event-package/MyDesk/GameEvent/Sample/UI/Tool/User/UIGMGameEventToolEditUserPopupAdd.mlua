@@ -41,17 +41,17 @@ script UIGMGameEventToolEditUserPopupAdd extends Component
 			log_error("Id is nil or 0.")
 			return
 		end
-
+		
 		local defId = math.tointeger(tonumber(self.DefId.Text))
 		if defId == nil or defId == 0 then
 			log_error("DefId is nil or 0.")
 			return
 		end
-
+		
 		if not self.Parent.Page_EditUser.UIGMGameEventToolEditUser:TryAddEditData(id, defId) then
 			return
 		end
-
+		
 		self.Entity.Enable = false
 	end
 

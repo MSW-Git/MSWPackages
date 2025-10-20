@@ -15,4 +15,5 @@ script UIGameEventBanner extends Component
 	method void OnClick(GameEventStruct s)
 		-- Implement function in child component.	
 	end
+
 end

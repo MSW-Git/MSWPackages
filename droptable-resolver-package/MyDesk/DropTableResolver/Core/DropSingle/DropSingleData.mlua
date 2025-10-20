@@ -1,12 +1,12 @@
 @Struct
 script DropSingleData
-	
+
 	property integer Id = 0
-	
+
 	property integer GroupId = 0
-	
+
 	property number GroupRate = 0
-	
+
 	method boolean Load(any dataRow)
 		---@type UserDataRow
 		local row = dataRow
@@ -34,7 +34,7 @@ script DropSingleData
 		
 		return true
 	end
-	
+
 	method integer GetWeightSum()
 		local totalWeight = 0
 		
@@ -46,4 +46,5 @@ script DropSingleData
 		
 		return totalWeight
 	end
+
 end

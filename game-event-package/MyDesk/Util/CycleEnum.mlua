@@ -1,0 +1,71 @@
+@Logic
+script CycleEnum extends Logic
+
+	property table EnumTable = {}
+
+	property table EnumToStrTable = {}
+
+	property table StrToEnumTable = {}
+
+	property integer None = 0
+
+	property integer Day = 1
+
+	property integer Week = 2
+
+	property integer Month = 3
+
+	property integer Year = 4
+
+	method boolean Init()
+		local enumStrList = {
+			"Day",
+			"Week",
+			"Month",
+			"Year",
+		}
+		
+		local enumTable = self.EnumTable
+		local enumToStrTable = self.EnumToStrTable
+		local strToEnumTable = self.StrToEnumTable
+		
+		for i = 1, #enumStrList do
+			local enumStr = enumStrList[i]
+			local enum = self[enumStr]
+			
+			if enum == nil then
+				log_error("Cannot find enum. " .. enumStr)
+				return false
+			end
+			
+			if enumToStrTable[enum] ~= nil then
+				log_error("Already existing enum. " .. enumStr)	
+				return false
+			end
+			
+			enumTable[i] = enum
+			enumToStrTable[enum] = enumStr
+			strToEnumTable[enumStr] = enum
+		end
+		
+		return true
+	end
+
+	method integer ToEnum(string str)
+		local enum = self.StrToEnumTable[str]
+		if enum == nil then
+			return self.None
+		end
+		
+		return enum
+	end
+
+	method string ToStr(integer enum)
+		return self.EnumToStrTable[enum]
+	end
+
+	method table GetEnums()
+		return self.EnumTable
+	end
+
+end

@@ -71,11 +71,11 @@ script UIGMGameEventToolEditUserPopupEdit extends Component
 				log_error(string.format("JSONEncode Error. Id : %d, DefId : %d, Error : %s", s.Id, s.DefId, result))
 			end 
 		end
-
+		
 		if not isValueExist then
 			self.Value.Text = ""
 		end		
-
+		
 		self.UpdateDate.Text = _UtilGMTool:ElapsedTimeToString(s.UpdateTime, self.TimeOffset)
 	end
 
@@ -94,7 +94,7 @@ script UIGMGameEventToolEditUserPopupEdit extends Component
 		
 		local id = editData.Id
 		local defId = editData.DefId
-
+		
 		local data = UserGameEventData()
 		data.Id = id
 		data.DefId = defId
@@ -106,12 +106,12 @@ script UIGMGameEventToolEditUserPopupEdit extends Component
 				log_error("JSONDecode Failed. Error : " .. result)
 				return nil
 			end
-
+		
 			if not _Util:IsNilorEmptyTable(result) then
 				data.Value = result
 			end
 		end
-
+		
 		data.UpdateTime = _UtilGMTool:StringToElapsedTime(self.UpdateDate.Text, self.TimeOffset)
 		return data
 	end

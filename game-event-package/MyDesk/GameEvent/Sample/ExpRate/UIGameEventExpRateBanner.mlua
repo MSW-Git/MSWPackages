@@ -1,13 +1,13 @@
 @Component
 script UIGameEventExpRateBanner extends UIGameEventBanner
-	
+
 	property TextComponent Text = nil
-	
+
 	@ExecSpace("ClientOnly")
 	method void OnBeginPlay()
 		self.Text = self.Entity:GetChildByName("Text").TextComponent
 	end
-	
+
 	@ExecSpace("ClientOnly")
 	method void Set(GameEventStruct s)
 		---@type GameEventExpRateDefData

@@ -62,7 +62,7 @@ script PlayerMail extends Component
 			saveData[_GMMailLogic.PlayerStagingMailStorage] = ""	
 		end
 		
-		
+		self.IsSaveDB = false
 		return true
 	end
 

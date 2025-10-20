@@ -20,4 +20,5 @@ script GameEventStatusEnum extends Logic
 	method boolean IsActive(integer status)
 		return status == _GameEventStatusEnum.Active
 	end
+
 end

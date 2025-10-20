@@ -8,7 +8,7 @@ script UIWorldShopItem extends Component
 	property TextComponent Text_Desc = nil
 
 	property TextComponent Text_Price = nil
-	
+
 	property Entity BtnPurchase = nil
 
 	property string ProductId = ""
@@ -28,12 +28,12 @@ script UIWorldShopItem extends Component
 				log_error("ProductId is nil or empty")
 				return
 			end
-
+		
 			if not _UserService.LocalPlayer.PlayerWorldShop:CanPurchaseMore(self.ProductId) then
 				log_error("Cannot purchase this item.")	
 				return
 			end
-
+		
 			_WorldShopService:PromptPurchase(self.ProductId)
 		end)
 	end
@@ -47,7 +47,7 @@ script UIWorldShopItem extends Component
 		end
 		
 		self.ProductId = productId
-
+		
 		local title = ""
 		local currentTimeElapsed = _DateTimeLogic:GetTimeElapsed()
 		if productData.StartDate <= currentTimeElapsed and productData.EndDate >= currentTimeElapsed then
@@ -58,12 +58,12 @@ script UIWorldShopItem extends Component
 		else
 			title = productData.Name
 		end
-
+		
 		self.Text_Name.Text = title		
 		self.Text_Desc.Text = productData.Desc
 		self.Sprite_Icon.ImageRUID = productData.IconRUID
 		self.Text_Price.Text = tostring(productData.Price)
-
+		
 		if productData.PurchaseLimit > 0 then
 			local purchaseCount = _UserService.LocalPlayer.PlayerWorldShop:GetPurchaseCount(self.ProductId)
 			local remainingLimit = productData.PurchaseLimit - purchaseCount

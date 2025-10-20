@@ -1,16 +1,16 @@
 @Component
 script UIGameEvent extends Component
-	
+
 	property Entity ScrollLayout = nil
-	
+
 	property Entity Item = nil
-	
+
 	property table StructList = {}
-	
+
 	property table Pool = {}
 
 	property any SortFunc = nil
-	
+
 	@ExecSpace("ClientOnly")
 	method void OnBeginPlay()
 		local entity = self.Entity
@@ -25,7 +25,7 @@ script UIGameEvent extends Component
 		self.Item = item
 		
 		self.ScrollLayout = panel:GetChildByName("Scroll_Layout")
-
+		
 		---@param s1 GameEventStruct
 		---@param s2 GameEventStruct
 		local function sortFunc(s1, s2)
@@ -34,11 +34,11 @@ script UIGameEvent extends Component
 			if status1 ~= status2 then
 				return status1 < status2
 			end
-
+		
 			---@type GameEventScheduleData
 			local data1 = s1.ScheduleData
 			local t1 = data1:GetNextTransitionTime(status1)
-	
+		
 			---@type GameEventScheduleData
 			local data2 = s1.ScheduleData
 			local t2 = data2:GetNextTransitionTime(status1)
@@ -46,13 +46,13 @@ script UIGameEvent extends Component
 			if t1 ~= t2 then
 				return t1 < t2
 			end
-
+		
 			local defId1 = s1.DefId
 			local defId2 = s2.DefId
 			if defId1 ~= defId2 then
 				return defId1 < defId2
 			end
-
+		
 			return s1.ScheduleId < s2.ScheduleId
 		end
 		self.SortFunc = sortFunc
@@ -65,7 +65,7 @@ script UIGameEvent extends Component
 		---@type table<GameEventStruct>
 		local structs = _GameEventLogic:GetStructList()
 		table.sort(structs, self.SortFunc)
-
+		
 		for i = 1, #structs do
 			local s = structs[i]
 			local status = s.Status
@@ -95,12 +95,12 @@ script UIGameEvent extends Component
 		self:DiscardUnusedItems()
 		self.Entity.Enable = true
 	end
-	
+
 	@ExecSpace("ClientOnly")
 	method void OnClickBtn_Close()
 		self.Entity.Enable = false
 	end
-	
+
 	@ExecSpace("ClientOnly")
 	method void CleanupItemsForReuse()
 		local panel = self.Entity:GetChildByName("Panel")
@@ -115,7 +115,7 @@ script UIGameEvent extends Component
 			self:ReturnItemToPool(item)
 		end
 	end
-	
+
 	@ExecSpace("ClientOnly")
 	method void ReturnItemToPool(Entity item)
 		---@type GameEventStruct
@@ -131,7 +131,7 @@ script UIGameEvent extends Component
 		
 		inner[#inner + 1] = item
 	end
-	
+
 	@ExecSpace("ClientOnly")
 	method Entity GetOrCreateItem(integer defEnum)
 		local inner = self.Pool[defEnum]
@@ -144,7 +144,7 @@ script UIGameEvent extends Component
 		item:AttachTo(self.ScrollLayout)
 		return item
 	end
-	
+
 	@ExecSpace("ClientOnly")
 	method Entity CreateItem(integer defEnum)
 		local item = _SpawnService:SpawnByEntity(self.Item, tostring(defEnum), FastVector3.zero, self.ScrollLayout)
@@ -152,7 +152,7 @@ script UIGameEvent extends Component
 		item.UIGameEventItem:Init(defEnum)
 		return item
 	end
-	
+
 	@ExecSpace("ClientOnly")
 	method void DiscardUnusedItems()
 		---@type table<integer, table<Entity>>
@@ -165,4 +165,5 @@ script UIGameEvent extends Component
 		
 		table.clear(pool)
 	end
+
 end

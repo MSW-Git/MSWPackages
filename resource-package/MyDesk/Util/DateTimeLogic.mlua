@@ -21,12 +21,14 @@ script DateTimeLogic extends Logic
 
 	@ExecSpace("ServerOnly")
 	method void SetServerTimeOffset(integer serverTimeOffset)
+		local prev = self.ServerTimeOffset
 		self.ServerTimeOffset = serverTimeOffset
 		
 		local timeStr = self:GetDateTime():ToFormattedString("yyyy-MM-dd HH:mm:ss")
 		log("ServerTime Changed. " .. timeStr)
 		
 		local event = ServerTimeOffsetChangedEvent()
+		event.PrevServerTimeOffset = prev
 		event.ServerTimeOffset = serverTimeOffset
 		
 		self:SendEvent(event)
@@ -73,6 +75,7 @@ script DateTimeLogic extends Logic
 	end
 
 	method integer GetNextCycleBaseTime(integer cycleEnum, integer elapsed)
+		-- Calculates the BaseTime after the Elapsed time for the specified CycleEnum.
 		if elapsed == nil or elapsed < 0 then
 			return DateTime.MaxValue.Elapsed
 		end

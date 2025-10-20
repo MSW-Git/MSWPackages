@@ -2,13 +2,13 @@
 script UIGMGameEventToolEditUser extends Component
 
 	property UIGMGameEventTool Parent = nil
-	
+
 	property GridViewComponent GridViewComp = nil
-	
+
 	property Entity Item = nil
-	
+
 	property table GridViewDataTable = {}
-	
+
 	property TextComponent Text_Name = nil
 
 	property TextComponent Text_ProfileCode = nil
@@ -30,7 +30,7 @@ script UIGMGameEventToolEditUser extends Component
 		local entity = self.Entity
 		
 		self.Text_Name = entity:GetChildByName("Text_Name").TextComponent
-
+		
 		local item = entity:GetChildByName("Item")
 		self.Item = item
 		
@@ -44,16 +44,16 @@ script UIGMGameEventToolEditUser extends Component
 		
 		local scroll_bottom = entity:GetChildByName("Scroll_Bottom")
 		self.Text_ProfileCode = scroll_bottom:GetChildByName("Text_ProfileCode").TextComponent
-
+		
 		local Btn_Query = scroll_bottom:GetChildByName("Btn_Query")
 		Btn_Query:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Query)
 		
 		local Btn_Add = entity:GetChildByName("Btn_Add")
 		Btn_Add:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Add)
-
+		
 		local Btn_Revert = entity:GetChildByName("Btn_Revert")
 		Btn_Revert:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Revert)
-
+		
 		local Btn_Save = entity:GetChildByName("Btn_Save")
 		Btn_Save:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Save)
 		
@@ -72,16 +72,16 @@ script UIGMGameEventToolEditUser extends Component
 	method void Apply(string profileCode, table dataList)
 		self.TargetProfileCode = profileCode
 		self.Text_Name.Text = "ProfileCode : " .. profileCode
-
+		
 		local original = self.OriginalUserDataTable
 		table.clear(original)
-
+		
 		for i = 1, #dataList do
 			---@type UserGameEventData
 			local data = dataList[i]
 			local id = data.Id
 			local defId = data.DefId
-
+		
 			self:SetOriginalData(id, defId, data)
 		end
 		
@@ -89,7 +89,7 @@ script UIGMGameEventToolEditUser extends Component
 			self.IsLoaded = false
 			return
 		end
-
+		
 		self:Invalidate(true)
 		self.IsLoaded = true
 	end
@@ -112,10 +112,10 @@ script UIGMGameEventToolEditUser extends Component
 			end
 		end
 		table.sort(editDataList, self.SortFunc)
-
+		
 		local gridViewDataTable = self.GridViewDataTable
 		table.initialize(gridViewDataTable, editDataList)
-
+		
 		return true
 	end
 
@@ -145,16 +145,16 @@ script UIGMGameEventToolEditUser extends Component
 			log_error(string.format("Data is already exits. Id : %d, DefId : %d", id, defId))
 			return false
 		end
-
+		
 		data = UserGameEventData()
 		data:Init(id, defId)
 		self:SetEditData(id, defId, data)
-
+		
 		---@type table<UserGameEventData>
 		local gridViewDataTable = self.GridViewDataTable
 		table.insert(gridViewDataTable, data)
 		table.sort(gridViewDataTable, self.SortFunc)
-	
+		
 		self:Invalidate(false)
 		return true
 	end
@@ -198,15 +198,15 @@ script UIGMGameEventToolEditUser extends Component
 		
 		local id = delData.Id
 		local defId = delData.DefId
-
+		
 		local data = self:GetEditData(id, defId)
 		if data == nil then
 			return
 		end
-
+		
 		local editTable = self.EditUserDataTable
 		editTable[id][defId] = nil
-
+		
 		---@type table<UserGameEventData>
 		local gridViewDataTable = self.GridViewDataTable
 		for i = 1, #gridViewDataTable do
@@ -230,7 +230,7 @@ script UIGMGameEventToolEditUser extends Component
 		
 		_GMGameEventToolLogic:RequestUserDataList(profileCode, true)
 	end
-	
+
 	@ExecSpace("ClientOnly")
 	method void OnClickBtn_Add()
 		if not self.IsLoaded then
@@ -245,12 +245,12 @@ script UIGMGameEventToolEditUser extends Component
 		if not self.IsLoaded then
 			return
 		end
-
+		
 		if not self:InitDataTable() then
 			self.IsLoaded = false
 			return
 		end
-
+		
 		self:Invalidate(false)
 	end
 
@@ -259,12 +259,12 @@ script UIGMGameEventToolEditUser extends Component
 		if not self.IsLoaded then
 			return
 		end
-
+		
 		local profileCode = self.TargetProfileCode
 		if _Util:IsNilorEmptyString(profileCode) then
 			return
 		end
-
+		
 		---@type table<integer, table<integer, UserGameEventData>>
 		local editDataTable = self.EditUserDataTable
 		
@@ -274,7 +274,7 @@ script UIGMGameEventToolEditUser extends Component
 				dataList[#dataList + 1] = data
 			end
 		end
-
+		
 		_GMGameEventToolLogic:InvokeRequestEditUserDataList(profileCode, dataList)
 	end
 
@@ -284,7 +284,7 @@ script UIGMGameEventToolEditUser extends Component
 		if inner == nil then
 			return nil
 		end
-
+		
 		return inner[defId]
 	end
 
@@ -294,7 +294,7 @@ script UIGMGameEventToolEditUser extends Component
 		if inner == nil then
 			return nil
 		end
-
+		
 		return inner[defId]
 	end
 
@@ -306,7 +306,7 @@ script UIGMGameEventToolEditUser extends Component
 			inner = {}
 			t[id] = inner
 		end
-
+		
 		inner[defId] = data
 	end
 
@@ -318,7 +318,8 @@ script UIGMGameEventToolEditUser extends Component
 			inner = {}
 			t[id] = inner
 		end
-
+		
 		inner[defId] = data
 	end
+
 end

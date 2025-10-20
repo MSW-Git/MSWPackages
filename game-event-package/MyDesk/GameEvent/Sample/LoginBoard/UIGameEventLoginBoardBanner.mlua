@@ -10,7 +10,7 @@ script UIGameEventLoginBoardBanner extends UIGameEventBanner
 
 	@ExecSpace("ClientOnly")
 	method void Set(GameEventStruct s)
-	---@type GameEventLoginBoardDefData
+		---@type GameEventLoginBoardDefData
 		local defData = s:GetDefData()
 		if defData == nil then
 			log_error(string.format("Cannot find GameEventDefData. DefId : %d", s.DefId))

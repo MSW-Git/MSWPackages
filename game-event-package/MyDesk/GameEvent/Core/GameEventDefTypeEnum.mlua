@@ -4,7 +4,7 @@ script GameEventDefTypeEnum extends Logic
 	property table StringToEnumTable = {}
 
 	property table EnumToStringTable = {}
-	
+
 	property table StructTypeTable = {}
 
 	property integer None = 0
@@ -17,17 +17,17 @@ script GameEventDefTypeEnum extends Logic
 		local stringToEnumTable = self.StringToEnumTable
 		stringToEnumTable["ExpRate"] = self.ExpRate
 		stringToEnumTable["LoginBoard"] = self.LoginBoard
-
+		
 		local enumToStringTable = self.EnumToStringTable
 		for str, enum in pairs(stringToEnumTable) do
 			enumToStringTable[enum] = str
 		end
-
+		
 		local structTypeTable = self.StructTypeTable
 		structTypeTable[self.ExpRate] = GameEventExpRateDefData
 		structTypeTable[self.LoginBoard] = GameEventLoginBoardDefData
 	end
-	
+
 	method integer ToEnum(string str)
 		local enum = self.StringToEnumTable[str]	
 		if enum == nil then
@@ -41,7 +41,7 @@ script GameEventDefTypeEnum extends Logic
 		if structType == nil then
 			return nil
 		end
-
+		
 		return structType()
 	end
 
@@ -50,7 +50,8 @@ script GameEventDefTypeEnum extends Logic
 		if _Util:IsNilorEmptyString(str) then
 			return nil
 		end
-
+		
 		return string.format("UIGameEvent%sBanner", str)
 	end
+
 end

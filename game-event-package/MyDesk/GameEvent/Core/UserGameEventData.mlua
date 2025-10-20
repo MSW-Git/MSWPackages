@@ -1,22 +1,22 @@
 @Struct
 script UserGameEventData
-	
+
 	property integer Id = 0
-	
+
 	property integer DefId = 0
-	
+
 	property table Value = nil
-	
+
 	property integer UpdateTime = 0
-	
+
 	property boolean IsDirty = false
-	
+
 	property table LastGoodData = nil
-	
+
 	method boolean CopyFrom(UserGameEventData other)
 		self.Id = other.Id
 		self.DefId = other.DefId
-
+		
 		local isValueExist = false
 		if not _Util:IsNilorEmptyTable(other.Value) then
 			local success, result = pcall(_HttpService.JSONEncode, _HttpService, other.Value)
@@ -24,17 +24,17 @@ script UserGameEventData
 				log_error(string.format("UserGameEventData CopyFrom Failed. Id : %d, DefId : %d, Error : %s", self.Id, self.DefId, result))
 				return false
 			end
-
+		
 			if not _Util:IsNilorEmptyString(result) then
 				self.Value = _HttpService:JSONDecode(result)
 				isValueExist = true
 			end
 		end
-
+		
 		if not isValueExist then
 			self.Value = nil
 		end
-
+		
 		self.UpdateTime = other.UpdateTime
 		return true
 	end
@@ -62,18 +62,18 @@ script UserGameEventData
 		self.LastGoodData = dbItem
 		return dbItem
 	end
-	
+
 	method boolean SerializeFromTool(table dbItem)
 		if self.Id == nil then
 			log_error("Id is nil.")
 			return false
 		end
-
+		
 		if self.DefId == nil then
 			log_error(string.format("DefId is nil. Id : %d", self.Id))
 			return false
 		end
-
+		
 		if self.UpdateTime == nil then
 			log_error(string.format("UpdateTime is nil. Id : %d, DefId : %d", self.Id, self.DefId))
 			return false
@@ -95,7 +95,7 @@ script UserGameEventData
 		
 		return true
 	end
-	
+
 	method boolean Deserialize(table dbItem)
 		local info = dbItem[1]
 		if info == nil then
@@ -118,7 +118,7 @@ script UserGameEventData
 		
 		return true
 	end
-	
+
 	method void DeserializeFromTool(table dbItem)
 		local info = dbItem[1]
 		
@@ -127,17 +127,17 @@ script UserGameEventData
 		self.UpdateTime = info[3]
 		self.Value = dbItem[2]
 	end
-	
+
 	method void Init(integer id, integer defId)
 		self.Id = id
 		self.DefId = defId
 	end
-	
+
 	method void SetValue(table value)
 		self.Value = value
 		self:SetDirty()
 	end
-		
+
 	method void SetDirty()
 		self.IsDirty = true
 		self.UpdateTime = _DateTimeLogic:GetTimeElapsed()

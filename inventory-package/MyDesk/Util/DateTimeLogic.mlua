@@ -3,8 +3,16 @@ script DateTimeLogic extends Logic
 
 	property integer ServerTimeOffset = 0
 
+	property integer BaseHour = 3
+
+	property integer BaseDayOfWeek = 4
+
 	method integer GetTimeElapsed()
 		return DateTime.UtcNow.Elapsed + self.ServerTimeOffset
+	end
+
+	method integer GetTimeElapsedWithoutOffset()
+		return DateTime.UtcNow.Elapsed
 	end
 
 	method any GetLocalDateTime()
@@ -13,9 +21,14 @@ script DateTimeLogic extends Logic
 
 	@ExecSpace("ServerOnly")
 	method void SetServerTimeOffset(integer serverTimeOffset)
+		local prev = self.ServerTimeOffset
 		self.ServerTimeOffset = serverTimeOffset
 		
+		local timeStr = self:GetDateTime():ToFormattedString("yyyy-MM-dd HH:mm:ss")
+		log("ServerTime Changed. " .. timeStr)
+		
 		local event = ServerTimeOffsetChangedEvent()
+		event.PrevServerTimeOffset = prev
 		event.ServerTimeOffset = serverTimeOffset
 		
 		self:SendEvent(event)
@@ -35,13 +48,13 @@ script DateTimeLogic extends Logic
 	end
 
 	@ExecSpace("ServerOnly")
-	method void AddServerTimeOffset(string elapsed)
+	method void AddServerTimeOffset(integer elapsed)
 		local timeOffset = self.ServerTimeOffset + elapsed
 		self:SetServerTimeOffset(timeOffset)
 	end
 
 	@ExecSpace("ServerOnly")
-	method void ResetServerTimeOffset(string userId)
+	method void ResetServerTimeOffset()
 		self:SetServerTimeOffset(0)
 	end
 
@@ -59,6 +72,76 @@ script DateTimeLogic extends Logic
 		end
 		
 		return DateTime(dateTimeStr).Elapsed
+	end
+
+	method integer GetNextCycleBaseTime(integer cycleEnum, integer elapsed)
+		-- Calculates the BaseTime after the Elapsed time for the specified CycleEnum.
+		if elapsed == nil or elapsed < 0 then
+			return DateTime.MaxValue.Elapsed
+		end
+		
+		local dateTime = DateTime(elapsed)
+		
+		if cycleEnum == _CycleEnum.Day then
+			local baseTime = self:GetBaseTime(dateTime.Year, dateTime.Month, dateTime.Day)
+			if elapsed < baseTime then
+				return baseTime
+			end
+			
+			local elapsedDay = 86400000
+			return baseTime + elapsedDay
+		end
+		
+		if cycleEnum == _CycleEnum.Week then
+			local resetDayOfWeek = _DayOfWeekEnum:ToInteger(dateTime.DayOfWeek)
+			local dayOffset = self.BaseDayOfWeek - resetDayOfWeek
+			
+			local elapsedDay = 86400000
+			local targetDateTime = DateTime(elapsed + dayOffset * elapsedDay)
+			
+			local baseTime = self:GetBaseTime(targetDateTime.Year, targetDateTime.Month, targetDateTime.Day)
+			if elapsed < baseTime then
+				return baseTime
+			end
+			
+			return baseTime + elapsedDay * 7
+		end
+		
+		if cycleEnum == _CycleEnum.Month then
+			local year = dateTime.Year
+			local month = dateTime.Month
+			
+			local baseTime = self:GetBaseTime(year, month, 1)
+			if elapsed < baseTime then
+				return baseTime
+			end
+			
+			if month == 12 then
+				year += 1
+				month = 1
+			end
+			
+			return self:GetBaseTime(year, month, 1)
+		end
+		
+		if cycleEnum == _CycleEnum.Year then
+			local year = dateTime.Year
+			local month = dateTime.Month
+			
+			local baseTime = self:GetBaseTime(year, month, 1)
+			if elapsed < baseTime then
+				return baseTime
+			end
+			
+			return self:GetBaseTime(year + 1, month, 1)
+		end
+		
+		return DateTime.MaxValue.Elapsed
+	end
+
+	method integer GetBaseTime(integer year, integer month, integer day)
+		local resetDateTime = DateTime(year, month, day, _DateTimeLogic.BaseHour, 0, 0)
+		return resetDateTime.Elapsed
 	end
 
 end

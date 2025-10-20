@@ -1,28 +1,28 @@
 @Logic
 script GameEventLogic extends Logic
-	
+
 	property table StructById = {}
-	
+
 	property table SortedStructList = {}
-	
+
 	property table StructTableByStatus = {}
-	
+
 	property table CachedScheduleDataById = {}
-	
+
 	property table CachedStatusById = {}
-	
+
 	property any SortFunc = nil
-	
+
 	property boolean IsInit = false
-	
+
 	property number AccDelta = 0
-	
+
 	property table PendingEventList = {}
-	
+
 	method GameEventStruct GetStruct(integer id)
 		return self.StructById[id]
 	end
-	
+
 	method table GetStructList()
 		local list = {}
 		for id, s in pairs(self.StructById) do
@@ -31,7 +31,7 @@ script GameEventLogic extends Logic
 		
 		return list
 	end
-	
+
 	method table GetActiveStructList()
 		local list = {}
 		local structTable = self.StructTableByStatus[_GameEventStatusEnum.Active]
@@ -41,7 +41,7 @@ script GameEventLogic extends Logic
 		
 		return list
 	end
-	
+
 	method table GetVisibleStructList()
 		local list = {}
 		
@@ -56,7 +56,7 @@ script GameEventLogic extends Logic
 		
 		return list
 	end
-	
+
 	method table GetStructListByEnum(integer enum)
 		local resultList = {}
 		
@@ -74,7 +74,7 @@ script GameEventLogic extends Logic
 		
 		return resultList
 	end
-	
+
 	method table GetActiveStructListByDefEnum(integer enum)
 		local resultList = {}
 		
@@ -92,7 +92,7 @@ script GameEventLogic extends Logic
 		
 		return resultList
 	end
-	
+
 	method table GetVisibletStructListByDefEnum(integer enum)
 		local resultList = {}
 		
@@ -110,17 +110,17 @@ script GameEventLogic extends Logic
 		
 		return resultList
 	end
-	
+
 	method boolean IsActiveState(integer id)
 		local status = self:GetStatus(id)
 		return _GameEventStatusEnum:IsActive(status)
 	end
-	
+
 	method boolean IsVisibleState(integer id)
 		local status = self:GetStatus(id)
 		return _GameEventStatusEnum:IsVisible(status)
 	end
-	
+
 	method integer GetStatus(integer id)
 		local s = self:GetStruct(id)
 		if s == nil then
@@ -129,12 +129,12 @@ script GameEventLogic extends Logic
 		
 		return s.Status
 	end
-	
+
 	method boolean CheckStatus(integer id, integer status)
 		local curStatus = self:GetStatus(id)
 		return curStatus == status
 	end
-	
+
 	method boolean InitAndWait()
 		self:InitStructTableByStatus()
 		
@@ -160,14 +160,14 @@ script GameEventLogic extends Logic
 		self.IsInit = true
 		return true
 	end
-	
+
 	method void InitStructTableByStatus()
 		local structTableByStatus = self.StructTableByStatus
 		for i = _GameEventStatusEnum.Awaiting, _GameEventStatusEnum.Grace do
 			structTableByStatus[i] = {}
 		end
 	end
-	
+
 	@ExecSpace("ServerOnly")
 	method boolean SetupEvents()
 		local curElapsed = _DateTimeLogic:GetTimeElapsed()
@@ -203,14 +203,14 @@ script GameEventLogic extends Logic
 		table.sort(self.SortedStructList, self.SortFunc)
 		return true
 	end
-	
+
 	@ExecSpace("ServerOnly")
 	method void ClearAndSetupEvents()
 		self:ClearEvents()
 		self:SetupEvents()
 		self:InvokeSyncInitToAllClient()
 	end
-	
+
 	@ExecSpace("ServerOnly")
 	method void ClearEvents()
 		local ids = table.keys(self.StructById)
@@ -219,17 +219,17 @@ script GameEventLogic extends Logic
 			self:RemoveEvent(id, false)
 		end
 	end
-	
+
 	@ExecSpace("ServerOnly")
 	method void InvokeSyncInitToClient(string userId)
 		self:SyncInitToClient(self.CachedScheduleDataById, self.CachedStatusById, userId)
 	end
-	
+
 	@ExecSpace("ServerOnly")
 	method void InvokeSyncInitToAllClient()
 		self:SyncInitToClient(self.CachedScheduleDataById, self.CachedStatusById)
 	end
-	
+
 	@ExecSpace("Client")
 	method void SyncInitToClient(table cachedScheduleDataTable, table cachedStatusById)
 		local structById = self.StructById
@@ -253,7 +253,7 @@ script GameEventLogic extends Logic
 		
 		self.IsInit = true
 	end
-	
+
 	@ExecSpace("ServerOnly")
 	method void ProcessPendingEvents()
 		local pendingEventList = self.PendingEventList
@@ -262,7 +262,7 @@ script GameEventLogic extends Logic
 		end
 		table.clear(pendingEventList)
 	end
-	
+
 	@ExecSpace("ServerOnly")
 	method void ProcessScheduleDataChangedEvent(GameEventScheduleChangedEvent event, boolean isInit)
 		--[[
@@ -298,7 +298,7 @@ script GameEventLogic extends Logic
 			self:AddEvent(newData, isInit)
 		end
 	end
-	
+
 	@ExecSpace("ServerOnly")
 	method void AddEvent(GameEventScheduleData data, boolean isInit)
 		if data.Disable then
@@ -329,7 +329,7 @@ script GameEventLogic extends Logic
 			table.sort(sortedStructList, self.SortFunc)
 		end
 	end
-	
+
 	@ExecSpace("ServerOnly")
 	method void RemoveEvent(integer id, boolean isInit)
 		local s = self:GetStruct(id)
@@ -344,7 +344,7 @@ script GameEventLogic extends Logic
 			self:CleanupSortedStructList()
 		end
 	end
-	
+
 	@ExecSpace("ServerOnly")
 	method void OnUpdate(number delta)
 		if not self.IsInit then
@@ -380,7 +380,7 @@ script GameEventLogic extends Logic
 		
 		self:CleanupSortedStructList()
 	end
-	
+
 	@ExecSpace("ServerOnly")
 	method void CleanupSortedStructList()
 		---@type table<GameEventStruct>
@@ -397,7 +397,7 @@ script GameEventLogic extends Logic
 			sortedStructList[i] = nil
 		end
 	end
-	
+
 	@ExecSpace("ServerOnly")
 	method void UpdateStatus(GameEventStruct s, integer curElapsed, boolean isInit)
 		local id = s.ScheduleId
@@ -426,7 +426,7 @@ script GameEventLogic extends Logic
 		
 		self:SendStatusChangedEventToClient(scheduleData, curStatus)
 	end
-	
+
 	method void SetStatus(GameEventStruct s, integer status, boolean isInit)
 		local prevStatus = s.Status
 		s.Status = status
@@ -469,7 +469,7 @@ script GameEventLogic extends Logic
 			cacheStatusById[id] = nil
 		end
 	end
-	
+
 	@ExecSpace("Client")
 	method void SendStatusChangedEventToClient(GameEventScheduleData scheduleData, integer status)
 		if not self.IsInit then
@@ -491,7 +491,7 @@ script GameEventLogic extends Logic
 			self.StructById[id] = nil
 		end
 	end
-	
+
 	method void OnStatusChanged(integer id, integer defId, integer prevStatus, integer curStatus, boolean isInit)
 		-- Send changed event.
 		local evt = GameEventStatusChangedEvent()
@@ -518,7 +518,7 @@ script GameEventLogic extends Logic
 		
 		defData:OnStatusChanged(s, curStatus)
 	end
-	
+
 	@ExecSpace("ServerOnly")
 	@EventSender("Logic", "DateTimeLogic")
 	handler HandleServerTimeOffsetChangedEvent(ServerTimeOffsetChangedEvent event)
@@ -531,7 +531,7 @@ script GameEventLogic extends Logic
 		
 		self:ClearAndSetupEvents()
 	end
-	
+
 	@ExecSpace("ServerOnly")
 	@EventSender("Service", "WorldInstanceService")
 	handler HandleEventGameEventScheduleChangedEvent(GameEventScheduleChangedEvent event)
@@ -542,7 +542,7 @@ script GameEventLogic extends Logic
 		
 		self:ProcessScheduleDataChangedEvent(event, false)
 	end
-	
+
 	@EventSender("Self")
 	handler HandleGameEventStatusChangedEvent(GameEventStatusChangedEvent event)
 		-- Parameters
@@ -554,5 +554,5 @@ script GameEventLogic extends Logic
 		---------------------------------------------------------
 		log(string.format("Id : %d, DefId : %d, PrevStatus : %d, CurStatus : %d, IsInit : %s", ScheduleId, DefId, PrevStatus, CurStatus, IsInit))
 	end
-	
+
 end

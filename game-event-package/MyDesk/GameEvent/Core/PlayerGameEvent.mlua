@@ -1,10 +1,10 @@
 @Component
 script PlayerGameEvent extends Component
-	
+
 	property table UserDataTable = {}
-	
+
 	property boolean IsSaveDB = false
-	
+
 	@ExecSpace("ServerOnly")
 	method boolean SaveToDB(table saveData)
 		if not self.IsSaveDB then
@@ -36,12 +36,12 @@ script PlayerGameEvent extends Component
 		
 		return true
 	end
-	
+
 	@ExecSpace("ServerOnly")
 	method void LoadFromDB(table loadKeys)
 		table.insert(loadKeys, _GMGameEventToolLogic.UserDSName)
 	end
-	
+
 	@ExecSpace("ServerOnly")
 	method boolean OnLoadedDataFromDB(table loadedData)
 		---@type DataStorageItem
@@ -81,7 +81,7 @@ script PlayerGameEvent extends Component
 		_GameEventLogic:InvokeSyncInitToClient(self.Entity.PlayerComponent.UserId)
 		return true
 	end
-	
+
 	@ExecSpace("ServerOnly")
 	method boolean PostOnLoadedDataFromDB()
 		local userEntity = self.Entity
@@ -95,7 +95,7 @@ script PlayerGameEvent extends Component
 		
 		return true
 	end
-	
+
 	@ExecSpace("ServerOnly")
 	method boolean IsExpiredUserData(UserGameEventData data)
 		--[[
@@ -113,7 +113,7 @@ script PlayerGameEvent extends Component
 		
 		return true
 	end
-	
+
 	@ExecSpace("ServerOnly")
 	method UserGameEventData GetUserData(integer id, integer defId)
 		---@type table<integer, table<integer, UserGameEventData>>
@@ -125,7 +125,7 @@ script PlayerGameEvent extends Component
 		
 		return innerTable[defId]
 	end
-	
+
 	@ExecSpace("ServerOnly")
 	method UserGameEventData GetOrCreateUserData(integer id, integer defId)
 		local userData = self:GetUserData(id, defId)
@@ -147,7 +147,7 @@ script PlayerGameEvent extends Component
 		innerTable[defId] = userData
 		return userData
 	end
-	
+
 	@ExecSpace("ServerOnly")
 	method boolean SetValue(integer id, integer defId, table value)
 		if id == nil or id == 0 then
@@ -166,7 +166,7 @@ script PlayerGameEvent extends Component
 		
 		return true
 	end
-	
+
 	@ExecSpace("ServerOnly")
 	method boolean SetDirty(integer id, integer defId)
 		local userData = self:GetUserData(id, defId)
@@ -177,5 +177,5 @@ script PlayerGameEvent extends Component
 		userData:SetDirty()
 		self.IsSaveDB = true
 	end
-	
+
 end

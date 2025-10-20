@@ -1,32 +1,32 @@
 @Component
 script UIGMGameEventTool extends Component
-	
+
 	property Entity Text_TimeOffset = nil
-	
+
 	property Entity Page_Schedule = nil
-	
+
 	property Entity Page_EditSchedule = nil
-	
+
 	property Entity Page_User = nil
-	
+
 	property Entity Page_EditUser = nil
-	
+
 	property Entity Popup_EditSchedule_Add = nil
-	
+
 	property Entity Popup_EditSchedule_Edit = nil
-	
+
 	property Entity Popup_EditSchedule_Delete = nil
-	
+
 	property Entity Popup_User_Detail = nil
-	
+
 	property Entity Popup_EditUser_Add = nil
-	
+
 	property Entity Popup_EditUser_Edit = nil
-	
+
 	property integer TimeOffset = 0
-	
+
 	property table PageByTabButton = {}
-	
+
 	@ExecSpace("ClientOnly")
 	method void OnBeginPlay()
 		local entity = self.Entity
@@ -109,12 +109,12 @@ script UIGMGameEventTool extends Component
 		
 		self.Entity:SetEnable(true)
 	end
-	
+
 	@ExecSpace("ClientOnly")
 	method void OnClose()
 		self.Entity:SetEnable(false)
 	end
-	
+
 	@ExecSpace("ClientOnly")
 	method void OnChanged_TimeOffset(TextInputEndEditEvent evt)
 		local offset = math.tointeger(tonumber(evt.text))
@@ -136,7 +136,7 @@ script UIGMGameEventTool extends Component
 		
 		self:Invalidate()
 	end
-	
+
 	@ExecSpace("ClientOnly")
 	method string ToStringWithSign(integer num)
 		-- Return the positive number with a '+' sign attached.
@@ -146,7 +146,7 @@ script UIGMGameEventTool extends Component
 			return tostring(num)
 		end
 	end
-	
+
 	@ExecSpace("ClientOnly")
 	method void OnClickTabButton(ButtonClickEvent evt)
 		local entity = evt.Entity
@@ -162,14 +162,14 @@ script UIGMGameEventTool extends Component
 			page.Enable = true
 		end
 	end
-	
+
 	@ExecSpace("ClientOnly")
 	method void SetDisableAllButtons()
 		for tab, _ in pairs(self.PageByTabButton) do
 			self:SetEnableButton(tab, false)
 		end
 	end
-	
+
 	@ExecSpace("ClientOnly")
 	method void SetEnableButton(Entity entity, boolean enable)
 		local spriteGUIComp = entity.SpriteGUIRendererComponent
@@ -183,51 +183,51 @@ script UIGMGameEventTool extends Component
 			textComp.FontColor = Color.FromHexCode("#ffe398")
 		end
 	end
-	
+
 	@ExecSpace("ClientOnly")
 	method void DisableAllPages()
 		for _, page in pairs(self.PageByTabButton) do
 			page.Enable = false
 		end
 	end
-	
+
 	@ExecSpace("ClientOnly")
 	method void Invalidate()
 		self.Page_Schedule.UIGMGameEventToolSchedule:Invalidate(false)
 		self.Page_EditSchedule.UIGMGameEventToolEditSchedule:Invalidate(false)
-
+		
 		self.Page_User.UIGMGameEventToolUser:Invalidate(false)
 		self.Page_EditUser.UIGMGameEventToolEditUser:Invalidate(false)
 	end
-	
+
 	@ExecSpace("ClientOnly")
 	method void OpenPopup_ScheduleAdd()
 		self.Popup_EditSchedule_Add.UIGMGameEventToolEditSchedulePopupAdd:Open()
 	end
-	
+
 	@ExecSpace("ClientOnly")
 	method void OpenPopup_ScheduleEdit(GameEventScheduleData editData)
 		self.Popup_EditSchedule_Edit.UIGMGameEventToolEditSchedulePopupEdit:Open(editData)
 	end
-	
+
 	@ExecSpace("ClientOnly")
 	method void OpenPopup_ScheduleDelete(integer id)
 		self.Popup_EditSchedule_Delete.UIGMGameEventToolEditSchedulePopupDelete:Open(id)
 	end
-	
+
 	@ExecSpace("ClientOnly")
 	method void OpenPopup_UserDetail(UserGameEventData userData)
 		self.Popup_User_Detail.UIGMGameEventToolUserPopupDetail:Open(userData)
 	end
-	
+
 	@ExecSpace("ClientOnly")
 	method void OpenPopup_UserAdd()
 		self.Popup_EditUser_Add.UIGMGameEventToolEditUserPopupAdd:Open()
 	end
-	
+
 	@ExecSpace("ClientOnly")
 	method void OpenPopup_UserEdit(UserGameEventData originalUserData, UserGameEventData editUserData)
 		self.Popup_EditUser_Edit.UIGMGameEventToolEditUserPopupEdit:Open(originalUserData, editUserData)
 	end
-	
+
 end

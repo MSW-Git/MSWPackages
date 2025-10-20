@@ -22,7 +22,7 @@ script UIGMGameEventToolEditUserItem extends Component
 		
 		local Btn_Edit = entity:GetChildByName("Btn_Edit")
 		Btn_Edit:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Edit)
-	
+		
 		local Btn_Delete = entity:GetChildByName("Btn_Delete")
 		Btn_Delete:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Delete)
 	end
@@ -44,7 +44,7 @@ script UIGMGameEventToolEditUserItem extends Component
 				log_error(string.format("JSONEncode Error. Id : %d, DefId : %d, Error : %s", s.Id, s.DefId, result))
 			end 
 		end
-
+		
 		if not isValueExist then
 			self.Value.Text = ""
 		end

@@ -7,7 +7,7 @@ script GameEventScheculeDataSetLogic extends Logic
 		if self:IsClient() then
 			return true
 		end
-
+		
 		---@type table<integer, GameEventScheduleData>
 		local dataTable = self.DataTable
 		
@@ -38,4 +38,5 @@ script GameEventScheculeDataSetLogic extends Logic
 	method GameEventScheduleData GetData(integer id)
 		return self.DataTable[id]
 	end
+
 end

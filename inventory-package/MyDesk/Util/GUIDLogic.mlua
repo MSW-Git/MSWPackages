@@ -5,9 +5,6 @@ script GUIDLogic extends Logic
 		local _sub = string.sub
 		local _fmt = string.format
 		
-		local time_low = os.time()
-		math.randomseed( time_low )
-		
 		local time_mid = _UtilLogic:RandomIntegerRange(0, 65535)
 		
 		local time_hi = _UtilLogic:RandomIntegerRange(0, 65535 )

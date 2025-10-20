@@ -106,7 +106,7 @@ script UIDropTableResolverHUD extends Component
 				return
 			end
 		end
-
+		
 		_DroppedItemSampleLogic:SpawnResultItems(outResultList)
 	end
 
