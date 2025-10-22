@@ -1,18 +1,20 @@
 @Logic
 script InventorySampleLogic extends Logic
 
-	property Entity Inventory = nil
-
 	property string ParentUIPath = "/ui/DefaultGroup"
 
+	property Entity InventoryEntity = nil
+
+	property Entity InventoryToolEntity = nil
+
 	@ExecSpace("Server")
-	method void RequestAddStaminaItem()
+	method void RequestAddStaminaItem(integer periodSeconds)
 		if _AdminLogic:IsAdmin(senderUserId) == false then
 			return
 		end
 		
 		local createParam = ItemCreateParamStruct()
-		createParam:Set(500001, 1, nil)
+		createParam:Set(500001, 1, periodSeconds)
 		
 		_ItemFactoryLogic:TryAddItem(senderUserId, createParam, ItemCreateResultStruct())
 	end
@@ -27,15 +29,27 @@ script InventorySampleLogic extends Logic
 		end
 		
 		if key == KeyboardKey.I then
-			if isvalid(self.Inventory) == false then
+			if isvalid(self.InventoryEntity) == false then
 				local uiParent = _EntityService:GetEntityByPath(self.ParentUIPath)
-				self.Inventory = _SpawnService:SpawnByModelId(_EntryService:GetModelIdByName("Inventory"), "Inventory", Vector3.zero, uiParent)
-				self.Inventory.Enable = false
+				self.InventoryEntity = _SpawnService:SpawnByModelId(_EntryService:GetModelIdByName("UIInventory"), "Inventory", Vector3.zero, uiParent)
+				self.InventoryEntity.Enable = false
 			end
 			
-			self.Inventory.UIInventory:Toggle()
+			self.InventoryEntity.UIInventory:Toggle()
+		elseif key == KeyboardKey.O and _AdminLogic:IsAdminLocalPlayer() then
+			if isvalid(self.InventoryToolEntity) == false then
+				local uiParent = _EntityService:GetEntityByPath(self.ParentUIPath)
+				self.InventoryToolEntity = _SpawnService:SpawnByModelId(_EntryService:GetModelIdByName("UIGMInventoryTool"), "Inventory", Vector3.zero, uiParent)
+				self.InventoryToolEntity.Enable = false
+			end
+			
+			self.InventoryToolEntity.UIGMInventoryTool:Toggle()
 		elseif key == KeyboardKey.Alpha1 then
-			self:RequestAddStaminaItem()
+			self:RequestAddStaminaItem(nil)
+		elseif key == KeyboardKey.Alpha2 then
+			local minute = 1
+			local endDataSeconds =  (_DateTimeLogic:GetTimeElapsed() + minute * 60 * 1000) / 1000
+			self:RequestAddStaminaItem(endDataSeconds)
 		end
 	end
 

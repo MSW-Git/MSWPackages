@@ -24,7 +24,7 @@ script UIEquipPopup extends Component
 		textTitle.Text = "장비"
 		
 		local itemDecoration = panel:GetChildByName("ItemDecoration")
-		local itemSlotEntity = _SpawnService:SpawnByModelId(_EntryService:GetModelIdByName("ItemSlot"), "ItemSlot", Vector3.zero, itemDecoration)
+		local itemSlotEntity = _SpawnService:SpawnByModelId(_EntryService:GetModelIdByName("UIItemSlot"), "ItemSlot", Vector3.zero, itemDecoration)
 		self.ItemSlot = itemSlotEntity.UIItemSlot
 		
 		self.TextMessage = panel:GetChildByName("Message").TextComponent

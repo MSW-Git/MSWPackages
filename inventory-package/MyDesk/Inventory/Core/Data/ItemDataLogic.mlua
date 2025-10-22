@@ -28,7 +28,7 @@ script ItemDataLogic extends DataSetLogic
 		local dataSet = _DataService:GetTable("ItemDataTable")
 		for i, row in ipairs(dataSet:GetAllRow()) do
 			local data = ItemData()
-			if data:Init(row) == false then
+			if data:Load(row) == false then
 				return false
 			end
 			

@@ -5,16 +5,16 @@ script ItemCreateParamStruct
 
 	property integer ItemCount = 0
 
-	property integer EndDateMinute = 0
+	property boolean IsIgnoreInvenCapacity = true
+
+	property integer EndDateSeconds = 0
 
 	property integer Grade = nil
-
-	property boolean IsIgnoreInvenCapacity = true
 
 	method void CopyFrom(ItemCreateParamStruct other)
 		self.ItemId = other.ItemId
 		self.ItemCount = other.ItemCount
-		self.EndDateMinute = other.EndDateMinute
+		self.EndDateSeconds = other.EndDateSeconds
 		self.Grade = other.Grade
 	end
 
@@ -76,7 +76,7 @@ script ItemCreateParamStruct
 			itemStruct.Count = self.ItemCount
 		end
 		
-		itemStruct.EndDateMinute = self.EndDateMinute
+		itemStruct.EndDateSeconds = self.EndDateSeconds
 		itemStruct.Lock = false
 		
 		if itemData.Category == _ItemCategoryEnum.Gear then
@@ -106,7 +106,7 @@ script ItemCreateParamStruct
 		return true
 	end
 
-	method boolean Set(integer itemId, integer count, integer endDateMinute)
+	method boolean Set(integer itemId, integer count, integer endDateSecond)
 		local itemData = _ItemDataLogic:GetData(itemId)
 		if itemData == nil then
 			return false
@@ -115,14 +115,14 @@ script ItemCreateParamStruct
 		self.ItemId = itemId
 		self.ItemCount = count
 		
-		if endDateMinute == nil then
-			if itemData.ExpirationPeriodDay ~= 0 then
-				self.EndDateMinute = math.floor((itemData.ExpirationPeriodDay + _DateTimeLogic:GetTimeElapsed() ) / 1000 / 60)
+		if endDateSecond == nil then
+			if itemData.ExpirationSeconds ~= 0 then
+				self.EndDateSeconds = math.floor((itemData.ExpirationSeconds + _DateTimeLogic:GetTimeElapsed() ) / 1000)
 			else
-				self.EndDateMinute = math.floor(itemData.ExpirationDate / 1000 / 60)
+				self.EndDateSeconds = math.floor(itemData.ExpirationDate / 1000)
 			end
 		else
-			self.EndDateMinute = endDateMinute
+			self.EndDateSeconds = endDateSecond
 		end
 		
 		return true

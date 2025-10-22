@@ -1,0 +1,235 @@
+@Logic
+script GMInventoryToolLogic extends Logic
+
+	property string StorageName = "Inventory"
+
+	property string StorageItemsKey = "Items"
+
+	property string StorageGearItemsKey = "GearItems"
+
+	@ExecSpace("Server")
+	method void RequestUserData(string profileCode)
+		if not _AdminLogic:IsAdmin(senderUserId) then
+			return
+		end
+		
+		local deserTable = self:GetDeserTable(profileCode)
+		if deserTable == nil then
+			return
+		end
+		
+		self:ResponseUserData(profileCode, deserTable, senderUserId)
+	end
+
+	@ExecSpace("ServerOnly")
+	method table GetDeserTable(string userId)
+		local ds = _DataStorageService:GetUserDataStorage(userId)
+		local errorCode, sdsValue = ds:GetAndWait(self.StorageName)
+		if errorCode ~= 0 then
+			log_error(string.format("GetDeserTable Error. ErrorCode : %d, ProfileCode : %s", errorCode, userId))
+			return nil
+		end
+		
+		if _Util:IsNilorEmptyString(sdsValue) then
+			log("User Data is empty. ProfileCode : " .. userId)
+			return {}
+		end
+		
+		return _HttpService:JSONDecode(sdsValue)
+	end
+
+	@ExecSpace("Client")
+	method void ResponseUserData(string profileCode, table deserTable)
+		if isvalid(_InventorySampleLogic.InventoryToolEntity) == false then
+			return
+		end
+		
+		_InventorySampleLogic.InventoryToolEntity.UIGMInventoryTool:Apply(profileCode, deserTable)
+	end
+
+	method table GetItemStructByGUID(table deserTable)
+		local itemStructByGUID = {}
+		local itemDesTable = deserTable[self.StorageItemsKey]
+		if itemDesTable ~= nil then
+			for i = 1, #itemDesTable do
+				local itemStruct = ItemStruct()
+				if not itemStruct:Deserialize(itemDesTable[i]) then
+					return nil
+				end
+				
+				itemStructByGUID[itemStruct.GUID] = itemStruct
+			end
+		end
+		
+		return itemStructByGUID
+	end
+
+	@ExecSpace("Server")
+	method void RequestAddUserItem(string profileCode, integer itemId, integer itemCount, integer expirationSeconds)
+		if not _AdminLogic:IsAdmin(senderUserId) then
+			return
+		end
+		
+		local createFailInfo = {}
+		local itemCreateParam = ItemCreateParamStruct()
+		itemCreateParam:Set(itemId, itemCount, expirationSeconds)
+		if itemCreateParam:IsValidData(createFailInfo) == false then
+			log_error(string.format("ItemCreateParamStruct Error. %s", createFailInfo.Message))
+			return
+		end
+		
+		local deserTable = self:GetDeserTable(profileCode)
+		if deserTable == nil then
+			return
+		end
+		
+		local itemStructByGUID = self:GetItemStructByGUID(deserTable)
+		if itemStructByGUID == nil then
+			log_error(string.format("RequestUserData Error. ProfileCode : %s", profileCode))
+			return
+		end
+		
+		self:AddItem(itemCreateParam, itemStructByGUID)
+		
+		if not self:SaveUserDataAndWait(profileCode, deserTable, itemStructByGUID) then
+			log_error("RequestAddUser Failed. ProfileCode : " .. profileCode)
+			return
+		end
+		
+		log("RequestEditUserData Success. ProfileCode : " .. profileCode)
+	end
+
+	@ExecSpace("ServerOnly")
+	method void AddItem(ItemCreateParamStruct itemCreateParam, table itemStructByGUID)
+		local itemData = _ItemDataLogic:GetData(itemCreateParam.ItemId)
+		if itemData == nil then
+			log_error(string.format("ItemId is not valid. ItemId : %d", itemCreateParam.ItemId))
+			return
+		end
+		
+		local isNonStackable = itemData.NonStackable
+		if isNonStackable then
+			for i = 1, itemCreateParam.ItemCount do
+				local resultGUID = nil
+				for i = 1, 10 do
+					local guid = _GUIDLogic:CreateGUID()
+					if itemStructByGUID[guid] == nil then
+						resultGUID = guid
+						break
+					end
+				end
+				
+				if resultGUID == nil then
+					log_error("Failed to generate GUID")
+					return
+				end
+				
+				local itemStruct = itemCreateParam:CreateItemStruct(isNonStackable)
+				if itemStruct == nil then
+					log_error(string.format("Failed to create ItemStruct. ItemId : %d", itemCreateParam.ItemId))
+					return
+				end
+				itemStruct.GUID = resultGUID
+				itemStruct.CreateDateTimeSec = math.tointeger(_DateTimeLogic:GetTimeElapsed() / 1000)
+				
+				itemStructByGUID[resultGUID] = itemStruct
+			end
+		else 
+			---@type ItemStruct
+			local prevItemStruct = nil
+			for guid, v in pairs(itemStructByGUID) do
+				---@type ItemStruct
+				local itemStruct = v
+				if itemStruct:CanMergeItemCreateParam(itemCreateParam) then
+					prevItemStruct = itemStruct
+					break
+				end
+			end
+			
+			if prevItemStruct then
+				prevItemStruct.Count += itemCreateParam.ItemCount
+			else
+				local resultGUID = nil
+				for i = 1, 10 do
+					local guid = _GUIDLogic:CreateGUID()
+					if itemStructByGUID[guid] == nil then
+						resultGUID = guid
+						break
+					end
+				end
+				
+				if resultGUID == nil then
+					log_error("Failed to generate GUID")
+					return
+				end
+				
+				local itemStruct = itemCreateParam:CreateItemStruct(isNonStackable)
+				if itemStruct == nil then
+					log_error(string.format("Failed to create ItemStruct. ItemId : %d", itemCreateParam.ItemId))
+					return
+				end
+				itemStruct.GUID = resultGUID
+				itemStruct.CreateDateTimeSec = math.tointeger(_DateTimeLogic:GetTimeElapsed() / 1000)
+				
+				itemStructByGUID[resultGUID] = itemStruct
+			end
+		end
+	end
+
+	@ExecSpace("Server")
+	method void RequestSaveEditedUserData(string profileCode, string deserString)
+		if not _AdminLogic:IsAdmin(senderUserId) then
+			return
+		end
+		
+		local deserTable = {}
+		if _UtilLogic:IsNilorEmptyString(deserString) == false then
+			deserTable = _HttpService:JSONDecode(deserString)
+		end
+		local itemStructByGUID = self:GetItemStructByGUID(deserTable)
+		if itemStructByGUID == nil then
+			log_error(string.format("Failed to create ItemStructByGUID table. Edited DB String : %s", deserString))
+			return
+		end
+		
+		if not self:SaveUserDataAndWait(profileCode, deserTable, itemStructByGUID) then
+			log_error("RequestSaveEditedUserData Failed. ProfileCode : " .. profileCode)
+			return
+		end
+		
+		log("RequestSaveEditedUserData Success. ProfileCode : " .. profileCode)
+	end
+
+	@ExecSpace("ServerOnly")
+	method boolean SaveUserDataAndWait(string profileCode, table deserTable, table itemStructByGUID)
+		local userDeserTable = {}
+		for guid, v in pairs(itemStructByGUID) do
+			---@type ItemStruct
+			local itemStruct = v
+			
+			local dbItem = {}
+			itemStruct:Serialize(dbItem)
+			
+			userDeserTable[#userDeserTable + 1] = dbItem
+		end
+		
+		if #userDeserTable ~= 0 then
+			deserTable[self.StorageItemsKey] = userDeserTable
+		end
+		
+		local sds = ""
+		if not _Util:IsNilorEmptyTable(deserTable) then
+			sds = _HttpService:JSONEncode(deserTable)
+		end
+		
+		local ds = _DataStorageService:GetUserDataStorage(profileCode)
+		local errorCode = ds:SetAndWait(self.StorageName, sds)
+		if errorCode ~= 0 then
+			log_error(string.format("SaveUserDataTable Error. ErrorCode : %d, ProfileCode : %s", errorCode, profileCode))
+			return false
+		end
+		
+		return true
+	end
+
+end

@@ -1,6 +1,10 @@
 @Component
 script UIUsePopup extends Component
 
+	property TextComponent TextMessage = nil
+
+	property TextComponent TextExpireDate = nil
+
 	property TextComponent TextConfirm = nil
 
 	property TextComponent TextCancel = nil
@@ -13,29 +17,43 @@ script UIUsePopup extends Component
 	method void OnBeginPlay()
 		local panel = self.Entity:GetChildByName("Panel")
 		local textTitle = panel:GetChildByName("Title").TextComponent
-		textTitle.Text = "사용"
+		textTitle.Text = "아이템 사용"
 		
 		local itemDecoration = panel:GetChildByName("ItemDecoration")
-		local itemSlotEntity = _SpawnService:SpawnByModelId(_EntryService:GetModelIdByName("ItemSlot"), "ItemSlot", Vector3.zero, self.Entity)
+		local itemSlotEntity = _SpawnService:SpawnByModelId(_EntryService:GetModelIdByName("UIItemSlot"), "ItemSlot", Vector3.zero, self.Entity)
 		self.ItemSlot = itemSlotEntity.UIItemSlot
 		
-		local buttonConfirm = panel:GetChildByName("ButtonConfirm")
-		buttonConfirm:ConnectEvent(ButtonClickEvent, function() self:OnConfirmButtonClicked() end)
-		self.TextConfirm = buttonConfirm.TextComponent
+		local expireDateEntity = panel:GetChildByName("ExpireDate")
+		self.TextExpireDate = expireDateEntity.TextComponent
+		
+		local messageEntity = panel:GetChildByName("Message")
+		self.TextMessage = messageEntity.TextComponent
+		self.TextMessage.Text = "사용하시겠습니까?"
+		
+		local buttonConfirmEntity = panel:GetChildByName("ButtonConfirm")
+		buttonConfirmEntity:ConnectEvent(ButtonClickEvent, function() self:OnConfirmButtonClicked() end)
+		self.TextConfirm = buttonConfirmEntity.TextComponent
 		self.TextConfirm.Text = "사용"
 		
-		local buttonCancel = panel:GetChildByName("ButtonCancel")
-		buttonCancel:ConnectEvent(ButtonClickEvent, function() self:OnCancelButtonClicked() end)
-		self.TextCancel = buttonCancel.TextComponent
+		local buttonCancelEntity = panel:GetChildByName("ButtonCancel")
+		buttonCancelEntity:ConnectEvent(ButtonClickEvent, function() self:OnCancelButtonClicked() end)
+		self.TextCancel = buttonCancelEntity.TextComponent
 		self.TextCancel.Text = "취소"
 		
-		local buttonDelete = panel:GetChildByName("ButtonDelete")
-		buttonDelete:ConnectEvent(ButtonClickEvent, function() self:OnDeleteButtonClicked() end)
+		local buttonDeleteEntity = panel:GetChildByName("ButtonDelete")
+		buttonDeleteEntity:ConnectEvent(ButtonClickEvent, function() self:OnDeleteButtonClicked() end)
 	end
 
 	@ExecSpace("ClientOnly")
 	method void Open(ItemStruct itemStruct)
 		self.ItemSlot:Set(itemStruct)
+		
+		if itemStruct.EndDateSeconds == 0 then
+			self.TextExpireDate.Enable = false
+		else
+		    self.TextExpireDate.Text = "~ ".. DateTime(itemStruct.EndDateSeconds * 1000):ToFormattedString("G")
+		    self.TextExpireDate.Enable = true
+		end
 		
 		self.Entity.Enable = true
 	end

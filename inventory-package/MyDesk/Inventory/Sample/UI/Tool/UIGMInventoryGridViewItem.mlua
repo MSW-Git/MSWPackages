@@ -1,0 +1,52 @@
+@Component
+script UIGMInventoryGridViewItem extends Component
+
+	property TextComponent TextItemId = nil
+
+	property TextComponent TextItemName = nil
+
+	property TextComponent TextCount = nil
+
+	property TextComponent TextCreatedDate = nil
+
+	property TextComponent TextExpireDate = nil
+
+	property TextComponent TextGUID = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		self.TextItemId = entity:GetChildByName("Label_ItemId").TextComponent
+		self.TextItemName = entity:GetChildByName("Label_ItemName").TextComponent
+		self.TextCount = entity:GetChildByName("Label_Count").TextComponent
+		self.TextCreatedDate = entity:GetChildByName("Label_CreatedDate").TextComponent
+		self.TextExpireDate = entity:GetChildByName("Label_ExpireDate").TextComponent
+		self.TextGUID = entity:GetChildByName("Label_GUID").TextComponent
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Set(ItemStruct itemStruct, integer offsetHour)
+		self.TextItemId.Text = tostring(itemStruct.ItemId)
+		
+		local itemData = _ItemDataLogic:GetData(itemStruct.ItemId)
+		self.TextItemName.Text = itemData.Name
+		
+		self.TextCount.Text = tostring(itemStruct.Count)
+		self.TextCreatedDate.Text = DateTime((itemStruct.CreateDateTimeSec + offsetHour * 60 * 60) * 1000):ToFormattedString("G")
+		if itemStruct.EndDateSeconds == 0 then
+			self.TextExpireDate.Text = "-"
+		else
+			local dateTime = DateTime((itemStruct.EndDateSeconds + offsetHour * 60 * 60) * 1000)
+			self.TextExpireDate.Text = dateTime:ToFormattedString("G")
+		end
+		self.TextGUID.Text = tostring(itemStruct.GUID)
+		
+		self.Entity.Enable = true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Clear()
+		self.Entity.Enable = false
+	end
+
+end

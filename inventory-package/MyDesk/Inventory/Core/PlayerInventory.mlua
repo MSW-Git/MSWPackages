@@ -1,14 +1,12 @@
 @Component
 script PlayerInventory extends Component
 
-	property string DataStorageKey = "PlayerInventory"
-
 	property boolean IsSaveDB = false
 
 	@TargetUserSync
 	property boolean InitSyncEnd = false
 
-	property integer InventoryCapacity = 999
+	property integer InventoryCapacity = 100
 
 	property table Items = {}
 
@@ -16,13 +14,11 @@ script PlayerInventory extends Component
 
 	property table NewItemsSet = {}
 
-	property table CoolEndTimes = {}
-
 	property integer CurrentJob = nil
 
 	@ExecSpace("ServerOnly")
 	method void LoadFromDB(table loadKeys)
-		table.insert(loadKeys, self.DataStorageKey)
+		table.insert(loadKeys, _GMInventoryToolLogic.StorageName)
 	end
 
 	@ExecSpace("ServerOnly")
@@ -34,17 +30,16 @@ script PlayerInventory extends Component
 			[
 				JobCode1 : [1,2,3...],
 				JobCode2 : [4,5,6...]
-			],
-			"Cool" : {"ItemId1" : 100, "ItemId2" : 20},
+			]
 		]]
 		local userId = self.Entity.PlayerComponent.UserId
 		
 		---@type DataStorageItem
-		local storageData = loadedData[self.DataStorageKey]
+		local storageData = loadedData[_GMInventoryToolLogic.StorageName]
 		if storageData ~= nil and (_Util:IsNilorEmptyString(storageData.Value) == false) then
 			local inventoryTable = _HttpService:JSONDecode(storageData.Value)
 			
-			local dbItems = inventoryTable["Items"]
+			local dbItems = inventoryTable[_GMInventoryToolLogic.StorageItemsKey]
 			if dbItems ~= nil then
 				local invenItems = self.Items
 				for i, dbItem in ipairs(dbItems) do
@@ -57,7 +52,7 @@ script PlayerInventory extends Component
 				end
 			end
 			
-			local gearItems = self:DeserializeAttachedNormalGearItems(inventoryTable["GearItems"])
+			local gearItems = self:DeserializeAttachedNormalGearItems(inventoryTable[_GMInventoryToolLogic.StorageGearItemsKey])
 			if gearItems ~= nil then
 				for jobCode, categoryGUIDPairs in pairs(gearItems) do
 					for category, guid in pairs(categoryGUIDPairs) do
@@ -67,10 +62,9 @@ script PlayerInventory extends Component
 					end
 				end
 			end
-				
-			local coolEndTimeSeconds = self:DeserializeCoolEndTimes(inventoryTable["Cool"])
-			self.CoolEndTimes = coolEndTimeSeconds
 		end
+		
+		self:CleanupExpiredItems(false)
 		
 		local dbItems = {}
 		for guid, v in pairs(self.Items) do
@@ -110,12 +104,12 @@ script PlayerInventory extends Component
 		end
 		
 		if #dbItems ~= 0 then
-			dbTable["Items"] = dbItems
+			dbTable[_GMInventoryToolLogic.StorageItemsKey] = dbItems
 		end
 		
 		local gearItemsStr = self:SerializeAttachedNormalGearItems()
 		if not _Util:IsNilorEmptyString(gearItemsStr) then
-			dbTable["GearItems"] = gearItemsStr
+			dbTable[_GMInventoryToolLogic.StorageGearItemsKey] = gearItemsStr
 		end
 		
 		local dbString = ""
@@ -123,7 +117,7 @@ script PlayerInventory extends Component
 			dbString = _HttpService:JSONEncode(dbTable)
 		end
 		
-		saveData[self.DataStorageKey] = dbString
+		saveData[_GMInventoryToolLogic.StorageName] = dbString
 	end
 
 	@ExecSpace("Client")
@@ -738,10 +732,6 @@ script PlayerInventory extends Component
 			return _ErrorCodeEnum.Item_InvalidCategory
 		end
 		
-		if self:HasCooldown(itemStruct.ItemId) then
-			return _ErrorCodeEnum.Item_Cooldown
-		end
-		
 		if itemStruct.Count < count then
 			return _ErrorCodeEnum.Item_LackCount
 		end
@@ -781,68 +771,6 @@ script PlayerInventory extends Component
 		useFunction(itemData.UsableFunctionParams)
 		
 		self.IsSaveDB = true
-		if itemData.CooldownTime > 0.1 then
-			self.CoolEndTimes[itemStruct.ItemId] = _DateTimeLogic:GetTimeElapsed() + math.floor(itemData.CooldownTime * 1000)
-		end
-		
-		return true
-	end
-
-	method string SerializeCoolEndTimes()
-		local dbCoolEndTimes = {}
-		
-		local curElapsedTimeSecond = _DateTimeLogic:GetTimeElapsed() / 1000
-		for itemId, coolEndTime in pairs(self.CoolEndTimes) do
-			local itemData = _ItemDataLogic:GetData(itemId)
-			if itemData == nil then
-				continue
-			end
-			
-			local coolEndTimeSecond = coolEndTime / 1000
-			if coolEndTimeSecond <= curElapsedTimeSecond then
-				continue
-			end
-			
-			local itemIdStr = tostring(itemId)
-			dbCoolEndTimes[itemIdStr] = math.tointeger(coolEndTimeSecond)
-		end
-		
-		if _Util:IsNilorEmptyTable(dbCoolEndTimes) then
-			return nil
-		end
-		
-		return _HttpService:JSONEncode(dbCoolEndTimes)
-	end
-
-	method table DeserializeCoolEndTimes(string coolEndTimeSecondsStr)
-		local coolEndTimes = {}
-		if _Util:IsNilorEmptyString(coolEndTimeSecondsStr) then
-			return coolEndTimes
-		end
-		
-		local dbCoolEndTimes = _HttpService:JSONDecode(coolEndTimeSecondsStr)
-		for itemIdStr, coolEndTimeSecond in pairs(dbCoolEndTimes) do
-			local itemId = math.tointeger(tonumber(itemIdStr))
-			coolEndTimes[itemId] = math.tointeger(coolEndTimeSecond * 1000)
-		end
-		
-		return coolEndTimes
-	end
-
-	method boolean HasCooldown(integer itemId)
-		local itemData = _ItemDataLogic:GetData(itemId)
-		if itemData == nil then
-			return false
-		end
-		
-		if itemData.CooldownTime < 0.1 then
-			return false
-		end
-		
-		if self.CoolEndTimes[itemId] == nil or self.CoolEndTimes[itemId] < _DateTimeLogic:GetTimeElapsed() then
-			return false
-		end
-		
 		return true
 	end
 
@@ -1133,7 +1061,7 @@ script PlayerInventory extends Component
 			
 			---@type ItemStruct
 			local itemStruct = v
-			if itemStruct.EndDateMinute == 0 then
+			if itemStruct.EndDateSeconds == 0 then
 				continue
 			end
 			

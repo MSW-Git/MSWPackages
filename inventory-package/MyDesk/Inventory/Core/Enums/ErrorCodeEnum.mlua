@@ -77,8 +77,6 @@ script ErrorCodeEnum extends Logic
 
 	property integer Item_LackCount = 1023
 
-	property integer Item_Cooldown = 1024
-
 	property integer Item_NoUseFunction = 1025
 
 	property integer Item_NotLockable = 1026
@@ -135,7 +133,6 @@ script ErrorCodeEnum extends Logic
 			[self.Item_CountIsZero] = "Item_CountIsZero",
 			[self.Item_CannotDiscard] = "Item_CannotDiscard",
 			[self.Item_LackCount] = "Item_LackCount",
-			[self.Item_Cooldown] = "Item_Cooldown",
 			[self.Item_NoUseFunction] = "Item_NoUseFunction",
 			[self.Item_NotLockable] = "Item_NotLockable",
 			[self.Item_NoShowUseItemButtonFunction] = "Item_NoShowUseItemButtonFunction",

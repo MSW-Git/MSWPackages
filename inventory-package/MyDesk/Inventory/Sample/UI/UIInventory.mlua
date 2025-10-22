@@ -46,7 +46,7 @@ script UIInventory extends Component
 		
 		local inventoryPanel = panel:GetChildByName("InventoryPanel")
 		
-		local originalGridCell = _SpawnService:SpawnByModelId(_EntryService:GetModelIdByName("ItemSlot"), "ItemSlot", Vector3.zero, self.Entity)
+		local originalGridCell = _SpawnService:SpawnByModelId(_EntryService:GetModelIdByName("UIItemSlot"), "ItemSlot", Vector3.zero, self.Entity)
 		originalGridCell.Enable = false
 		---@type UIInventoryGridCell
 		local inventoryGridCell = originalGridCell:AddComponent(UIInventoryGridCell)
@@ -106,7 +106,7 @@ script UIInventory extends Component
 			end
 			
 			if firstJob == nil then
-				self:Toggle()
+				self:Close()
 				return
 			end
 			
@@ -179,6 +179,8 @@ script UIInventory extends Component
 		end
 		
 		self.InventoryTabHolder:Update(true)
+		local playerInventory = _UserService.LocalPlayer.PlayerInventory
+		self.TextCapacity.Text = string.format("%d / %d", _Util:TableLen(playerInventory.Items), playerInventory.InventoryCapacity)
 	end
 
 	@ExecSpace("ClientOnly")
@@ -199,6 +201,8 @@ script UIInventory extends Component
 		end
 		
 		self.InventoryTabHolder:Update(true)
+		local playerInventory = _UserService.LocalPlayer.PlayerInventory
+		self.TextCapacity.Text = string.format("%d / %d", _Util:TableLen(playerInventory.Items), playerInventory.InventoryCapacity)
 	end
 
 end

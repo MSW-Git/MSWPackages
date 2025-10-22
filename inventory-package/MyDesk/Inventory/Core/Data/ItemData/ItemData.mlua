@@ -7,6 +7,8 @@ script ItemData
 
 	property string RUID = ""
 
+	property integer Category = 0
+
 	property string UsableFunction = ""
 
 	property table UsableFunctionParams = {}
@@ -15,21 +17,13 @@ script ItemData
 
 	property boolean NonStackable = false
 
-	property integer Category = 0
+	property integer ExpirationDate = 0
 
-	property number CooldownTime = 0
-
-	property boolean IsNotConsumeOnUse = false
+	property integer ExpirationSeconds = 0
 
 	property any GearData = nil
 
-	property Vector2 RUIDOffset = nil
-
-	property integer ExpirationDate = 0
-
-	property integer ExpirationPeriodDay = 0
-
-	method boolean Init(any dataRow)
+	method boolean Load(any dataRow)
 		---@type UserDataRow
 		local row = dataRow
 		self.Id = math.tointeger(tonumber(row:GetItem("Id")))
@@ -65,18 +59,6 @@ script ItemData
 			end
 		end
 		
-		local isNotConsumeOnUse = row:GetItem("IsNotConsumeOnUse")
-		if not _Util:IsNilorEmptyString(isNotConsumeOnUse) then
-			if isNotConsumeOnUse == "1" then
-				self.IsNotConsumeOnUse = true
-			end
-		end
-		
-		self.CooldownTime = math.tointeger(tonumber(row:GetItem("CooldownTime")))
-		if self.CooldownTime == nil then
-			self.CooldownTime = 0
-		end
-		
 		if self.Category == _ItemCategoryEnum.Gear then
 			self.GearData = _ItemGearDataLogic:GetData(self.Id)
 		end
@@ -90,9 +72,9 @@ script ItemData
 		
 		local ExpirationPeriodDay = row:GetItem("ExpirationPeriodDay")
 		if _UtilLogic:IsNilorEmptyString(ExpirationPeriodDay) then
-			self.ExpirationPeriodDay = 0
+			self.ExpirationSeconds = 0
 		else
-			self.ExpirationPeriodDay = TimeSpan.FromDays(tonumber(ExpirationPeriodDay)).Elapsed
+			self.ExpirationSeconds = TimeSpan.FromDays(tonumber(ExpirationPeriodDay)).Elapsed * 1000
 		end
 		
 		return true

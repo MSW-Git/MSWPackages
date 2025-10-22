@@ -7,19 +7,19 @@ script ItemStruct
 
 	property integer Count = 0
 
-	property integer EndDateMinute = 0
+	property integer EndDateSeconds = 0
+
+	property integer CreateDateTimeSec = 0
 
 	property boolean Lock = false
 
 	property any ItemGearStruct = nil
 
-	property integer CreateDateTimeSec = 0
-
 	method void CopyFrom(ItemStruct other)
 		self.GUID = other.GUID
 		self.ItemId = other.ItemId
 		self.Count = other.Count
-		self.EndDateMinute = other.EndDateMinute
+		self.EndDateSeconds = other.EndDateSeconds
 		self.Lock = other.Lock
 		self.CreateDateTimeSec = other.CreateDateTimeSec
 		
@@ -45,9 +45,11 @@ script ItemStruct
 				'G' : Grade
 			}
 		]]
+		
 		if self:Deserialize_Item(dbItem) == false then
 			return false
 		end
+		
 		self:Deserialize_Equip(dbItem)
 		return true
 	end
@@ -69,9 +71,9 @@ script ItemStruct
 			self.Count = 0
 		end
 		
-		self.EndDateMinute = math.tointeger(tonumber(strs[4]))
-		if self.EndDateMinute == nil then
-			self.EndDateMinute = 0
+		self.EndDateSeconds = math.tointeger(tonumber(strs[4]))
+		if self.EndDateSeconds == nil then
+			self.EndDateSeconds = 0
 		end
 		
 		self.CreateDateTimeSec = math.tointeger(tonumber(strs[5]))
@@ -113,7 +115,7 @@ script ItemStruct
 		table.insert(strs, self.GUID)
 		table.insert(strs, tostring(self.ItemId))
 		table.insert(strs, tostring(self.Count))
-		table.insert(strs, tostring(self.EndDateMinute))
+		table.insert(strs, tostring(self.EndDateSeconds))
 		table.insert(strs, tostring(self.CreateDateTimeSec))
 		if self.Lock then
 			table.insert(strs, "1")
@@ -181,7 +183,7 @@ script ItemStruct
 	end
 
 	method boolean IsAttached()
-		local itemData = self:GetItemData(self.ItemId)
+		local itemData = self:GetItemData()
 		if itemData == nil or itemData.Category ~= _ItemCategoryEnum.Gear then
 			return false
 		end
@@ -196,14 +198,13 @@ script ItemStruct
 	end
 
 	method boolean IsExpired()
-		if self.EndDateMinute == 0 then
+		if self.EndDateSeconds == 0 then
 			return false
 		end
 		
-		local marginElapsed = 59000
-		local endDateElapsed = math.floor(self.EndDateMinute * 60 * 1000)
+		local endDateElapsed = math.floor(self.EndDateSeconds * 1000)
 		local curElapsed = _DateTimeLogic:GetTimeElapsed()
-		if curElapsed < endDateElapsed + marginElapsed then
+		if curElapsed < endDateElapsed then
 			return false
 		end
 		
@@ -211,13 +212,12 @@ script ItemStruct
 	end
 
 	method boolean IsExpiredWithElapsed(integer utcElapsed)
-		if self.EndDateMinute == 0 then
+		if self.EndDateSeconds == 0 then
 			return false
 		end
 		
-		local marginElapsed = 59000
-		local endDateElapsed = math.floor(self.EndDateMinute * 60 * 1000)
-		if utcElapsed < endDateElapsed + marginElapsed then
+		local endDateElapsed = math.floor(self.EndDateSeconds * 1000)
+		if utcElapsed < endDateElapsed then
 			return false
 		end
 		
@@ -225,15 +225,15 @@ script ItemStruct
 	end
 
 	method boolean CanMergeItemCreateParam(ItemCreateParamStruct param)
-		return self:CanMergeItem(param.ItemId, param.EndDateMinute)
+		return self:CanMergeItem(param.ItemId, param.EndDateSeconds)
 	end
 
-	method boolean CanMergeItem(integer itemId, integer endDateMinute)
+	method boolean CanMergeItem(integer itemId, integer endDateSeconds)
 		if self.ItemId ~= itemId then
 			return false
 		end
 		
-		if self.EndDateMinute ~= endDateMinute then
+		if self.EndDateSeconds ~= endDateSeconds then
 			return false
 		end
 		

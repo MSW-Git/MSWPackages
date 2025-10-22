@@ -50,6 +50,8 @@ script UIEquippedGearPanel extends Component
 			---@type Entity
 			local slotEntity = self.SlotEntityByGearCategory[gearEnum]
 			
+			---@type MapleAvatarItemCategory
+			local avatarCategoryEnum = _GearCategoryEnum:ToAvatarCategory(gearEnum)
 			local gearGUID = gearGUIDByCategory[gearEnum]
 			if gearGUID then
 				---@type ItemStruct
@@ -57,10 +59,10 @@ script UIEquippedGearPanel extends Component
 				slotEntity.UIEquippedGearGridCell:Set(itemStruct)
 				
 				local gearData = itemStruct:GetGearData()
-				self.CostumeManager:SetEquip(_GearCategoryEnum:ToAvatarCategory(gearEnum), gearData.AvatarRUID)
+				self.CostumeManager:SetEquip(avatarCategoryEnum, gearData.AvatarRUID)
 			else
 				slotEntity.UIEquippedGearGridCell:Clear()
-				self.CostumeManager:SetEquip(_GearCategoryEnum:ToAvatarCategory(gearEnum), "")
+				self.CostumeManager:SetEquip(avatarCategoryEnum, "")
 			end
 		end
 	end

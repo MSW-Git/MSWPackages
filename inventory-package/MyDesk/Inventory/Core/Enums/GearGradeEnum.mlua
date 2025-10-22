@@ -87,7 +87,7 @@ script GearGradeEnum extends Logic
 
 	method string GetBackgroundRUID(integer gradeEnum)
 		if self.EnumToBackRUIDTable[gradeEnum] == nil then
-			return self._T.EnumToBackRUIDTable[self.None]
+			return self.EnumToBackRUIDTable[self.None]
 		end
 		
 		return self.EnumToBackRUIDTable[gradeEnum]

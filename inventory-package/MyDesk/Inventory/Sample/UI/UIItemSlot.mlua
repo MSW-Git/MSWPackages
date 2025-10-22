@@ -60,7 +60,7 @@ script UIItemSlot extends Component
 		self.IconItem.ImageRUID = itemData.RUID
 		self.IconItem.Enable = true
 		self.IconLock.Enable = itemStruct.Lock
-		self.IconTime.Enable = itemStruct.EndDateMinute ~= 0
+		self.IconTime.Enable = itemStruct.EndDateSeconds ~= 0
 		
 		if itemData.NonStackable then
 			self.TextCount.Enable = false

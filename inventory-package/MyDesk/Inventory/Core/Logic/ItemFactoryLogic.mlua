@@ -8,19 +8,19 @@ script ItemFactoryLogic extends Logic
 		---@param a ItemStruct
 		---@param b ItemStruct
 		local function func(a, b)
-			if a.EndDateMinute == 0 or b.EndDateMinute == 0 then
-				if b.EndDateMinute ~= 0 then
+			if a.EndDateSeconds == 0 or b.EndDateSeconds == 0 then
+				if b.EndDateSeconds ~= 0 then
 					return false
 				end
 				
-				if a.EndDateMinute ~= 0 then
+				if a.EndDateSeconds ~= 0 then
 					return true
 				end
 				
 				return false
 			end
 			
-			return a.EndDateMinute < b.EndDateMinute
+			return a.EndDateSeconds < b.EndDateSeconds
 		end
 		
 		self.EndDateAscFunc = func

@@ -21,8 +21,8 @@ script PlayerDBManager extends Component
 		playerEntity.PlayerInventory:SaveToDB(saveData)
 		-------------------------------------------------------------------
 		
-		local userID = self.Entity.PlayerComponent.UserId
-		local ds = _DataStorageService:GetUserDataStorage(userID)
+		local profileCode = self.Entity.PlayerComponent.ProfileCode
+		local ds = _DataStorageService:GetUserDataStorage(profileCode)
 		if isLeaving == true then
 			ds:BatchSetAndWait(saveData)
 		else
@@ -40,8 +40,8 @@ script PlayerDBManager extends Component
 	@ExecSpace("ServerOnly")
 	method boolean LoadFromDB()
 		local playerEntity = self.Entity
-		local userID = playerEntity.PlayerComponent.UserId
-		local ds = _DataStorageService:GetUserDataStorage(userID)
+		local profileCode = playerEntity.PlayerComponent.ProfileCode
+		local ds = _DataStorageService:GetUserDataStorage(profileCode)
 		local loadKey = {}
 		local loadedData = {}
 		

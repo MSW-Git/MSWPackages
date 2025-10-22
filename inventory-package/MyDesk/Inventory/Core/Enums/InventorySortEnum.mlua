@@ -24,16 +24,16 @@ script InventorySortEnum extends Logic
 				return a.ItemId < b.ItemId
 			end
 			
-			if a.EndDateMinute ~= b.EndDateMinute then
-				if a.EndDateMinute == 0 then
+			if a.EndDateSeconds ~= b.EndDateSeconds then
+				if a.EndDateSeconds == 0 then
 					return false
 				end
 				
-				if b.EndDateMinute == 0 then
+				if b.EndDateSeconds == 0 then
 					return true
 				end
 				
-				return a.EndDateMinute < b.EndDateMinute
+				return a.EndDateSeconds < b.EndDateSeconds
 			end
 			
 			return a.GUID < b.GUID
@@ -44,16 +44,16 @@ script InventorySortEnum extends Logic
 		---@param a ItemStruct
 		---@param b ItemStruct
 		local function endDateMinuteFunc(a, b)
-			if a.EndDateMinute ~= b.EndDateMinute then
-				if a.EndDateMinute == 0 then
+			if a.EndDateSeconds ~= b.EndDateSeconds then
+				if a.EndDateSeconds == 0 then
 					return false
 				end
 				
-				if b.EndDateMinute == 0 then
+				if b.EndDateSeconds == 0 then
 					return true
 				end
 					
-				return a.EndDateMinute < b.EndDateMinute
+				return a.EndDateSeconds < b.EndDateSeconds
 			end
 			
 			if a.ItemId ~= b.ItemId then

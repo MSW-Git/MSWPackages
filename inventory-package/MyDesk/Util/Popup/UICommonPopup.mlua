@@ -1,0 +1,192 @@
+@Component
+script UICommonPopup extends Component
+
+	property Entity Panel = nil
+
+	property TextComponent TitleText = nil
+
+	property TextComponent DescriptionText = nil
+
+	property Entity OneBtnGroup = nil
+
+	property Entity ConfirmBtn = nil
+
+	property Entity TwoBtnGroup = nil
+
+	property Entity OkBtn = nil
+
+	property Entity CancelBtn = nil
+
+	property any ConfirmCallback = nil
+
+	property any OkCallback = nil
+
+	property any CancelCallback = nil
+
+	property any Tweener = nil
+
+	property number TweenFromValue = 0.5
+
+	property number TweenToValue = 1
+
+	property number TweenDuration = 0.15
+
+	property boolean IsTweenForOpen = false
+
+	@ExecSpace("ClientOnly")
+	method void OnInitialize()
+		local panel = self.Entity:GetChildByName('Panel')
+		self.Panel = panel
+		
+		self.TitleText = panel:GetChildByName('Title').TextComponent
+		self.DescriptionText = panel:GetChildByName('Description').TextComponent
+		
+		self.OneBtnGroup = panel:GetChildByName('OneBtnGroup')
+		self.ConfirmBtn = self.OneBtnGroup:GetChildByName('ConfirmBtn')
+		self.ConfirmBtn:ConnectEvent(ButtonClickEvent, function(event) self:OnBtnClicked_Confirm() end)
+		
+		self.TwoBtnGroup = panel:GetChildByName('TwoBtnGroup')
+		self.OkBtn = self.TwoBtnGroup:GetChildByName('OKBtn')
+		self.OkBtn:ConnectEvent(ButtonClickEvent, function(event) self:OnBtnClicked_Ok() end)
+		self.CancelBtn = self.TwoBtnGroup:GetChildByName('CancelBtn')
+		self.CancelBtn:ConnectEvent(ButtonClickEvent, function(event) self:OnBtnClicked_Cancel() end)
+	end
+
+	@ExecSpace("ClientOnly")
+	method boolean Shut()
+		if self.Tweener then
+			return true
+		end
+		
+		if self.CancelBtn.Enable then
+			self:OnBtnClicked_Cancel()
+		else
+			self:OnBtnClicked_Confirm()
+		end
+		
+		return true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OpenOneBtn(string titleText, string descriptionText, string confirmBtnText, any confirmCallback)
+		self.TwoBtnGroup.Enable = false
+		self.OneBtnGroup.Enable = true
+		
+		self.TitleText.Text = titleText
+		self.DescriptionText.Text = descriptionText
+		self.ConfirmBtn.TextComponent.Text = confirmBtnText
+		
+		self.ConfirmCallback = confirmCallback
+		self.OkCallback = nil
+		self.CancelCallback = nil
+		
+		self:StartTween(true, nil)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OpenTwoBtn(string titleText, string descriptionText, string okBtnText, string cancelBtnText, any okCallback, any cancelCallback)
+		self.OneBtnGroup.Enable = true
+		self.TwoBtnGroup.Enable = false
+		
+		self.TitleText.Text = titleText
+		self.DescriptionText.Text = descriptionText
+		self.OkBtn.TextComponent.Text = okBtnText
+		self.CancelBtn.TextComponent.Text = cancelBtnText
+		
+		self.ConfirmBtn.TextComponent.Text = okBtnText
+		self.ConfirmCallback = okCallback
+		self.CancelCallback = cancelCallback
+		
+		self:StartTween(true, nil)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnBtnClicked_Confirm()
+		if self.Tweener then
+			return
+		end
+		
+		self:StartTween(false, self.ConfirmCallback)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnBtnClicked_Ok()
+		if self.Tweener then
+			return
+		end
+		
+		self:StartTween(false, self.OkCallback)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnBtnClicked_Cancel()
+		if self.Tweener then
+			return
+		end
+		
+		self:StartTween(false, self.CancelCallback)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void StartTween(boolean isOpen, any callback)
+		self:ClearTweenId()
+		
+		local transform = self.Panel.UITransformComponent
+		local canvasGroup = self.Panel.CanvasGroupComponent
+		
+		local tweenFunc = function(value)
+			transform.UIScale = Vector3(value, value, 1)
+			canvasGroup.GroupAlpha = value / self.TweenDuration
+		end
+		
+		local endCallback = function()
+			self.Tweener = nil
+			
+			if isOpen == false then
+				self.Entity.Enable = false
+				self.Entity.Visible = false
+			end
+			
+			if callback ~= nil then
+				callback()
+			end
+		end
+		
+		if isOpen then
+			canvasGroup.GroupAlpha = 0
+			self.Entity.Enable = true
+			self.Entity.Visible = true
+			
+			transform.UIScale = Vector3(self.TweenFromValue,self.TweenFromValue,1)
+			local tween = _TweenLogic:MakeTween(self.TweenFromValue, self.TweenToValue, self.TweenDuration, EaseType.SineEaseIn, tweenFunc)
+			tween:SetOnEndCallback(endCallback)
+			tween:Play()
+		else
+			transform.UIScale = Vector3(self.TweenToValue,self.TweenToValue,1)
+			local tween = _TweenLogic:MakeTween(self.TweenFromValue, self.TweenToValue, self.TweenDuration, EaseType.SineEaseIn, tweenFunc)
+			tween:SetOnEndCallback(endCallback)
+			tween:Play()
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void TweenForce(boolean isOpen)
+		self:ClearTweenId()
+		
+		self.Panel.CanvasGroupComponent.GroupAlpha = 1
+		self.Panel.UITransformComponent.UIScale = Vector3.one
+		self.Entity.Enable = isOpen
+		self.Entity.Visible = isOpen
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ClearTweenId()
+		if self.Tweener then
+			---@type Tweener
+			local tweener = self.Tweener
+			tweener:Destroy()
+			self.Tweener = nil
+		end
+	end
+
+end

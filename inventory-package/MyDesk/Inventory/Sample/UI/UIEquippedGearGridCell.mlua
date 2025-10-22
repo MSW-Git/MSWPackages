@@ -7,7 +7,7 @@ script UIEquippedGearGridCell extends Component
 
 	@ExecSpace("ClientOnly")
 	method void OnBeginPlay()
-		local itemSlotEntity = _SpawnService:SpawnByModelId(_EntryService:GetModelIdByName("ItemSlot"), "ItemSlot", Vector3.zero, self.Entity)
+		local itemSlotEntity = _SpawnService:SpawnByModelId(_EntryService:GetModelIdByName("UIItemSlot"), "ItemSlot", Vector3.zero, self.Entity)
 		self.ItemSlot = itemSlotEntity.UIItemSlot
 		self.ItemSlot.OnItemClickedFunc = function() self:OnGearIconClicked() end
 		itemSlotEntity.UITransformComponent.RectSize = self.Entity.UITransformComponent.RectSize

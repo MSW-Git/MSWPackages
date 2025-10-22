@@ -1,0 +1,214 @@
+@Component
+script UIGMInventoryTool extends Component
+
+	property integer OffsetTimeHour = 0
+
+	property Entity LookAndAddViewEntity = nil
+
+	property GridViewComponent GridView = nil
+
+	property Entity GridViewItem = nil
+
+	property table GridViewData = {}
+
+	property table ItemStructByGUID = {}
+
+	property TextComponent TextLookQueryProfileCode = nil
+
+	property TextComponent TextAddItemId = nil
+
+	property TextComponent TextAddCount = nil
+
+	property TextComponent TextAddExpireDate = nil
+
+	property Entity LoadAndEditViewEntity = nil
+
+	property TextComponent TextEditQueryProfileCode = nil
+
+	property TextComponent TextEditUserData = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		local entity = self.Entity
+		local panel = entity:GetChildByName("Panel")
+		
+		-- Title
+		local titleEntity = panel:GetChildByName("Title")
+		
+		local exitButtonEntity = titleEntity:GetChildByName("Button_Exit")
+		exitButtonEntity:ConnectEvent(ButtonClickEvent, function(_) self.Entity.Enable = false end)
+		
+		local offsetTimeEntity = titleEntity:GetChildByName("Input_OffsetTime")
+		offsetTimeEntity:ConnectEvent(TextInputSubmitEvent, function(evt)
+			---@type TextInputSubmitEvent
+			local submitEvent = evt
+			self.OffsetTimeHour = tonumber(submitEvent.Text)
+			self.GridView:Refresh(true, true)
+		end)
+		
+		local offsetTimeDescriptionEntity = offsetTimeEntity:GetChildByName("Description")
+		offsetTimeDescriptionEntity.Enable = false
+		local offsetTimeDescriptionButtonEntity = offsetTimeEntity:GetChildByName("Button_Description")
+		offsetTimeDescriptionButtonEntity:ConnectEvent(ButtonClickEvent, function()
+			offsetTimeDescriptionEntity.Enable = not offsetTimeDescriptionEntity.Enable
+		end)
+		
+		-- Body
+		local bodyEntity = panel:GetChildByName("Body")
+		
+		-- Look And Add View
+		local lookAndAddViewEntity = bodyEntity:GetChildByName("LookAndAddView")
+		self.LookAndAddViewEntity = lookAndAddViewEntity
+		
+		local lookGridViewItem = lookAndAddViewEntity:GetChildByName("ItemInfoGridViewItem")
+		lookGridViewItem.Enable = false
+		self.GridViewItem = lookGridViewItem
+		local lookGridView = lookAndAddViewEntity:GetChildByName("ItemInfoGridView").GridViewComponent
+		lookGridView.OnRefresh = function(index, cellEntity) self:OnLookGridViewRefresh(index+1, cellEntity) end
+		lookGridView.OnClear = function(index, cellEntity) self:OnLookGridViewClear(index+1, cellEntity) end
+		lookGridView.ItemEntity = lookGridViewItem
+		self.GridView = lookGridView
+		
+		local lookBottomEntity = lookAndAddViewEntity:GetChildByName("Bottom")
+		
+		local lookQueryContainer = lookBottomEntity:GetChildByName("ContainerQuery")
+		self.TextLookQueryProfileCode = lookQueryContainer:GetChildByName("Input_ProfileCode").TextComponent
+		local lookQueryButton = lookQueryContainer:GetChildByName("Button_Query")
+		lookQueryButton:ConnectEvent(ButtonClickEvent, function() self:OnLookQueryPressed() end)
+		
+		local lookAddContainer = lookBottomEntity:GetChildByName("ContainerAdd")
+		self.TextAddItemId = lookAddContainer:GetChildByName("Input_ItemId").TextComponent
+		self.TextAddCount = lookAddContainer:GetChildByName("Input_Count").TextComponent
+		self.TextAddExpireDate = lookAddContainer:GetChildByName("Input_ExpireDate").TextComponent
+		local lookAddItemButton = lookAddContainer:GetChildByName("Button_Add")
+		lookAddItemButton:ConnectEvent(ButtonClickEvent, function() self:OnLookItemAddPressed() end)
+		
+		-- Load And Edit View
+		local loadAndEditViewEntity = bodyEntity:GetChildByName("LoadAndEditView")
+		self.LoadAndEditViewEntity = loadAndEditViewEntity
+		
+		local editQueryContainer = loadAndEditViewEntity:GetChildByName("ContainerQuery")
+		self.TextEditQueryProfileCode = editQueryContainer:GetChildByName("Input_ProfileCode").TextComponent
+		local editQueryButton = editQueryContainer:GetChildByName("Button_Query")
+		editQueryButton:ConnectEvent(ButtonClickEvent, function() self:OnEditQueryPressed() end)
+		
+		self.TextEditUserData = loadAndEditViewEntity:GetChildByName("Input_UserData").TextComponent
+		local editSubmitContainer = loadAndEditViewEntity:GetChildByName("ContainerSubmit")
+		local editSubmitButton = editSubmitContainer:GetChildByName("Button_Submit")
+		editSubmitButton:ConnectEvent(ButtonClickEvent, function() self:OnEditSubmitPressed() end)
+		
+		-- Toggle
+		local toggleLookButton = bodyEntity:GetChildByName("Toggle_LookAndAddView")
+		toggleLookButton:ConnectEvent(ButtonClickEvent, function()
+			lookAndAddViewEntity.Enable = true
+			loadAndEditViewEntity.Enable = false
+		end)
+		local toggleEditButton = bodyEntity:GetChildByName("Toggle_LoadAndEditView")
+		toggleEditButton:ConnectEvent(ButtonClickEvent, function()
+			lookAndAddViewEntity.Enable = false
+			loadAndEditViewEntity.Enable = true
+		end)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Toggle()
+		self.Entity.Enable = not self.Entity.Enable
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Apply(string profileCode, table deserTable)
+		if self.LookAndAddViewEntity.Enable then
+			local itemStructByGUID = _GMInventoryToolLogic:GetItemStructByGUID(deserTable)
+			self.ItemStructByGUID = itemStructByGUID
+			
+			local gridViewData = {}
+			for GUID, itemStruct in pairs(itemStructByGUID) do
+				table.insert(gridViewData, itemStruct)
+			end
+			table.sort(gridViewData, _InventorySortEnum:GetSortFunc(_InventorySortEnum.ItemId))
+			self.GridViewData = gridViewData
+			self.GridView.TotalCount = #gridViewData
+			self.GridView:Refresh(true, true)
+		
+			self.TextLookQueryProfileCode.Text = profileCode
+		end
+		
+		if self.LoadAndEditViewEntity.Enable then
+			local deserString = _HttpService:JSONEncode(deserTable)
+			self.TextEditUserData.Text = deserString
+			
+			self.TextEditQueryProfileCode.Text = profileCode
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnLookGridViewRefresh(integer index, Entity cell)
+		---@type ItemStruct
+		local itemStruct = self.GridViewData[index]
+		cell.UIGMInventoryGridViewItem:Set(itemStruct, self.OffsetTimeHour)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnLookGridViewClear(integer index, Entity cell)
+		cell.UIGMInventoryGridViewItem:Clear()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnLookQueryPressed()
+		local profileCode = self.TextLookQueryProfileCode.Text
+		if profileCode == "" then
+			return
+		end
+		
+		_GMInventoryToolLogic:RequestUserData(profileCode)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnLookItemAddPressed()
+		local profileCode = self.TextLookQueryProfileCode.Text
+		if profileCode == "" then
+			return
+		end
+		
+		local itemId = tonumber(self.TextAddItemId.Text)
+		local itemCount = tonumber(self.TextAddCount.Text)
+		local expirationSecondsText = self.TextAddExpireDate.Text
+		local expirationSeconds = 0
+		if _UtilLogic:IsNilorEmptyString(expirationSecondsText) == false then
+			expirationSeconds = DateTime(expirationSeconds).Elapsed // 1000
+		end
+		
+		local createFailInfo = {}
+		local itemCreateParam = ItemCreateParamStruct()
+		itemCreateParam:Set(itemId, itemCount, expirationSeconds)
+		if itemCreateParam:IsValidData(createFailInfo) == false then
+			log_error(string.format("ItemCreateParamStruct Error. %s", createFailInfo.Message))
+			return
+		end
+		
+		_GMInventoryToolLogic:RequestAddUserItem(profileCode, itemId, itemCount, expirationSeconds)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnEditQueryPressed()
+		local profileCode = self.TextEditQueryProfileCode.Text
+		if profileCode == "" then
+			return
+		end
+		
+		_GMInventoryToolLogic:RequestUserData(profileCode)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnEditSubmitPressed()
+		local profileCode = self.TextEditQueryProfileCode.Text
+		if profileCode == "" then
+			return
+		end
+		
+		local userDataString = self.TextEditUserData.Text
+		
+		_GMInventoryToolLogic:RequestSaveEditedUserData(profileCode, userDataString)
+	end
+
+end
