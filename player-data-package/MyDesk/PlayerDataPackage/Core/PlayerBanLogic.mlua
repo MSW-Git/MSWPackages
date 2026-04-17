@@ -5,13 +5,13 @@ script PlayerBanLogic extends Logic
 
 	property table ReservedBanInfoTable = {}
 
-	property integer TiemrId = 0
+	property integer TimerId = 0
 
 	property number UpdateIntervalSeconds = 30
 
 	@ExecSpace("ServerOnly")
 	method void OnBeginPlay()
-		self.TiemrId = _TimerService:SetTimerRepeat(self.UpdateReservedBanInfo, self.UpdateIntervalSeconds, self.UpdateIntervalSeconds)
+		self.TimerId = _TimerService:SetTimerRepeat(self.UpdateReservedBanInfo, self.UpdateIntervalSeconds, self.UpdateIntervalSeconds)
 	end
 
 	@ExecSpace("ServerOnly")
@@ -24,7 +24,7 @@ script PlayerBanLogic extends Logic
 		
 		if err ~= 0 then
 		    log_error("GetBanInfoAndWait GetAndWait failed. Error:" .. tostring(err))
-		    return nil
+		    return err
 		end
 		
 		outInfo:Deserialize(str, includeExtra)
@@ -166,9 +166,9 @@ script PlayerBanLogic extends Logic
 
 	@ExecSpace("ServerOnly")
 	method void OnEndPlay()
-		if self.TiemrId ~= 0 then
-			_TimerService:ClearTimer(self.TiemrId)
-			self.TiemrId = 0
+		if self.TimerId ~= 0 then
+			_TimerService:ClearTimer(self.TimerId)
+			self.TimerId = 0
 		end
 	end
 

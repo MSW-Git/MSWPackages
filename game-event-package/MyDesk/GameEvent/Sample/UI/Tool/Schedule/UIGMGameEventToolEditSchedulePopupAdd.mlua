@@ -71,15 +71,15 @@ script UIGMGameEventToolEditSchedulePopupAdd extends Component
 		if _Util:IsNilorEmptyString(previewDateStr) then
 			previewTime = startTime
 		else
-			previewTime = _UtilGMTool:StringToElapsedTime(self.PreviewDate.Text, timeOffset)
+			previewTime = _UtilGMTool:StringToElapsedTime(previewDateStr, timeOffset)
 		end
 		
 		local closeTime = 0
-		local closeDateStr = self.PreviewDate.Text
+		local closeDateStr = self.CloseDate.Text
 		if _Util:IsNilorEmptyString(closeDateStr) then
 			closeTime = endTime
 		else
-			closeTime = _UtilGMTool:StringToElapsedTime(self.CloseDate.Text, timeOffset)
+			closeTime = _UtilGMTool:StringToElapsedTime(closeDateStr, timeOffset)
 		end
 		
 		local disable = not _UtilLogic:IsNilorEmptyString(self.Disable.Text)

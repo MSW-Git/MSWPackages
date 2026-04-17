@@ -228,8 +228,14 @@ script GlobalConfigLogic extends Logic
 		-- local ProfileCode = event.ProfileCode
 		local UserId = event.UserId
 		---------------------------------------------------------
-		if not self.IsInitialized then
+		local userEntity = _UserService:GetUserEntityByUserId(UserId)
+		
+		while not self.IsInitialized do
 			wait(0.5)
+			
+			if not isvalid(userEntity) then
+				return
+			end
 		end
 		
 		if self.DataTable ~= nil then
@@ -240,8 +246,12 @@ script GlobalConfigLogic extends Logic
 	@ExecSpace("ClientOnly")
 	@EventSender("Logic", "GlobalConfigLogic")
 	handler HandleGlobalConfigChangeEvent(GlobalConfigChangeEvent event)
-		if self.IsInitialized == false then
+		while not self.IsInitialized do
 			wait(0.5)
+			
+			if not isvalid(self) then
+				return
+			end
 		end
 		
 		---@type GlobalConfigDataStruct

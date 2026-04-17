@@ -402,7 +402,7 @@ script GMMessageLogic extends Logic
 		local ds = _DataStorageService:GetGlobalDataStorage(dsName)
 		local errorCode = ds:SetByInfoAndWait(keyInfo, dataStr)
 		if errorCode ~= 0 then
-			local errorStr = string.format("GMMessageLogic:RequestAddOrModifyMessage SetByInfoAndWait Error. ErroCode : %d", errorCode)
+			local errorStr = string.format("GMMessageLogic:RequestAddOrModifyMessage SetByInfoAndWait Error. ErrorCode : %d", errorCode)
 			self:LogErrorAndShowMessage(errorStr, senderUserId)
 			return
 		end
@@ -410,7 +410,7 @@ script GMMessageLogic extends Logic
 		local evt = s:ToEvent(false)
 		local resultCode = _WorldInstanceService:RequestSendEventToAllWorldInstancesAndWait(evt)
 		if resultCode ~= SendEventRequestResultCode.OK then
-			local errorStr = "GMMessageLogic:RequestAddOrModifyMessage RequestSendEventToAllWorldInstancesAndWait Error. ErroCode : " .. tostring(resultCode)
+			local errorStr = "GMMessageLogic:RequestAddOrModifyMessage RequestSendEventToAllWorldInstancesAndWait Error. ErrorCode : " .. tostring(resultCode)
 			self:LogErrorAndShowMessage(errorStr, senderUserId)
 			return
 		end
@@ -422,13 +422,17 @@ script GMMessageLogic extends Logic
 	@ExecSpace("Server")
 	method void RequestRemoveMessage(integer id)
 		-- Requests the server to delete the message data.
+		if not _AdminLogic:IsAdmin(senderUserId) then
+			return
+		end
+		
 		local dsName = self.StorageName
 		local tag = self.TagName
 		
 		local ds = _DataStorageService:GetGlobalDataStorage(dsName)
 		local errorCode = ds:DeleteAndWait(tostring(id))
 		if errorCode ~= 0 then
-			local errorStr = string.format("GMMessageLogic:RequestRemoveMessage SetByInfoAndWait Error. ErroCode : %d", errorCode)
+			local errorStr = string.format("GMMessageLogic:RequestRemoveMessage SetByInfoAndWait Error. ErrorCode : %d", errorCode)
 			self:LogErrorAndShowMessage(errorStr, senderUserId)
 			return
 		end
@@ -439,7 +443,7 @@ script GMMessageLogic extends Logic
 		
 		local resultCode = _WorldInstanceService:RequestSendEventToAllWorldInstancesAndWait(evt)
 		if resultCode ~= SendEventRequestResultCode.OK then
-			local errorStr = "GMMessageLogic:RequestRemoveMessage RequestSendEventToAllWorldInstancesAndWait Error. ErroCode : " .. tostring(errorCode)
+			local errorStr = "GMMessageLogic:RequestRemoveMessage RequestSendEventToAllWorldInstancesAndWait Error. ErrorCode : " .. tostring(resultCode)
 			self:LogErrorAndShowMessage(errorStr, senderUserId)
 			return
 		end
@@ -451,13 +455,13 @@ script GMMessageLogic extends Logic
 	@ExecSpace("ServerOnly")
 	method void LogAndShowMessage(string str, string userId)
 		log(str)
-		_UIToast:ShowMessage(str, userId)
+		_ScreenMessageLogic:PublicMsg(str, userId)
 	end
 
 	@ExecSpace("ServerOnly")
 	method void LogErrorAndShowMessage(string str, string userId)
 		log_error(str)
-		_UIToast:ShowMessage(str, userId)
+		_ScreenMessageLogic:PublicMsg(str, userId)
 	end
 
 	@ExecSpace("ServerOnly")
@@ -473,6 +477,7 @@ script GMMessageLogic extends Logic
 		-- Applies the event when the message data has been changed, upon receiving the event.
 		if not self.IsInitComplete then
 			table.insert(self.PendingEventList, event)
+			return
 		end
 		
 		if event.IsRemove then

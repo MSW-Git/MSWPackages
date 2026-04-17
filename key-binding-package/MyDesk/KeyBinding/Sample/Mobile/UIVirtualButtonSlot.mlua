@@ -37,14 +37,14 @@ script UIVirtualButtonSlot
 			self._T.IconEntity_Height = iconEnt.UITransformComponent.RectSize.y
 			self.IconEntity = iconEnt
 			self.IconEntity.Enable = (plusEnt == nil)
-		end
-		
-		local iconGUIComp = iconEnt.SpriteGUIRendererComponent
-		self.IconGUIComp = iconGUIComp
-		
-		if slotEnum ~= _InputSlotEnum.Jump then
-			iconGUIComp.ImageRUID = ""
-			iconGUIComp.MaterialId = ""
+			
+			local iconGUIComp = iconEnt.SpriteGUIRendererComponent
+			self.IconGUIComp = iconGUIComp
+			
+			if iconGUIComp and slotEnum ~= _InputSlotEnum.Jump then
+				iconGUIComp.ImageRUID = ""
+				iconGUIComp.MaterialId = ""
+			end
 		end
 		
 		local cooldownEntity = entity:GetChildByName("CooldownGauge")

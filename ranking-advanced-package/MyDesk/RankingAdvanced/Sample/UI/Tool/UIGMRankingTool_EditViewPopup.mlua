@@ -79,7 +79,7 @@ script UIGMRankingTool_EditViewPopup extends Component
 		
 		local score = math.tointeger(tonumber(self.Score.Text))
 		if score == nil or score < 0 then
-			log_error("State is not valid.")
+			log_error("Score is not valid.")
 			return nil
 		end
 		
@@ -87,6 +87,11 @@ script UIGMRankingTool_EditViewPopup extends Component
 		if string.len(tag) > _RankingDataStorageLogic.MaxTagLen then
 			log_error("The tag is not valid.")
 			return nil
+		end
+		
+		if string.find(tag, _RankingDataStorageLogic.SharedMemSeperator) then
+			log_error("The tag contains SharedMemSeperator.")
+			return nil	
 		end
 		
 		local data = RankingData()

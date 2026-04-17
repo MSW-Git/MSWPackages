@@ -383,7 +383,7 @@ script PlayerAchievement extends Component
 	@ExecSpace("ServerOnly")
 	method void UpdateValue()
 		local userEntity = self.Entity
-		local curElpased = _DateTimeLogic:GetTimeElapsed()
+		local curElapsed = _DateTimeLogic:GetTimeElapsed()
 		
 		local dirty = false
 		
@@ -395,7 +395,7 @@ script PlayerAchievement extends Component
 			end
 			
 			local userData = self:GetOrCreateUserData(id)
-			if userData:UpdateValue(userEntity, data, curElpased) then
+			if userData:UpdateValue(userEntity, data, curElapsed) then
 				dirty = true
 			end
 		end

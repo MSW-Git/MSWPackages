@@ -44,7 +44,7 @@ script PlayerGameOptionInputPCStruct
 	method void Apply()
 		_InputLogic:InitKeyMapping(self)
 		
-		self:InitJoystcikKeyMapping()
+		self:InitJoystickKeyMapping()
 		_UserService.LocalPlayer.PlayerControllerExtend:InitKeyMapping()
 	end
 
@@ -68,13 +68,13 @@ script PlayerGameOptionInputPCStruct
 		return true
 	end
 
-	method void InitJoystcikKeyMapping()
+	method void InitJoystickKeyMapping()
 		local joystickUI = _EntityService:GetEntityByPath("/ui/DefaultGroup/UIJoystick")
 		if not isvalid(joystickUI) then
 			return
 		end
 		
-		joystickUI.UIJoystick:InitJoystcikKeyMapping()
+		joystickUI.UIJoystick:InitJoystickKeyMapping()
 	end
 
 end

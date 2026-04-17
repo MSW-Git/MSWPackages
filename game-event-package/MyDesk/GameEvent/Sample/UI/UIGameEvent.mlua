@@ -40,8 +40,8 @@ script UIGameEvent extends Component
 			local t1 = data1:GetNextTransitionTime(status1)
 		
 			---@type GameEventScheduleData
-			local data2 = s1.ScheduleData
-			local t2 = data2:GetNextTransitionTime(status1)
+			local data2 = s2.ScheduleData
+			local t2 = data2:GetNextTransitionTime(status2)
 			
 			if t1 ~= t2 then
 				return t1 < t2
@@ -120,13 +120,13 @@ script UIGameEvent extends Component
 	method void ReturnItemToPool(Entity item)
 		---@type GameEventStruct
 		local s = item.UIGameEventItem.Struct
-		local defId = s.DefId
+		local defEnum = s:GetDefEnum()
 		
 		local pool = self.Pool
-		local inner = pool[defId]
+		local inner = pool[defEnum]
 		if inner == nil then
 			inner = {}
-			pool[defId] = inner
+			pool[defEnum] = inner
 		end
 		
 		inner[#inner + 1] = item

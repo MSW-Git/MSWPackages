@@ -195,8 +195,8 @@ script DropLogic extends Logic
 			return
 		end
 		
-		if rollCount <= 0 then
-			log_warning(string.format("RollCount is zero or negative value. Id : %d", dropId))
+		if rollCount == nil or rollCount <= 0 then
+			log_warning(string.format("RollCount is nil or zero or negative value. Id : %d", dropId))
 			return
 		end
 		
@@ -224,7 +224,7 @@ script DropLogic extends Logic
 			local groupId = data.GroupId
 			local dataRate = math.min(data.GroupRate * rateMul, 1.0)
 			local rate = dataRate + epsilon
-			local columnStr = "Index,ItemId,Weight,Rate,ResultRate,PickCount,MinCount,MaxCount,ExptectedCount,ResultCount"
+			local columnStr = "Index,ItemId,Weight,Rate,ResultRate,PickCount,MinCount,MaxCount,ExpectedCount,ResultCount"
 			
 			local groupPickCount = 0
 			local indexPickCounts = {}
@@ -323,8 +323,8 @@ script DropLogic extends Logic
 			return
 		end
 		
-		if rollCount <= 0 then
-			log_warning(string.format("RollCount is zero or negative value. Id : %d", dropId))
+		if rollCount == nil or rollCount <= 0 then
+			log_warning(string.format("RollCount is nil or zero or negative value. Id : %d", dropId))
 			return
 		end
 		
@@ -345,7 +345,7 @@ script DropLogic extends Logic
 		resultList[#resultList + 1] = string.format("======== MultiDrop Test ========\nDropId : %d, RollCount : %d\nRateMul : %f, CountMul : %f",
 			dropId, rollCount, rateMul, countMul)
 		
-		local columnStr = "Index,ItemId,Rate,ResultRate,PickCount,MinCount,MaxCount,ExptectedCount,ResultCount"
+		local columnStr = "Index,ItemId,Rate,ResultRate,PickCount,MinCount,MaxCount,ExpectedCount,ResultCount"
 		local epsilon = self.Epsilon
 		for _, groupId in pairs(dropData.GroupIds) do
 			resultList[#resultList + 1] = string.format("--------Group ID : %d--------", groupId)
@@ -386,7 +386,7 @@ script DropLogic extends Logic
 				end
 				
 				local resultRate = pick / rollCount
-				local str = string.format("%d,%d,%f,%f,%d,%d,%d,%d,%d",
+				local str = string.format("%d,%d,%f,%f,%d,%d,%d,%.1f,%d",
 					i, itemId, dataRate, resultRate, pick, minCount, maxCount, expectedCount, resultCount)
 				
 				resultList[#resultList + 1] = str
@@ -452,7 +452,7 @@ script DropLogic extends Logic
 		return true
 	end
 
-	method boolean SelectDropSingle(integer dropSingleGroupId, integer index, integer openCount, boolean outResultList)
+	method boolean SelectDropSingle(integer dropSingleGroupId, integer index, integer openCount, table outResultList)
 		--[[
 		Determines the item to drop using the DropSingleGroup DataSet.
 		Picks the item corresponding to the given <GroupId, Index>.
@@ -461,7 +461,7 @@ script DropLogic extends Logic
 		-- Input parameters
 		dropSingleGroupId : DataSet ID
 		index             : DataSet row index
-		countFactor       : Quantity multiplier (default: 1)
+		openCount         : Number of open attempts
 		]]
 		
 		local groupId = dropSingleGroupId
@@ -485,7 +485,7 @@ script DropLogic extends Logic
 		end
 		
 		if openCount == nil or openCount <= 0 then
-			log_warning(string.format("RollCount must be a positive value. GroupId : %d", groupId))
+			log_warning(string.format("OpenCount must be a positive value. GroupId : %d", groupId))
 			return false
 		end
 		

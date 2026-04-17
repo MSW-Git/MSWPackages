@@ -151,7 +151,7 @@ script UIGMGameEventToolEditSchedule extends Component
 		end
 		
 		local id = delData.Id
-		if id == 0 or nil then
+		if id == nil or id == 0 then
 			return
 		end
 		

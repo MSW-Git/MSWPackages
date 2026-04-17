@@ -49,13 +49,13 @@ script QuestDataSetLogic extends Logic
 		for id, data in pairs(dataTable) do
 			local linkedPrevId = data.LinkedPrevId
 			if linkedPrevId ~= 0 and self:GetData(linkedPrevId) == nil then
-				log_error(string.format("Cannot find LinkedPrevId Data. Id : %d, LinkedPrevId : ", id, data.LinkedPrevId))
+				log_error(string.format("Cannot find LinkedPrevId Data. Id : %d, LinkedPrevId : %d", id, data.LinkedPrevId))
 				return false
 			end
 			
 			local requiredId = data.RequiredId
 			if requiredId ~= 0 and self:GetData(requiredId) == nil then
-				log_error(string.format("Cannot find RequiredId Data. Id : %d, LinkedPrevId : ", id, data.RequiredId))
+				log_error(string.format("Cannot find RequiredId Data. Id : %d, RequiredId : %d", id, data.RequiredId))
 				return false
 			end
 		end

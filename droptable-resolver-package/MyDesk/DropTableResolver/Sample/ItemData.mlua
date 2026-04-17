@@ -33,7 +33,9 @@ script ItemData
 		local itemType = math.tointeger(tonumber(row:GetItem("ItemType")))
 		if itemType == nil or itemType == 0 then
 			log_error(string.format("ItemType is invalid. Id : %d", id))
+			return false
 		end
+		self.ItemType = itemType
 		
 		self.RUID = row:GetItem("RUID")
 		

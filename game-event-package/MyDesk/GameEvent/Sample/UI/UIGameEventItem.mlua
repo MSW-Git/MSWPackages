@@ -27,7 +27,7 @@ script UIGameEventItem extends Component
 
 	@ExecSpace("ClientOnly")
 	method void Init(integer defEnum)
-		local modelName = _GameEventDefTypeEnum:GetBannnerModelName(defEnum)	
+		local modelName = _GameEventDefTypeEnum:GetBannerModelName(defEnum)	
 		if modelName == nil then
 			log_error(string.format("Cannot find modelName. GameEvent DefEnum : %d", defEnum))
 			return

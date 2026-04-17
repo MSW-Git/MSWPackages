@@ -71,11 +71,10 @@ script GMPlayerBanToolLogic extends Logic
 			keyValues[profileCode] = serailzedStr
 		end
 		
+		local failedTable = {}
 		local ds = _DataStorageService:GetGlobalDataStorage(_GMPlayerBanToolLogic.StorageName)
 		local err, resultsList = ds:BatchSetAndWait(keyValues)
 		if err ~= 0 then
-			local failedTable = {}
-			
 			for i = 1, #profileCodes do
 				local profileCode = profileCodes[i]
 				failedTable[profileCode] = true
@@ -89,21 +88,35 @@ script GMPlayerBanToolLogic extends Logic
 			local failedList = table.keys(failedTable)
 			log_error(string.format("RequestBanUser SetAndWait Failed. ErrorCode : %d, Failed ProfileCodes : %s",
 				err, table.concat(failedList, ",")))
+		end
+		
+		local validProfileCodes = {}
+		
+		for i = 1, #profileCodes do
+			local profileCode = profileCodes[i]
+			if failedTable[profileCode] ~= nil then
+				continue
+			end
+		
+			validProfileCodes[#validProfileCodes + 1] = profileCode
+		end
+		
+		if #validProfileCodes == 0 then
 			return
 		end
 		
 		local evt = RequestBanUserEvent()
-		evt.ProfileCodes = profileCodes
+		evt.ProfileCodes = validProfileCodes
 		evt:SetBanInfo(banInfo)
 		
 		local code = _WorldInstanceService:RequestSendEventToAllWorldInstancesAndWait(evt)
 		if code ~= SendEventRequestResultCode.OK then
 			log_error(string.format("RequestBanUser Send RequestBanUserEvent Failed. ErrorCode : %s, ProfileCodes : %s",
-				tostring(code), table.concat(profileCodes, ",")))
+				tostring(code), table.concat(validProfileCodes, ",")))
 			return
 		end
 		
-		log("Send RequestBanUser Success.")
+		log(string.format("Send RequestBanUser Success. ProfileCodes : %s", table.concat(validProfileCodes, ",")))
 	end
 
 end

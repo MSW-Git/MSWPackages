@@ -85,16 +85,16 @@ script UICommonPopup extends Component
 
 	@ExecSpace("ClientOnly")
 	method void OpenTwoBtn(string titleText, string descriptionText, string okBtnText, string cancelBtnText, any okCallback, any cancelCallback)
-		self.OneBtnGroup.Enable = true
-		self.TwoBtnGroup.Enable = false
+		self.OneBtnGroup.Enable = false
+		self.TwoBtnGroup.Enable = true
 		
 		self.TitleText.Text = titleText
 		self.DescriptionText.Text = descriptionText
 		self.OkBtn.TextComponent.Text = okBtnText
 		self.CancelBtn.TextComponent.Text = cancelBtnText
 		
-		self.ConfirmBtn.TextComponent.Text = okBtnText
-		self.ConfirmCallback = okCallback
+		self.ConfirmCallback = nil
+		self.OkCallback = okCallback
 		self.CancelCallback = cancelCallback
 		
 		self:StartTween(true, nil)

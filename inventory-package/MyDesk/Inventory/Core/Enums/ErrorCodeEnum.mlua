@@ -163,7 +163,7 @@ script ErrorCodeEnum extends Logic
 		end
 		
 		log_warning(msg)
-		_UIToast:ShowMessage(msg)
+		_ScreenMessageLogic:PrivateMsg(msg)
 	end
 
 	@ExecSpace("ClientOnly")
@@ -180,7 +180,7 @@ script ErrorCodeEnum extends Logic
 		end
 		
 		log_warning(msg)
-		_UIToast:ShowMessage(msg)
+		_ScreenMessageLogic:PrivateMsg(msg)
 	end
 
 	@ExecSpace("ClientOnly")
@@ -205,7 +205,7 @@ script ErrorCodeEnum extends Logic
 		end
 		
 		log_warning(msg)
-		_UIToast:ShowMessage(msg)
+		_ScreenMessageLogic:PrivateMsg(msg)
 	end
 
 	@ExecSpace("ServerOnly")

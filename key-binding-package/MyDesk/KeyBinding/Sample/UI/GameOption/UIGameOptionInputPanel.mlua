@@ -112,7 +112,7 @@ script UIGameOptionInputPanel extends Component
 			_InputLogic:ResetKeyMap()
 		end
 		
-		_UIPopupLogic:OpenTwoButtonPopup("Notification", "Would you like to <color=#ec8557>reset</color> the settings?", "Ok", "Cancel", okFunc, nil)
+		_UICommonPopupLogic:OpenTwoButtonPopup("Notification", "Would you like to <color=#ec8557>reset</color> the settings?", "Ok", "Cancel", okFunc, nil)
 	end
 
 	@ExecSpace("ClientOnly")
@@ -132,7 +132,7 @@ script UIGameOptionInputPanel extends Component
 
 	@ExecSpace("ClientOnly")
 	@EventSender("Logic", "InputLogic")
-	handler HandleKeyMappingChangdEvent(KeyMappingChangdEvent event)
+	handler HandleKeyMappingChangedEvent(KeyMappingChangedEvent event)
 		self:OnKeyMappingChanged(event.SlotEnum, event.Key)
 	end
 

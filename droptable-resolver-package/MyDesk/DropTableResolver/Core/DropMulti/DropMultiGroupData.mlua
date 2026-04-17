@@ -30,7 +30,7 @@ script DropMultiGroupData
 		self.ItemId = itemId
 		
 		local percent = tonumber(row:GetItem("Percent"))
-		if percent == nil or math.almostequal(percent, 0) then
+		if percent == nil or percent <= 0 then
 			log_error(string.format("Percent is 0. GroupId : %d, ItemId : %d, ", id, itemId))
 			return false
 		end

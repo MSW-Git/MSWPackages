@@ -35,7 +35,7 @@ script UIAchievementItem extends Component
 		
 		self.Img_Icon = entity:GetChildByName("Img_Icon")
 		
-		local text_title = entity:GetChildByName("Text_TItle")
+		local text_title = entity:GetChildByName("Text_Title")
 		self.Text_Title = text_title
 		
 		local btn_childInfo = text_title:GetChildByName("Btn_ChildInfo")

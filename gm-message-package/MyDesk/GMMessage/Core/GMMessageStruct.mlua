@@ -42,7 +42,7 @@ script GMMessageStruct
 		evt.IsRemove = isRemove
 		
 		if isRemove then
-			return
+			return evt
 		end
 		
 		evt.Message = self.Message
@@ -90,6 +90,10 @@ script GMMessageStruct
 		-- Scheduled announcement
 		if curElapsed < startElapsed then
 			return startElapsed
+		end
+		
+		if self.ShowIntervalSeconds <= 0 then
+			return nil
 		end
 		
 		-- Ongoing announcement  

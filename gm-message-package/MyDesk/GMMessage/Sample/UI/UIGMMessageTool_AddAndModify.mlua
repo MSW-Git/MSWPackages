@@ -98,7 +98,7 @@ script UIGMMessageTool_AddAndModify extends Component
 	@ExecSpace("ClientOnly")
 	method void LogErrorAndShowMessage(string str)
 		log(str)
-		_UIToast:ShowMessage(str)
+		_ScreenMessageLogic:PrivateMsg(str)
 	end
 
 end

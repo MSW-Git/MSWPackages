@@ -176,7 +176,7 @@ script GameEventLogic extends Logic
 		local dataTable = {}
 		
 		---@type table<integer, GameEventScheduleData>
-		local dataSetDataTable = _GameEventScheculeDataSetLogic.DataTable
+		local dataSetDataTable = _GameEventScheduleDataSetLogic.DataTable
 		for id, data in pairs(dataSetDataTable) do
 			dataTable[id] = data
 		end
@@ -274,7 +274,7 @@ script GameEventLogic extends Logic
 		local newData = nil
 		
 		if event.IsDelete then
-			newData = _GameEventScheculeDataSetLogic:GetData(id)
+			newData = _GameEventScheduleDataSetLogic:GetData(id)
 			_GMGameEventToolLogic.ScheduleDataTable[id] = nil
 		else
 			newData = event:ToScheduleData()

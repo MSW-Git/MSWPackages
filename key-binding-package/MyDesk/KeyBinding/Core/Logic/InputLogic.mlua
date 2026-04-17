@@ -199,12 +199,12 @@ script InputLogic extends Logic
 			slotEnumToKeyTable[slotEnum] = key
 			keyToSlotEnumTable[key] = slotEnum
 			
-			local evt1 = KeyMappingChangdEvent()
+			local evt1 = KeyMappingChangedEvent()
 			evt1.SlotEnum = anotherSlotEnum
 			evt1.Key = oldKey
 			self:SendEvent(evt1)
 			
-			local evt2 = KeyMappingChangdEvent()
+			local evt2 = KeyMappingChangedEvent()
 			evt2.SlotEnum = slotEnum
 			evt2.Key = key
 			self:SendEvent(evt2)
@@ -217,7 +217,7 @@ script InputLogic extends Logic
 			slotEnumToKeyTable[slotEnum] = key
 			keyToSlotEnumTable[key] = slotEnum
 			
-			local evt = KeyMappingChangdEvent()
+			local evt = KeyMappingChangedEvent()
 			evt.SlotEnum = slotEnum
 			evt.Key = key
 			self:SendEvent(evt)

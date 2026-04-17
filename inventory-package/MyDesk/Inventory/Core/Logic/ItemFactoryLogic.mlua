@@ -154,7 +154,7 @@ script ItemFactoryLogic extends Logic
 		end
 		
 		local validResult = self:IsValidDeleteParamList(userId, deleteParamList)
-		if validResult == nil then
+		if validResult == false then
 			return _ErrorCodeEnum.InvalidParam
 		end
 		
@@ -165,7 +165,7 @@ script ItemFactoryLogic extends Logic
 		
 		local innerResult = self:Inner_DeleteItems(userId, deleteParamList, false,  resultStruct)
 		if innerResult ~= _ErrorCodeEnum.Success then
-			log_error("Inner_AddItems failed. Error : " .. tostring(innerResult))
+			log_error("Inner_DeleteItems failed. Error : " .. tostring(innerResult))
 			return innerResult
 		end
 		
@@ -856,7 +856,7 @@ script ItemFactoryLogic extends Logic
 				return false
 			end
 			
-			if _Util:IsNilorEmptyString(deleteParam.ItemGUID) then
+			if not _Util:IsNilorEmptyString(deleteParam.ItemGUID) then
 				local guid = deleteParam.ItemGUID
 				if guidTable[guid] ~= nil then
 					return false

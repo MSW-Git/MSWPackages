@@ -61,7 +61,7 @@ script UIGMPlayerDataTool_EditItem extends Component
 		
 		local dia = math.tointeger(tonumber(self.Dia.Text))
 		if dia == nil then
-			log_error("Level is invalid.")
+			log_error("Dia is invalid.")
 			return nil
 		end
 		data.Dia = dia

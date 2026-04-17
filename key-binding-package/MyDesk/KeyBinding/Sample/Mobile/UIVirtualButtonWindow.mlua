@@ -203,7 +203,7 @@ script UIVirtualButtonWindow extends Component
 
 	@ExecSpace("ClientOnly")
 	@EventSender("Logic", "InputLogic")
-	handler HandleKeyMappingChangdEvent(KeyMappingChangdEvent event)
+	handler HandleKeyMappingChangedEvent(KeyMappingChangedEvent event)
 		self:ChangeKey(event.SlotEnum, event.Key)
 	end
 

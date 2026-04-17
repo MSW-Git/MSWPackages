@@ -45,7 +45,7 @@ script GameEventDefTypeEnum extends Logic
 		return structType()
 	end
 
-	method string GetBannnerModelName(integer defEnum)
+	method string GetBannerModelName(integer defEnum)
 		local str = self.EnumToStringTable[defEnum]
 		if _Util:IsNilorEmptyString(str) then
 			return nil

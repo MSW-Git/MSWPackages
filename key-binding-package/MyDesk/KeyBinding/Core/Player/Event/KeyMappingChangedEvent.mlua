@@ -1,5 +1,5 @@
 @Event
-script KeyMappingChangdEvent extends EventType
+script KeyMappingChangedEvent extends EventType
 
 	property integer SlotEnum = 0
 

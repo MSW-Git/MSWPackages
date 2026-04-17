@@ -42,7 +42,7 @@ script UIGMGameEventToolUserPopupDetail extends Component
 		
 		local success, result = pcall(_HttpService.JSONEncode, _HttpService, userData.Value)
 		if not success then
-			log_error(string.format("JSONDecode Error. Id : %d, DefId : %d, Error : %s", userData.Id, userData.DefId, result))
+			log_error(string.format("JSONEncode Error. Id : %d, DefId : %d, Error : %s", userData.Id, userData.DefId, result))
 			self.Value.Text = result
 		else
 			self.Value.Text = result

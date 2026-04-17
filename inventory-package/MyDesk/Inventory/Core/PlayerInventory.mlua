@@ -173,16 +173,17 @@ script PlayerInventory extends Component
 		local userId = self.Entity.PlayerComponent.UserId
 		if not self:CanDetachNormalGear() then
 			self:SendErrorCodeToClient(_ErrorCodeEnum.Inven_LackCapacity, nil, userId)
-			return
+			return false
 		end
 		
 		if not self:Inner_DetachNormalGear(job, gearCategory) then
 			self:SendErrorCodeToClient(_ErrorCodeEnum.Item_NoItemToDetach, nil, userId)
-			return
+			return false
 		end
 		
 		self.IsSaveDB = true
 		self:ResponseDetachNormalGear(job, gearCategory, userId)
+		return true
 	end
 
 	method boolean CanDetachNormalGear()
@@ -289,18 +290,18 @@ script PlayerInventory extends Component
 		local errorCode = self:CanAttachNormalGear(job, guid)
 		if errorCode ~= _ErrorCodeEnum.Success then
 			self:SendErrorCodeToClient(errorCode, nil, userId)
-			return
+			return false
 		end
 		
 		---@type ItemStruct
 		local itemStruct = self.Items[guid]
-		if itemStruct == nil then return end
+		if itemStruct == nil then return false end
 		
 		local itemData = _ItemDataLogic:GetData(itemStruct.ItemId)
-		if itemData == nil then return end
+		if itemData == nil then return false end
 		
 		local gearData = itemData:GetGearData()
-		if gearData == nil then return end
+		if gearData == nil then return false end
 		
 		local detachedGearCategories = {}
 		local gearCategory = gearData.GearCategory
@@ -330,6 +331,8 @@ script PlayerInventory extends Component
 		end
 		
 		self:ResponseAttachNormalGear(job, attachedGuid, detachedGearCategories, userId)
+		
+		return true
 	end
 
 	method integer CanAttachNormalGear(integer job, string guid)
@@ -749,25 +752,33 @@ script PlayerInventory extends Component
 		local userId = self.Entity.PlayerComponent.UserId
 		
 		local errorCode = self:CanUseItem(guid, count)
-		if isSendErrorCode and errorCode ~= _ErrorCodeEnum.Success then
-			self:SendErrorCodeToClient(errorCode, nil, userId)
+		if errorCode ~= _ErrorCodeEnum.Success then
+			if isSendErrorCode then
+				self:SendErrorCodeToClient(errorCode, nil, userId)
+			end
 			return false
 		end
 		
 		---@type ItemStruct
 		local itemStruct = self.Items[guid]
-		errorCode = self:Inner_DiscardItem(guid, count)
-		if isSendErrorCode and errorCode ~= _ErrorCodeEnum.Success then
-			self:SendErrorCodeToClient(errorCode, nil, userId)
+		local itemData = _ItemDataLogic:GetData(itemStruct.ItemId)
+		
+		local useFunction = _ItemCategoryEnum:GetUsableFunction(itemData.UsableFunction)
+		if useFunction == nil then
+			if isSendErrorCode then
+				self:SendErrorCodeToClient(_ErrorCodeEnum.Item_NoUseFunction, nil, userId)
+			end
 			return false
 		end
 		
-		local itemData = _ItemDataLogic:GetData(itemStruct.ItemId)
-		local useFunction = _ItemCategoryEnum:GetUsableFunction(itemData.UsableFunction)
-		if useFunction == nil then
-			self:SendErrorCodeToClient(_ErrorCodeEnum.Item_NoUseFunction, nil, userId)
+		errorCode = self:Inner_DiscardItem(guid, count)
+		if errorCode ~= _ErrorCodeEnum.Success then
+			if isSendErrorCode then
+				self:SendErrorCodeToClient(errorCode, nil, userId)
+			end
 			return false
 		end
+		
 		useFunction(itemData.UsableFunctionParams)
 		
 		self.IsSaveDB = true
@@ -1077,7 +1088,7 @@ script PlayerInventory extends Component
 
 	@ExecSpace("Server")
 	method void RequestRemoveExpiredItems(table guids)
-		local userId = senderUserId
+		local userId = self.Entity.PlayerComponent.UserId
 		
 		for _, guid in ipairs(guids) do
 			---@type ItemStruct

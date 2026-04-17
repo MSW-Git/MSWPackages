@@ -177,16 +177,18 @@ script PlayerRanking extends Component
 			return false
 		end
 		
-		local maxTagLen = _RankingDataStorageLogic.MaxTagLen
-		local tagLen = tag and string.len(tag) or 0
-		if maxTagLen < tagLen  then
-			log_error(string.format("The tag length must be less than or equal to %d. Id : %d, Tag : %s", maxTagLen, id, tag))
-			return false
-		end
-		
-		if string.find(tag, _RankingDataStorageLogic.SharedMemSeperator) then
-			log_error(string.format("The tag Contains SharedMemSeperator(%s). Id : %d, Tag : %s", _RankingDataStorageLogic.SharedMemSeperator, id, tag))
-			return false
+		if tag ~= nil then
+			local maxTagLen = _RankingDataStorageLogic.MaxTagLen
+			local tagLen = string.len(tag)
+			if maxTagLen < tagLen  then
+				log_error(string.format("The tag length must be less than or equal to %d. Id : %d, Tag : %s", maxTagLen, id, tag))
+				return false
+			end
+			
+			if string.find(tag, _RankingDataStorageLogic.SharedMemSeperator) then
+				log_error(string.format("The tag Contains SharedMemSeperator(%s). Id : %d, Tag : %s", _RankingDataStorageLogic.SharedMemSeperator, id, tag))
+				return false
+			end
 		end
 		
 		local userData = self:GetOrCreateUserData(id, cycleIndex)
@@ -255,7 +257,7 @@ script PlayerRanking extends Component
 			return false
 		end
 		
-		local profileCode = self.Entity.PlayerComponent.UserId
+		local profileCode = self.Entity.PlayerComponent.ProfileCode
 		if userData.RewardTime ~= 0 then
 			log(string.format("Reward already claimed. ProfileCode : %s, Id : %d, CycleIndex : %d", profileCode, id, cycleIndex))
 			return false

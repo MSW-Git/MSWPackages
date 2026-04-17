@@ -2,7 +2,7 @@
 script UIJoystick extends Component
 
 	@ExecSpace("ClientOnly")
-	method void InitJoystcikKeyMapping()
+	method void InitJoystickKeyMapping()
 		local joystickComp = self.Entity.JoystickComponent
 		
 		joystickComp.UpArrow = _InputLogic:GetKeyBySlotEnum(_InputSlotEnum.MoveUp)

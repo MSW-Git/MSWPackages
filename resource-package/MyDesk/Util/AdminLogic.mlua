@@ -6,6 +6,7 @@ script AdminLogic extends Logic
 		--[[
 		You need to add a condition to filter whether the user is an administrator.
 		]]
+		log_error("You need to add a condition to filter whether the user is an administrator.")
 		return true
 	end
 
@@ -14,6 +15,7 @@ script AdminLogic extends Logic
 		--[[
 		You need to add a condition to filter whether the user is an administrator.
 		]]
+		log_error("You need to add a condition to filter whether the user is an administrator.")
 		return true
 	end
 

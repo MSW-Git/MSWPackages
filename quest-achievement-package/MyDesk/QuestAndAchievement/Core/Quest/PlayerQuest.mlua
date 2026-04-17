@@ -158,6 +158,8 @@ script PlayerQuest extends Component
 			end
 		end
 		
+		---@type table<integer, boolean>
+		local progressingIdTable = self.ProgressingIdTable
 		---@type table<integer, UserQuestData>
 		local userDataTable = self.UserDataTable
 		---@type table<integer, UserQuestData>
@@ -175,6 +177,7 @@ script PlayerQuest extends Component
 			end
 			
 			userData:Abandon(elapsed)
+			progressingIdTable[id] = nil
 			resetUserDataTable[id] = userData
 		end
 		
@@ -409,7 +412,6 @@ script PlayerQuest extends Component
 	@ExecSpace("ServerOnly")
 	method void UpdateValues()
 		local userEntity = self.Entity
-		local curElpased = _DateTimeLogic:GetTimeElapsed()
 		local dirty = false
 		
 		---@type table<integer, UserQuestData>
@@ -610,7 +612,7 @@ script PlayerQuest extends Component
 			self.IsSaveDB = true
 		elseif nextState == _QuestStateEnum.Stored then
 			userData:Abandon(curElapsed)
-			progressingIdTable[id] = false
+			progressingIdTable[id] = nil
 			self.IsSaveDB = true
 		end
 		

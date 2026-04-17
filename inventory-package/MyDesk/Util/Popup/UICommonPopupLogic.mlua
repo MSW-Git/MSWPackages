@@ -1,5 +1,5 @@
 @Logic
-script UIPopupLogic extends Logic
+script UICommonPopupLogic extends Logic
 
 	property string ParentUIPath = "/ui/PopupGroup"
 

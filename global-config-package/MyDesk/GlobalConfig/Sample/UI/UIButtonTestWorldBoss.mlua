@@ -18,9 +18,9 @@ script UIButtonTestWorldBoss extends Component
 		end
 			
 		if value == "false" then
-			_UIToast:ShowMessage("World Boss not Enabled now.")
+			_ScreenMessageLogic:PrivateMsg("World Boss not Enabled now.")
 		else
-			_UIToast:ShowMessage("World Boss Enabled.")
+			_ScreenMessageLogic:PrivateMsg("World Boss Enabled.")
 		end
 	end
 

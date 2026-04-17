@@ -208,7 +208,7 @@ script RecycleScrollView extends Component
 		
 		-- Retrieves the size of the visible viewport area.
 		local viewportSize = self.ViewPort.UITransformComponent.RectSize
-
+		
 		-- Retrieves the size of a single item (cell).
 		local itemSize = self.Item.UITransformComponent.RectSize
 		
@@ -272,7 +272,7 @@ script RecycleScrollView extends Component
 		self.TotalContentSize = self.ScrolledContentBoundsMax
 		
 		local nextPosition = Vector2.zero
-
+		
 		-- Restores previous scroll position if not resetting.
 		if not isResetPosition then
 			local newTotalSize = self.TotalContentSize - self.ViewportContentBoundsMax
@@ -512,7 +512,7 @@ script RecycleScrollView extends Component
 		
 		-- Extracts directional movement value based on the scrolling axis.
 		local moveValue = (axis == _ScrollingType.Horizontal) and dir.x or dir.y
-
+		
 		-- If there's no movement, skip further processing.
 		if moveValue == 0 then
 			return false
@@ -852,4 +852,5 @@ script RecycleScrollView extends Component
 		
 		self:OnDrag(dir)
 	end
+
 end

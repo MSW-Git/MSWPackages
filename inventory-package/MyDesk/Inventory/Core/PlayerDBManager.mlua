@@ -100,8 +100,7 @@ script PlayerDBManager extends Component
 		end
 		self.IsLoadAttempted = true
 		
-		if not _DataLoadLogic:IsLoadSuccessAndWait() then
-			log_error("World DataLoad Failed.")
+		if not _DataLoadLogic:IsLoadSuccessAndWait(self.Entity) then
 			return
 		end
 		

@@ -75,9 +75,17 @@ script DataLoadLogic extends Logic
 		end
 	end
 
-	method boolean IsLoadSuccessAndWait()
+	method boolean IsLoadSuccessAndWait(Component waitTarget)
 		while not self.IsLoadEnd do
 			wait(1)
+			
+			if not isvalid(waitTarget) or not isvalid(waitTarget.Entity) then
+				return false
+			end
+		end
+		
+		if not self.IsLoadSuccess then
+			log_error("World DataLoad Failed.")
 		end
 		
 		return self.IsLoadSuccess

@@ -307,7 +307,7 @@ script GMMailLogic extends Logic
 		
 		local error = ds:SetByInfoAndWait(keyInfo, _HttpService:JSONEncode(newMail:Serialize()))
 		if error ~= 0 then
-			log_error(string.format("[Error: %d] A database error has occurred.",errorCode))
+			log_error(string.format("[Error: %d] A database error has occurred.",error))
 			return false
 		end
 		
@@ -371,18 +371,18 @@ script GMMailLogic extends Logic
 		
 		local deleteError = ds:DeleteAndWait(uuid)
 		if deleteError ~= 0 then
-			log_error(string.format("[Error: %d] A database error has occurred.",errorCode))
+			log_error(string.format("[Error: %d] A database error has occurred.",deleteError))
 			return false
 		end
 		
 		if not self:SaveRevokeMail(mail) then
 			local setError = ds:SetByInfoAndWait(keyInfo, _HttpService:JSONEncode(mail:Serialize()))
 			if setError ~= 0 then
-				log_error(string.format("[Error: %d] A database error has occurred.",errorCode))
+				log_error(string.format("[Error: %d] A database error has occurred.",setError))
 				return false
 			end
 			
-			log_error(string.format("[Error: %d] Failed to save data.", error))
+			log_error("Failed to save data.")
 			return false
 		end
 		
@@ -397,7 +397,6 @@ script GMMailLogic extends Logic
 			log_error("Failed to load data storage.")
 			return false
 		end
-		
 		
 		if _Util:IsNilorEmptyString(mail.UUID) then
 			log_error("UUID is empty.")
@@ -421,7 +420,7 @@ script GMMailLogic extends Logic
 		
 		local error = ds:SetByInfoAndWait(keyInfo, _HttpService:JSONEncode(saveData))
 		if error ~= 0 then
-			log_error(string.format("[Error: %d] A database error has occurred.",errorCode))
+			log_error(string.format("[Error: %d] A database error has occurred.",error))
 			return false
 		end
 		
@@ -896,9 +895,13 @@ script GMMailLogic extends Logic
 		
 		self.CachedGlobalMailMaxIndex = index
 		
-		if self.CachedGlobalMails[uuid] then
-			log_error("The mail already exists.")
-			return
+		for _, m in pairs(self.CachedGlobalMails) do
+			---@type MailBase
+			local mail = m
+			if mail.UUID == uuid then
+				log_error("The mail already exists.")
+				return
+			end
 		end
 		
 		local mail = MailBase()

@@ -183,7 +183,7 @@ script GMInventoryToolLogic extends Logic
 		end
 		
 		local deserTable = {}
-		if _UtilLogic:IsNilorEmptyString(deserString) == false then
+		if _Util:IsNilorEmptyString(deserString) == false then
 			deserTable = _HttpService:JSONDecode(deserString)
 		end
 		local itemStructByGUID = self:GetItemStructByGUID(deserTable)

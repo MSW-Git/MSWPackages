@@ -99,8 +99,8 @@ script ResourceData
 				return false
 			end
 			
-			if self.RechargeInterval < 0 then
-				log_error(string.format("ResourceData RechargeInterval is negative. Type : %d", self.Type))
+			if self.RechargeInterval <= 0 then
+				log_error(string.format("ResourceData RechargeInterval is negative or 0. Type : %d", self.Type))
 				return false
 			end
 		end

@@ -55,7 +55,7 @@ script PlayerControllerExtend extends PlayerControllerComponent
 
 	@ExecSpace("ClientOnly")
 	@EventSender("Logic", "InputLogic")
-	handler HandleKeyMappingChangdEvent(KeyMappingChangdEvent event)
+	handler HandleKeyMappingChangedEvent(KeyMappingChangedEvent event)
 		local SlotEnum = event.SlotEnum
 		if not self:IsBinded(SlotEnum) then
 			return

@@ -142,7 +142,7 @@ script UIGMGameEventToolEditUser extends Component
 	method boolean TryAddEditData(integer id, integer defId)
 		local data = self:GetEditData(id, defId)
 		if data ~= nil then
-			log_error(string.format("Data is already exits. Id : %d, DefId : %d", id, defId))
+			log_error(string.format("Data is already exists. Id : %d, DefId : %d", id, defId))
 			return false
 		end
 		

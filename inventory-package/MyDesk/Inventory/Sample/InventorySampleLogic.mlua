@@ -57,8 +57,9 @@ script InventorySampleLogic extends Logic
 	@EventSender("Service", "UserService")
 	handler HandleUserEnterEvent(UserEnterEvent event)
 		 local UserId = event.UserId
+		local user = _UserService:GetUserEntityByUserId(UserId)
 		
-		if _DataLoadLogic:IsLoadSuccessAndWait() == false then
+		if _DataLoadLogic:IsLoadSuccessAndWait(user) == false then
 			return
 		end
 		
@@ -66,7 +67,6 @@ script InventorySampleLogic extends Logic
 			return
 		end
 		
-		local user = _UserService:GetUserEntityByUserId(UserId)
 		if user.PlayerJob:IsJobLockedAll() then
 			user.PlayerJob:UnlockJob(_PlayerJobCodeEnum.Adele)
 		end

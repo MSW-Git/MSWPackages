@@ -50,7 +50,7 @@ script DropResolverSampleUILogic extends Logic
 		
 		local entity = _SpawnService:SpawnByModelId(modelId, modelName, Vector3.zero, parent)
 		if entity == nil then
-			log_error("GMMessageLogic SpawnByModelId Failed.")
+			log_error("DropResolverSampleUILogic SpawnByModelId Failed.")
 			return nil
 		end
 		

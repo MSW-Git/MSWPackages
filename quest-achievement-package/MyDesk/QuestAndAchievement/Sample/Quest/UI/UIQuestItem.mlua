@@ -28,7 +28,7 @@ script UIQuestItem extends Component
 		local entity = self.Entity
 		
 		self.Img_Icon = entity:GetChildByName("Img_Icon")
-		self.Text_Title = entity:GetChildByName("Text_TItle")
+		self.Text_Title = entity:GetChildByName("Text_Title")
 		self.Text_Desc = entity:GetChildByName("Text_Desc")
 		self.Text_Progress = entity:GetChildByName("Text_Progress")
 		

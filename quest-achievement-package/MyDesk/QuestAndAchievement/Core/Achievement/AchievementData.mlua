@@ -61,7 +61,7 @@ script AchievementData
 	end
 
 	method integer GetMaxConditionValue()
-		local data = self:GetLastStepData(self.Id)
+		local data = self:GetLastStepData()
 		return data.Value
 	end
 

@@ -98,9 +98,13 @@ script DataLoadLogic extends Logic
 		return true
 	end
 
-	method boolean IsLoadSuccessAndWait()
+	method boolean IsLoadSuccessAndWait(Entity waitTarget)
 		while not self.IsLoadEnd do
 			wait(1)
+			
+			if not isvalid(waitTarget) then
+				return false
+			end
 		end
 		
 		return self.IsLoadSuccess

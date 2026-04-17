@@ -152,13 +152,13 @@ script PlayerDBManager extends Component
 		_PlayerBanLogic:ClearKickTimer(profileCode)
 		_PlayerBanLogic:ClearReservedBanInfo(profileCode)
 		
-		local curElpased = _DateTimeLogic:GetTimeElapsed()
-		if banInfo:IsBanned(curElpased) then
+		local curElapsed = _DateTimeLogic:GetTimeElapsed()
+		if banInfo:IsBanned(curElapsed) then
 			_PlayerBanLogic:SendBanInfo(profileCode, banInfo, KickReason.WorldContent)
 			return true
 		end
 		
-		if banInfo:IsReservationNeeded(curElpased) then
+		if banInfo:IsReservationNeeded(curElapsed) then
 			_PlayerBanLogic:ReserveBanInfo(profileCode, banInfo)
 			return false
 		end
@@ -173,8 +173,7 @@ script PlayerDBManager extends Component
 		end
 		self.IsLoadAttempted = true
 		
-		if not _DataLoadLogic:IsLoadSuccessAndWait() then
-			log_error("World DataLoad Failed.")
+		if not _DataLoadLogic:IsLoadSuccessAndWait(self) then
 			self:SendErrorToClient(_ErrorCodeEnum.DBLoad_WorldError, senderUserId)
 			return
 		end
@@ -189,7 +188,7 @@ script PlayerDBManager extends Component
 		end
 		
 		self.IsLoadSuccess = true
-		self:NofifyWorldDataLoadCompletedToClient(senderUserId)
+		self:NotifyWorldDataLoadCompletedToClient(senderUserId)
 		
 		-- Database save interval
 		local period = 300
@@ -202,7 +201,7 @@ script PlayerDBManager extends Component
 	end
 
 	@ExecSpace("Client")
-	method void NofifyWorldDataLoadCompletedToClient()
+	method void NotifyWorldDataLoadCompletedToClient()
 		_LoadingSampleUILogic:FadeOut()
 	end
 

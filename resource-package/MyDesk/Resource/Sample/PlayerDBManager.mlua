@@ -3,6 +3,8 @@ script PlayerDBManager extends Component
 
 	property integer TimerId = 0
 
+	property boolean IsLoadSuccess = false
+
 	@ExecSpace("ServerOnly")
 	method void OnBeginPlay()
 		self:LoadFromDB()
@@ -19,6 +21,10 @@ script PlayerDBManager extends Component
 
 	@ExecSpace("ServerOnly")
 	method void SaveToDB(boolean isLeaving)
+		if not self.IsLoadSuccess then
+			return
+		end
+		
 		local saveData = {}
 		-------------------------------------------------------------------
 		local playerEntity = self.Entity
@@ -75,6 +81,8 @@ script PlayerDBManager extends Component
 			end
 		end
 		self:OnLoadedDataFromDB(loadedData)
+		
+		self.IsLoadSuccess = true
 	end
 
 	@ExecSpace("ServerOnly")

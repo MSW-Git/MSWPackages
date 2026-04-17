@@ -34,6 +34,12 @@ script PlayerGameEvent extends Component
 		saveData[_GMGameEventToolLogic.UserDSName] = sds
 		self.IsSaveDB = false
 		
+		for id, innerTable in pairs(userDataTable) do
+			for defId, userData in pairs(innerTable) do
+				userData.IsDirty = false
+			end
+		end
+		
 		return true
 	end
 
@@ -103,7 +109,7 @@ script PlayerGameEvent extends Component
 		UserData is removed if its associated ScheduleData ID is missing.
 		You can customize this cleanup rule via this function.
 		]]
-		if _GameEventScheculeDataSetLogic:GetData(data.Id) ~= nil then
+		if _GameEventScheduleDataSetLogic:GetData(data.Id) ~= nil then
 			return false
 		end
 		
@@ -176,6 +182,8 @@ script PlayerGameEvent extends Component
 		
 		userData:SetDirty()
 		self.IsSaveDB = true
+		
+		return true
 	end
 
 end

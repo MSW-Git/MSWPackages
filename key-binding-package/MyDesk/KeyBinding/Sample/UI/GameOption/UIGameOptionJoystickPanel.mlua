@@ -13,8 +13,6 @@ script UIGameOptionJoystickPanel extends Component
 
 	property integer SelectedEnum = nil
 
-	property Component NewValue1 = nil
-
 	@ExecSpace("ClientOnly")
 	method void Init()
 		local entity = self.Entity
@@ -118,7 +116,7 @@ script UIGameOptionJoystickPanel extends Component
 		local value = evt.Value
 		self.Text_Value.Text = string.format("%d%%", value)
 		
-		if self.SelectedEnum == 0 then
+		if self.SelectedEnum == nil then
 			return
 		end
 		
@@ -215,7 +213,7 @@ script UIGameOptionJoystickPanel extends Component
 			self:Reset()
 		end
 		
-		_UIPopupLogic:OpenTwoButtonPopup("Notification", "Would you like to <color=#ec8557>reset</color> the settings?", "Ok", "Cancel", okFunc, nil)
+		_UICommonPopupLogic:OpenTwoButtonPopup("Notification", "Would you like to <color=#ec8557>reset</color> the settings?", "Ok", "Cancel", okFunc, nil)
 	end
 
 	@ExecSpace("ClientOnly")

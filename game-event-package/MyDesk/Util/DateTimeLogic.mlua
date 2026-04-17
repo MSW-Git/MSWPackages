@@ -128,12 +128,12 @@ script DateTimeLogic extends Logic
 			local year = dateTime.Year
 			local month = dateTime.Month
 			
-			local baseTime = self:GetBaseTime(year, month, 1)
+			local baseTime = self:GetBaseTime(year, 1, 1)
 			if elapsed < baseTime then
 				return baseTime
 			end
 			
-			return self:GetBaseTime(year + 1, month, 1)
+			return self:GetBaseTime(year + 1, 1, 1)
 		end
 		
 		return DateTime.MaxValue.Elapsed

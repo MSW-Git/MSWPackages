@@ -97,7 +97,7 @@ script UIGlobalConfigSetTool_ViewItem extends Component
 		
 		if not result then return end
 		
-		_UIToast:ShowMessage(string.format("Set %s to %s", keyString, value))
+		_ScreenMessageLogic:PrivateMsg(string.format("Set %s to %s", keyString, value))
 	end
 
 	@ExecSpace("ClientOnly")
@@ -107,7 +107,7 @@ script UIGlobalConfigSetTool_ViewItem extends Component
 		
 		self:Set(default, self.Index)
 		
-		_UIToast:ShowMessage(string.format("Reset %s", self.Name.Text))
+		_ScreenMessageLogic:PrivateMsg(string.format("Reset %s", self.Name.Text))
 	end
 
 end
