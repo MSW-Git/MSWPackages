@@ -150,7 +150,7 @@ script UITimePicker extends Component
 		local meridiemButtonGroup = self.MeridiemButtonGroup
 		
 		if hourPicker ~= nil then
-			-- 24-hour format: 1-23
+			-- 24-hour format: 0-23
 			hourPicker:SetValueRange(0, 23, 1)
 			hourPicker.RenderPrecision = 0
 			

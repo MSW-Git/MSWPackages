@@ -38,7 +38,10 @@ script UIMultiSelectDropdownItem extends Component
 
 	@ExecSpace("ClientOnly")
 	method void SetSelected(boolean isSelected)
-		self.Img_Check.Enable = isSelected
+		local imgCheck = self.Img_Check
+		if imgCheck ~= nil then
+			imgCheck.Enable = isSelected
+		end
 	end
 
 	@ExecSpace("ClientOnly")

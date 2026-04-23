@@ -55,16 +55,16 @@ script UIFixedPagination extends UIPagination
 
 	@ExecSpace("ClientOnly")
 	method void UpdatePageNumberButtons()
-		local currnetPage = self.CurrentPage
+		local currentPage = self.CurrentPage
 		local totalPages = self.TotalPages
 		local blockSize = self.BlockSize
 		
-		if currnetPage < 1 or totalPages < 1 then
+		if currentPage < 1 or totalPages < 1 then
 			log_warning("UpdatePageNumberButtons: currnetPage or totalPages is less than 1")
 			return
 		end
 		
-		if currnetPage > totalPages then
+		if currentPage > totalPages then
 			log_warning("UpdatePageNumberButtons: currnetPage is greater than totalPages")
 			return
 		end
@@ -85,7 +85,7 @@ script UIFixedPagination extends UIPagination
 		end
 		
 		-- Calculate the block that contains the current page
-		local blockIndex = math.floor((currnetPage - 1) / blockSize)
+		local blockIndex = math.floor((currentPage - 1) / blockSize)
 		local blockStart = blockIndex * blockSize + 1
 		local blockEnd = math.min(blockStart + blockSize - 1, totalPages)
 		

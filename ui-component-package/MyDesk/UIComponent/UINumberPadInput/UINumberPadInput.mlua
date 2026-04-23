@@ -1,100 +1,100 @@
 @Component
 script UINumberPadInput extends Component
-	
+
 	@Description("Title text")
 	property Entity Text_Title = nil
-	
+
 	@Description("Value text")
 	property Entity Text_Value = nil
-	
+
 	@Description("Value slider")
 	property SliderComponent Slider = nil
-	
+
 	@Description("Number 0 button")
 	property Entity Btn_0 = nil
-	
+
 	@Description("Number 1 button")
 	property Entity Btn_1 = nil
-	
+
 	@Description("Number 2 button")
 	property Entity Btn_2 = nil
-	
+
 	@Description("Number 3 button")
 	property Entity Btn_3 = nil
-	
+
 	@Description("Number 4 button")
 	property Entity Btn_4 = nil
-	
+
 	@Description("Number 5 button")
 	property Entity Btn_5 = nil
-	
+
 	@Description("Number 6 button")
 	property Entity Btn_6 = nil
-	
+
 	@Description("Number 7 button")
 	property Entity Btn_7 = nil
-	
+
 	@Description("Number 8 button")
 	property Entity Btn_8 = nil
-	
+
 	@Description("Number 9 button")
 	property Entity Btn_9 = nil
-	
+
 	@Description("Min value button")
 	property Entity Btn_Min = nil
-	
+
 	@Description("Max value button")
 	property Entity Btn_Max = nil
-	
+
 	@Description("Minus button")
 	property Entity Btn_Minus = nil
-	
+
 	@Description("Plus button")
 	property Entity Btn_Plus = nil
-	
+
 	@Description("Clear button")
 	property Entity Btn_Clear = nil
-	
+
 	@Description("Close button")
 	property Entity Btn_Close = nil
-	
+
 	@Description("Enter button")
 	property Entity Btn_Enter = nil
-	
+
 	@Description("Minimum value")
 	property integer MinValue = 0
-	
+
 	@Description("Maximum value")
 	property integer MaxValue = 1000
-	
+
 	@Description("Default value")
 	property integer DefaultValue = 0
-	
+
 	@Description("Enter callback function (value: integer)")
 	@HideFromInspector
 	property any EnterCallback = nil
-	
+
 	@Description("Close callback function (no parameters)")
 	@HideFromInspector
 	property any CloseCallback = nil
-	
+
 	@Description("Current value")
 	property integer Value = 0
-	
+
 	@HideFromInspector
 	property boolean IsReady = false
-	
+
 	@HideFromInspector
 	property boolean IgnoreSliderValueChangedEvent = false
-	
+
 	@HideFromInspector
 	property boolean IsInitialized = false
-	
+
 	@ExecSpace("ClientOnly")
 	method void OnBeginPlay()
 		self:Init()
 	end
-	
+
 	@ExecSpace("ClientOnly")
 	method void Init()
 		if self.IsInitialized then
@@ -212,11 +212,11 @@ script UINumberPadInput extends Component
 			btnEnter:ConnectEvent(ButtonClickEvent, self.OnClickBtn_Enter)
 		end
 	end
-	
+
 	@ExecSpace("ClientOnly")
 	method void Open(integer value, integer minValue, integer maxValue, any enterCallback, any closeCallback)
 		if minValue > maxValue then
-			log_error("UINumberPadInput:Open Error. minValue is greager than maxValue.")
+			log_error("UINumberPadInput:Open Error. minValue is greater than maxValue.")
 			return
 		end
 		
@@ -242,7 +242,7 @@ script UINumberPadInput extends Component
 		self.IgnoreSliderValueChangedEvent = false
 		self.Entity.Enable = true
 	end
-	
+
 	@ExecSpace("ClientOnly")
 	method void SetValue(integer value)
 		local clampValue = math.floor(math.clamp(value, self.MinValue, self.MaxValue) + 0.5)
@@ -274,7 +274,7 @@ script UINumberPadInput extends Component
 			return
 		end
 	end
-	
+
 	@ExecSpace("ClientOnly")
 	method void Close()
 		local callback = self.CloseCallback
@@ -285,7 +285,7 @@ script UINumberPadInput extends Component
 			return
 		end
 	end
-	
+
 	@ExecSpace("ClientOnly")
 	method void Clear()
 		self.IsReady = false
@@ -294,7 +294,7 @@ script UINumberPadInput extends Component
 		self.CloseCallback = nil
 		self.EnterCallback = nil
 	end
-	
+
 	@ExecSpace("ClientOnly")
 	method void InitSliderValues(integer value, integer minValue, integer maxValue)
 		local slider = self.Slider
@@ -316,7 +316,7 @@ script UINumberPadInput extends Component
 		
 		slider.Value = value
 	end
-	
+
 	@ExecSpace("ClientOnly")
 	method void OnSliderValueChanged(SliderValueChangedEvent evt)
 		if not self.IsReady then
@@ -335,45 +335,45 @@ script UINumberPadInput extends Component
 	method void UpdateText()
 		self.Text_Value.TextComponent.Text = tostring(self.Value)
 	end
-	
+
 	@ExecSpace("ClientOnly")
 	method void OnClickBtn_Close()
 		self:Close()
 	end
-	
+
 	@ExecSpace("ClientOnly")
 	method void OnClickBtn_Enter()
 		self:Enter()
 	end
-	
+
 	@ExecSpace("ClientOnly")
 	method void OnClickBtn_Clear()
 		self:SetValue(self.DefaultValue)
 	end
-	
+
 	@ExecSpace("ClientOnly")
 	method void OnClickBtn_KeyPad(integer num)
 		self:SetValue(self.Value * 10 + num)
 	end
-	
+
 	@ExecSpace("ClientOnly")
 	method void OnClickBtn_Min()
 		self:SetValue(self.MinValue)
 	end
-	
+
 	@ExecSpace("ClientOnly")
 	method void OnClickBtn_Max()
 		self:SetValue(self.MaxValue)
 	end
-	
+
 	@ExecSpace("ClientOnly")
 	method void OnClickBtn_Plus()
 		self:SetValue(self.Value + 1)
 	end
-	
+
 	@ExecSpace("ClientOnly")
 	method void OnClickBtn_Minus()
 		self:SetValue(self.Value - 1)
 	end
-	
+
 end

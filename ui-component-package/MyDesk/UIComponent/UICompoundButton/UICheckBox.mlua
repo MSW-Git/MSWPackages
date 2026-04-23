@@ -11,7 +11,7 @@ script UICheckBox extends UICompoundButton
 	property SpriteGUIRendererComponent Outline1 = nil
 
 	@Description("Second outline sprite component")
-	property SpriteGUIRendererComponent OutLine2 = nil
+	property SpriteGUIRendererComponent Outline2 = nil
 
 	@Description("Check mark color when active")
 	property Color MarkActiveColor = Color(1,1,1,1)
@@ -128,7 +128,7 @@ script UICheckBox extends UICompoundButton
 			outline1.Color = targetColor
 		end
 		
-		local outline2 = self.OutLine2
+		local outline2 = self.Outline2
 		if isvalid(outline2) then
 			local targetColor = Color.Lerp(self.OutlineDeactiveColor, self.OutlineActiveColor, t)
 			if not self.Interactable then

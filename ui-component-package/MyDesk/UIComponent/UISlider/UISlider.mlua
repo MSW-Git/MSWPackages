@@ -129,7 +129,7 @@ script UISlider extends Component
 			slider.MaxValue = max
 			slider.MinValue = min
 		else
-			slider.MinValue = max
+			slider.MinValue = min
 			slider.MaxValue = max
 		end
 	end
