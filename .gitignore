@@ -43,7 +43,6 @@ luac.out
 *.codeblock
 *.directory
 *.scriptfile
-*.model
 *.userdataset
 
 # Basic source files
