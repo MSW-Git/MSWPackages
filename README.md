@@ -32,6 +32,13 @@ See the README file in each package for detailed usage information.
 | game-event | Provides game event system to creators. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/game-event-package/game-event-package.modpackage)| 1.1 |
 | collection | Provides collections to creators. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/collections-package/collections-package.modpackage)| 1.0 |
 | ui-component | Provides ui componets and models. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/ui-component-package/ui-component-package.modpackage)| 1.1 |
+| ui-resource-cardgame | A UI resource pack collected from Maple Duel, providing UI models and sample screens. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/ui-resource-cardgame-package/ui-resource-cardgame.modpackage)| 1.0 |
+| ui-resource-casualrpg | A UI resource pack collected from MapleSoulHero, providing UI models and sample screens. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/ui-resource-casualrpg-package/ui-resource-casualrpg.modpackage)| 1.0 |
+| ui-resource-casualsurvival | A UI resource pack collected from Durango The Lost Island, providing UI models and sample screens. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/ui-resource-casualsurvival-package/ui-resource-casualsurvival.modpackage)| 1.0 |
+| ui-resource-cutecasual | A UI resource pack collected from ChuChuBurger, providing UI models and sample screens. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/ui-resource-cutecasual-package/ui-resource-cutecasual.modpackage)| 1.0 |
+| ui-resource-minimalcombat | A UI resource pack collected from Maple Auto Battler, providing icon UI models. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/ui-resource-minimalcombat-package/ui-resource-minimalcombat.modpackage)| 1.0 |
+| ui-resource-simplefantasy | A UI resource pack collected from MapleSlash, providing UI models and sample screens. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/ui-resource-simplefantasy-package/ui-resource-simplefantasy.modpackage)| 1.0 |
+| ui-resource-supersimple | A UI resource pack collected from Getting Over It Maker, providing UI models and sample screens. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/ui-resource-supersimple-package/ui-resource-supersimple.modpackage)| 1.0 |
 
 
 
