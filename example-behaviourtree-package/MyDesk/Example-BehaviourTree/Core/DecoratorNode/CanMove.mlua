@@ -1,0 +1,21 @@
+@BTNode
+script CanMove extends DecoratorNode
+
+	property number LookAheadDistance = 0
+
+	property boolean IsForward = false
+
+	method any OnBehave(number delta)
+		local rigidbody = self.ParentAI.Entity.RigidbodyComponent
+		if rigidbody == nil then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		if rigidbody:PredictFootholdEnd(self.LookAheadDistance, self.IsForward) then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		return self:ChildBehave(delta)
+	end
+
+end

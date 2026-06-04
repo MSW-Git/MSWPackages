@@ -1,0 +1,23 @@
+@BTNode
+script BlackboardCondition_Vector2 extends DecoratorNode
+
+	property string Key = ""
+
+	property integer Operator = 0
+
+	property Vector2 CompareValue = Vector2(0.000, 0.000)
+
+	method any OnBehave(number delta)
+		if _UtilLogic:IsNilorEmptyString(self.Key) then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		local compareValue = self.ParentAI.BlackBoard:GetVector2(self.Key)
+		if _Comparator:Compare(_ValueType.Vector2, self.Operator, compareValue, self.CompareValue) then
+			return self:ChildBehave(delta)
+		end
+		
+		return BehaviourTreeStatus.Failure
+	end
+
+end

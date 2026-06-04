@@ -1,0 +1,93 @@
+@Logic
+script Comparator extends Logic
+
+	property integer IsSet = 0
+
+	property integer IsNotSet = 1
+
+	property integer Equal = 2
+
+	property integer NotEqual = 3
+
+	property integer Greater = 4
+
+	property integer GreaterOrEqual = 5
+
+	property integer Less = 6
+
+	property integer LessOrEqual = 7
+
+	property table Operators = {}
+
+	method void OnBeginPlay()
+		self:Register(self.IsSet, function(value1, _)
+			return value1 ~= nil
+		end)
+		
+		self:Register(self.IsNotSet, function(value1, _)
+			return value1 == nil
+		end)
+		
+		self:Register(self.Equal, function(value1, value2)
+			return value1 == value2
+		end)
+		
+		self:Register(self.NotEqual, function(value1, value2)
+			return value1 ~= value2
+		end)
+		
+		self:Register(self.Greater, function(value1, value2)
+			return value1 > value2
+		end)
+		
+		self:Register(self.GreaterOrEqual, function(value1, value2)
+			return value1 >= value2
+		end)
+		
+		self:Register(self.Less, function(value1, value2)
+			return value1 < value2
+		end)
+		
+		self:Register(self.LessOrEqual, function(value1, value2)
+			return value1 <= value2
+		end)
+	end
+
+	method void Register(integer operatorType, any func)
+		self.Operators[operatorType] = func
+	end
+
+	method boolean IsComparable(integer operatorType, any value1, any value2)
+		if operatorType == self.IsSet or operatorType == self.IsNotSet then
+			return true
+		end
+		
+		if value1 == nil or value2 == nil then
+			return false
+		end
+		
+		if type(value1) ~= type(value2) then
+			return false
+		end
+		
+		return true
+	end
+
+	method boolean Compare(integer valueType, integer operatorType, any value1, any value2)
+		if not _OperatorPolicy:IsAllowed(valueType, operatorType) then
+			return false
+		end
+		
+		local func = self.Operators[operatorType]
+		if func == nil then
+			return false
+		end
+		
+		if not self:IsComparable(operatorType, value1, value2) then
+			 return false
+		end
+		
+		return func(value1, value2)
+	end
+
+end

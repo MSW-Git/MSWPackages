@@ -4,7 +4,7 @@ This package provides basic StateType entries, ConditionType entries, sample Sta
 
 It is intended to help creators understand how StateSet graphs can be built from small reusable states and conditions, then adapt those entries to their own worlds.
 
-=======================================
+---
 
 ## Features
 
@@ -94,7 +94,7 @@ The Sample folder contains sample StateSets and Models.
 - Firecracker : Uses particle states in a timed loop.
 - Gacha : Waits, rolls random reward transitions by OrderInTransit, spawns Potion or Scroll reward models, and returns to READY when no reward is selected.
 
-=======================================
+---
 
 ## Installation
 
@@ -118,7 +118,7 @@ This package is available for use after import, but StateSet setup is required.
     - NetworkLogic in the Util folder is required by StateType entries.
     - When importing or exporting this package, include the Util folder together with StateSet.
 
-=======================================
+---
 
 ## Usage
 
@@ -126,7 +126,7 @@ This package is available for use after import, but StateSet setup is required.
 - Drag models from Sample and drop them onto the MapleTileMap you want.
 - Use the sample StateSets as graph patterns, not only as feature demos.
 
-=======================================
+---
 
 ## Core
 
@@ -198,7 +198,7 @@ Core/Condition/Rigidbody:
 - IsRigidbodyOnGround
 - IsRigidbodyJumping
 
-=======================================
+---
 
 ## Util
 
@@ -209,7 +209,7 @@ Util/NetworkLogic:
 - Uses Entity.Localize to separate client-only localized entities from server-side normal entities.
 - This logic is required for Move, Jump, Force, Entity, Particle, and Sound states.
 
-=======================================
+---
 
 ## Sample
 
@@ -238,7 +238,7 @@ Gacha:
 - READY is the NCAlways fallback when no reward is selected.
 - Potion (Reward).model and Scroll (Reward).model use Reward.stateset, which applies AddForce when spawned.
 
-=======================================
+---
 
 ## Notes
 
@@ -246,7 +246,7 @@ Gacha:
 - Multiple BasicRandom transitions from the same state are evaluated in OrderInTransit order. Because each condition has its own roll, lower-priority rewards are evaluated only after higher-priority transitions fail.
 - Use NCAlways fallback transitions with lower OrderInTransit when you need a default path.
 
-=======================================
+---
 
 ## License
 
@@ -254,6 +254,6 @@ This project is licensed under the MIT License. You are free to use, modify, and
 
 However, the software is provided "as is", without warranty of any kind. For more details, please see the [LICENSE](https://opensource.org/licenses/MIT).
 
-=======================================
+---
 
 ## Happy Coding!

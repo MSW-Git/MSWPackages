@@ -1,0 +1,46 @@
+@BTNode
+script MoveToDirection extends ActionNode
+
+	property string LookAtPositionKey = ""
+
+	property number ArrivalThreshold = 0
+
+	method any OnBehave(number delta)
+		local aiComponent = self.ParentAI
+		if aiComponent == nil then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		local targetPosition = aiComponent.BlackBoard:GetVector3(self.LookAtPositionKey)
+		if targetPosition == nil then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		local aiEntity = aiComponent.Entity
+		if aiEntity == nil then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		local transform = aiEntity.TransformComponent
+		if transform == nil then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		local movementComponent = aiEntity.MovementComponent
+		if movementComponent == nil then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		---@type Vector2
+		local direction = targetPosition:ToVector2() - transform.WorldPosition:ToVector2()
+		local distance = direction:Magnitude()
+		if distance < self.ArrivalThreshold then
+			movementComponent:Stop()
+			return BehaviourTreeStatus.Success
+		end
+		
+		movementComponent:MoveToDirection(direction:Normalize(), delta)
+		return BehaviourTreeStatus.Running
+	end
+
+end

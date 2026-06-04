@@ -1,0 +1,23 @@
+@BTNode
+script BlackboardCondition_Int extends DecoratorNode
+
+	property string Key = ""
+
+	property integer Operator = 0
+
+	property integer CompareValue = 0
+
+	method any OnBehave(number delta)
+		if _UtilLogic:IsNilorEmptyString(self.Key) then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		local compareValue = self.ParentAI.BlackBoard:GetInt(self.Key)
+		if _Comparator:Compare(_ValueType.Int, self.Operator, compareValue, self.CompareValue) then
+			return self:ChildBehave(delta)
+		end
+		
+		return BehaviourTreeStatus.Failure
+	end
+
+end

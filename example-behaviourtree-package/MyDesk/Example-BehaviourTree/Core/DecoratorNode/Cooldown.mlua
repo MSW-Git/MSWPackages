@@ -1,0 +1,22 @@
+@BTNode
+script Cooldown extends DecoratorNode
+
+	property number Duration = 0
+
+	@HideFromInspector
+	property number CooldownEndTime = 0
+
+	method any OnBehave(number delta)
+		if self.CooldownEndTime > _UtilLogic.ServerElapsedSeconds then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		local result = self:ChildBehave(delta)
+		if result ~= BehaviourTreeStatus.Running then
+			self.CooldownEndTime = _UtilLogic.ServerElapsedSeconds + self.Duration
+		end
+		
+		return result
+	end
+
+end

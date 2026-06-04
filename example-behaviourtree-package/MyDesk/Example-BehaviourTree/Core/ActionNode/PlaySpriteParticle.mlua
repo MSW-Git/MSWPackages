@@ -1,0 +1,37 @@
+@BTNode
+script PlaySpriteParticle extends ActionNode
+
+	property integer ParticleType = 0
+
+	property string SpriteRUID = ""
+
+	property Entity Instigator = nil
+
+	property Vector3 Position = Vector3(0, 0, 0)
+
+	property number ZRotation = 0
+
+	property Vector3 Scale = Vector3(1, 1, 1)
+
+	property boolean IsLoop = false
+
+	method any OnBehave(number delta)
+		local instigatorEntity = self.Instigator
+		if instigatorEntity == nil then
+			instigatorEntity = self.ParentAI.Entity
+		end
+		
+		if instigatorEntity == nil then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		local particleType = SpriteParticleType.CastFrom(self.ParticleType)
+		if particleType == SpriteParticleType.None then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		_ParticleService:PlaySpriteParticle(particleType, self.SpriteRUID, instigatorEntity, self.Position, self.ZRotation, self.Scale, self.IsLoop, nil)
+		return BehaviourTreeStatus.Success
+	end
+
+end

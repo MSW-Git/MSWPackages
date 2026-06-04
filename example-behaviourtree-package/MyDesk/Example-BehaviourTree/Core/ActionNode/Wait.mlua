@@ -1,0 +1,22 @@
+@BTNode
+script Wait extends ActionNode
+
+	property number WaitTime = 0.0
+
+	@HideFromInspector
+	property number ElapsedTime = 0.0
+
+	method void OnInit()
+		self.ElapsedTime = 0.0
+	end
+
+	method any OnBehave(number delta)
+		self.ElapsedTime = self.ElapsedTime + delta
+		if self.ElapsedTime >= self.WaitTime then
+			return BehaviourTreeStatus.Success
+		end
+		
+		return BehaviourTreeStatus.Running
+	end
+
+end

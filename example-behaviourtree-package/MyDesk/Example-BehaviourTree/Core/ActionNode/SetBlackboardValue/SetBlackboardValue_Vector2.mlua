@@ -1,0 +1,18 @@
+@BTNode
+script SetBlackboardValue_Vector2 extends ActionNode
+
+	property string Key = ""
+
+	property Vector2 Value = Vector2(0.000, 0.000)
+
+	method any OnBehave(number delta)
+		local aiComponent = self.ParentAI
+		if aiComponent == nil then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		aiComponent.BlackBoard:SetVector2(self.Key, self.Value)
+		return BehaviourTreeStatus.Success
+	end
+
+end

@@ -1,0 +1,29 @@
+@BTNode
+script DestroyEntity extends ActionNode
+
+	property string TargetEntityKey = ""
+
+	property number Delay = 0
+
+	method void OnInit()
+		if self.Delay < 0 then
+			self.Delay = 0
+		end
+	end
+
+	method any OnBehave(number delta)
+		local aiComponent = self.ParentAI
+		if aiComponent == nil then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		local targetEntity = aiComponent.BlackBoard:GetEntity(self.TargetEntityKey)
+		if targetEntity == nil then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		targetEntity:Destroy(self.Delay)
+		return BehaviourTreeStatus.Success
+	end
+
+end

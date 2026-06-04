@@ -1,0 +1,270 @@
+{
+  "Id": "",
+  "GameId": "",
+  "EntryKey": "behaviourtree://a9d2e869-531b-42cd-9639-6ed3ec5ef0c4",
+  "ContentType": "x-mod/behaviourtree",
+  "Content": "",
+  "Usage": 0,
+  "UsePublish": 1,
+  "UseService": 0,
+  "CoreVersion": "26.5.0.0",
+  "StudioVersion": "0.1.0.0",
+  "DynamicLoading": 0,
+  "ContentProto": {
+    "Use": "Json",
+    "Json": {
+      "id": "behaviourtree://a9d2e869-531b-42cd-9639-6ed3ec5ef0c4",
+      "name": "Patrol",
+      "RootNode": {
+        "startNodeId": "857287a8-1ca3-4b88-afe5-a01af8853735",
+        "nodePosition": {
+          "x": 0.0,
+          "y": 0.0
+        }
+      },
+      "Blackboard": {
+        "Variables": [
+          {
+            "Name": "bb_MoveSpeed",
+            "Type": {
+              "$type": "MODNativeType",
+              "type": "System.Double, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+            },
+            "ObjectValue": 5.0
+          },
+          {
+            "Name": "bb_Waypoint1",
+            "Type": {
+              "$type": "MODNativeType",
+              "type": "MOD.Core.MODVector3, MOD.Core, Version=26.5.0.0, Culture=neutral, PublicKeyToken=null"
+            },
+            "ObjectValue": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            }
+          },
+          {
+            "Name": "bb_Waypoint2",
+            "Type": {
+              "$type": "MODNativeType",
+              "type": "MOD.Core.MODVector3, MOD.Core, Version=26.5.0.0, Culture=neutral, PublicKeyToken=null"
+            },
+            "ObjectValue": {
+              "x": 5.0,
+              "y": 0.0,
+              "z": 0.0
+            }
+          },
+          {
+            "Name": "bb_Waypoint3",
+            "Type": {
+              "$type": "MODNativeType",
+              "type": "MOD.Core.MODVector3, MOD.Core, Version=26.5.0.0, Culture=neutral, PublicKeyToken=null"
+            },
+            "ObjectValue": {
+              "x": 5.0,
+              "y": 5.0,
+              "z": 0.0
+            }
+          }
+        ]
+      },
+      "Nodes": [
+        {
+          "nodeId": "857287a8-1ca3-4b88-afe5-a01af8853735",
+          "nodeName": "SequenceNode",
+          "definitionId": "SequenceNode",
+          "btNodeType": 1,
+          "nodeParentId": "",
+          "nodePosition": {
+            "x": -1.0,
+            "y": -91.0
+          },
+          "childNodes": [
+            "00243535-c753-4cc4-a63f-6986d2046875",
+            "43637aaf-5d99-45c8-a4fa-783d82709a96",
+            "7ac593ec-343a-44a2-9090-b093c592181a",
+            "d8044d0e-0cdd-4098-836c-2b9502a6d741",
+            "a41a5f7d-4d6c-46ae-b0d4-23683b831114",
+            "c101ae30-9989-4a45-b29c-5637d1024826"
+          ]
+        },
+        {
+          "nodeId": "00243535-c753-4cc4-a63f-6986d2046875",
+          "nodeName": "MoveTo",
+          "definitionId": "codeblock://ff094dc0-d85b-4e4c-b27c-3a1017ace3e6",
+          "btNodeType": 0,
+          "nodeParentId": "857287a8-1ca3-4b88-afe5-a01af8853735",
+          "nodeProperties": [
+            {
+              "propertyKey": "TargetPositionKey",
+              "propertyType": {
+                "$type": "MODNativeType",
+                "type": "System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+              },
+              "propertyValue": "bb_Waypoint1"
+            },
+            {
+              "propertyKey": "MoveSpeedKey",
+              "propertyType": {
+                "$type": "MODNativeType",
+                "type": "System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+              },
+              "propertyValue": "bb_MoveSpeed"
+            },
+            {
+              "propertyKey": "ArrivalThreshold",
+              "propertyType": {
+                "$type": "MODNativeType",
+                "type": "System.Double, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+              },
+              "propertyValue": 1.5
+            }
+          ],
+          "nodePosition": {
+            "x": -351.0,
+            "y": -244.0
+          }
+        },
+        {
+          "nodeId": "c101ae30-9989-4a45-b29c-5637d1024826",
+          "nodeName": "Wait",
+          "definitionId": "codeblock://c999cab1-2f49-40cf-90da-688e6423e02f",
+          "btNodeType": 0,
+          "nodeParentId": "857287a8-1ca3-4b88-afe5-a01af8853735",
+          "nodeProperties": [
+            {
+              "propertyKey": "WaitTime",
+              "propertyType": {
+                "$type": "MODNativeType",
+                "type": "System.Double, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+              },
+              "propertyValue": 1.0
+            }
+          ],
+          "nodePosition": {
+            "x": 520.0,
+            "y": -258.0
+          }
+        },
+        {
+          "nodeId": "7ac593ec-343a-44a2-9090-b093c592181a",
+          "nodeName": "MoveTo",
+          "definitionId": "codeblock://ff094dc0-d85b-4e4c-b27c-3a1017ace3e6",
+          "btNodeType": 0,
+          "nodeParentId": "857287a8-1ca3-4b88-afe5-a01af8853735",
+          "nodeProperties": [
+            {
+              "propertyKey": "TargetPositionKey",
+              "propertyType": {
+                "$type": "MODNativeType",
+                "type": "System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+              },
+              "propertyValue": "bb_Waypoint2"
+            },
+            {
+              "propertyKey": "MoveSpeedKey",
+              "propertyType": {
+                "$type": "MODNativeType",
+                "type": "System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+              },
+              "propertyValue": "bb_MoveSpeed"
+            },
+            {
+              "propertyKey": "ArrivalThreshold",
+              "propertyType": {
+                "$type": "MODNativeType",
+                "type": "System.Double, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+              },
+              "propertyValue": 1.5
+            }
+          ],
+          "nodePosition": {
+            "x": -9.0,
+            "y": -256.0
+          }
+        },
+        {
+          "nodeId": "d8044d0e-0cdd-4098-836c-2b9502a6d741",
+          "nodeName": "Wait",
+          "definitionId": "codeblock://c999cab1-2f49-40cf-90da-688e6423e02f",
+          "btNodeType": 0,
+          "nodeParentId": "857287a8-1ca3-4b88-afe5-a01af8853735",
+          "nodeProperties": [
+            {
+              "propertyKey": "WaitTime",
+              "propertyType": {
+                "$type": "MODNativeType",
+                "type": "System.Double, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+              },
+              "propertyValue": 1.0
+            }
+          ],
+          "nodePosition": {
+            "x": 161.0,
+            "y": -257.0
+          }
+        },
+        {
+          "nodeId": "a41a5f7d-4d6c-46ae-b0d4-23683b831114",
+          "nodeName": "MoveTo",
+          "definitionId": "codeblock://ff094dc0-d85b-4e4c-b27c-3a1017ace3e6",
+          "btNodeType": 0,
+          "nodeParentId": "857287a8-1ca3-4b88-afe5-a01af8853735",
+          "nodeProperties": [
+            {
+              "propertyKey": "TargetPositionKey",
+              "propertyType": {
+                "$type": "MODNativeType",
+                "type": "System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+              },
+              "propertyValue": "bb_Waypoint3"
+            },
+            {
+              "propertyKey": "MoveSpeedKey",
+              "propertyType": {
+                "$type": "MODNativeType",
+                "type": "System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+              },
+              "propertyValue": "bb_MoveSpeed"
+            },
+            {
+              "propertyKey": "ArrivalThreshold",
+              "propertyType": {
+                "$type": "MODNativeType",
+                "type": "System.Double, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+              },
+              "propertyValue": 1.5
+            }
+          ],
+          "nodePosition": {
+            "x": 342.0,
+            "y": -261.0
+          }
+        },
+        {
+          "nodeId": "43637aaf-5d99-45c8-a4fa-783d82709a96",
+          "nodeName": "Wait",
+          "definitionId": "codeblock://c999cab1-2f49-40cf-90da-688e6423e02f",
+          "btNodeType": 0,
+          "nodeParentId": "857287a8-1ca3-4b88-afe5-a01af8853735",
+          "nodeProperties": [
+            {
+              "propertyKey": "WaitTime",
+              "propertyType": {
+                "$type": "MODNativeType",
+                "type": "System.Double, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+              },
+              "propertyValue": 1.0
+            }
+          ],
+          "nodePosition": {
+            "x": -179.0,
+            "y": -253.0
+          }
+        }
+      ]
+    }
+  }
+}

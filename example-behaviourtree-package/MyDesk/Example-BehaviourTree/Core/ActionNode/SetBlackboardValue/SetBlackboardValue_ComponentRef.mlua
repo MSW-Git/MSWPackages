@@ -1,0 +1,20 @@
+@BTNode
+script SetBlackboardValue_ComponentRef extends ActionNode
+
+	property string Key = ""
+
+	property ComponentRef Value = nil
+
+	method any OnBehave(number delta)
+		local aiComponent = self.ParentAI
+		if aiComponent == nil then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		---@type ComponentRef
+		local upcastValue = self.Value
+		aiComponent.BlackBoard:SetComponentRef(self.Key, upcastValue)
+		return BehaviourTreeStatus.Success
+	end
+
+end

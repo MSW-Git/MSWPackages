@@ -1,0 +1,22 @@
+@BTNode
+script CompareBlackboardValues_Component extends DecoratorNode
+
+	property string LeftKey = ""
+
+	property string RightKey = ""
+
+	property integer Operator = 0
+
+	property number Probability = 1
+
+	method any OnBehave(number delta)
+		local leftValue = self.ParentAI.BlackBoard:GetComponent(self.LeftKey)
+		local rightValue = self.ParentAI.BlackBoard:GetComponent(self.RightKey)
+		if _Comparator:Compare(_ValueType.Component, self.Operator, leftValue, rightValue) then
+			return self:ChildBehave(delta)
+		end
+		
+		return BehaviourTreeStatus.Failure
+	end
+
+end

@@ -1,0 +1,23 @@
+@BTNode
+script BlackboardCondition_Bool extends DecoratorNode
+
+	property string Key = ""
+
+	property integer Operator = 0
+
+	property boolean CompareValue = false
+
+	method any OnBehave(number delta)
+		if _UtilLogic:IsNilorEmptyString(self.Key) then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		local compareValue = self.ParentAI.BlackBoard:GetBool(self.Key)
+		if _Comparator:Compare(_ValueType.Bool, self.Operator, compareValue, self.CompareValue) then
+			return self:ChildBehave(delta)
+		end
+		
+		return BehaviourTreeStatus.Failure
+	end
+
+end

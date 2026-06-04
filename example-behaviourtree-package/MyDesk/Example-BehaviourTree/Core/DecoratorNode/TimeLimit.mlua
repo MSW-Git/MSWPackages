@@ -1,0 +1,22 @@
+@BTNode
+script TimeLimit extends DecoratorNode
+
+	property number Duration = 0
+
+	@HideFromInspector
+	property number TimeLeft = 0
+
+	method void OnInit()
+		self.TimeLeft = self.Duration
+	end
+
+	method any OnBehave(number delta)
+		self.TimeLeft -= delta
+		if self.TimeLeft <= 0 then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		return self:ChildBehave(delta)
+	end
+
+end

@@ -1,0 +1,23 @@
+@BTNode
+script SetEntityEnable extends ActionNode
+
+	property string TargetEntityKey = nil
+
+	property boolean Enabled = false
+
+	method any OnBehave(number delta)
+		local aiComponent = self.ParentAI
+		if aiComponent == nil then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		local targetEntity = aiComponent.BlackBoard:GetEntity(self.TargetEntityKey)
+		if targetEntity == nil then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		targetEntity:SetEnable(self.Enabled)
+		return BehaviourTreeStatus.Success
+	end
+
+end

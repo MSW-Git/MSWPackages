@@ -1,0 +1,239 @@
+{
+  "Id": "",
+  "GameId": "",
+  "EntryKey": "behaviourtree://b989941b-13ae-4ffa-b44e-d2f357cbadd3",
+  "ContentType": "x-mod/behaviourtree",
+  "Content": "",
+  "Usage": 0,
+  "UsePublish": 1,
+  "UseService": 0,
+  "CoreVersion": "26.5.0.0",
+  "StudioVersion": "0.1.0.0",
+  "DynamicLoading": 0,
+  "ContentProto": {
+    "Use": "Json",
+    "Json": {
+      "id": "behaviourtree://b989941b-13ae-4ffa-b44e-d2f357cbadd3",
+      "name": "ChaseOrPatrol",
+      "RootNode": {
+        "startNodeId": "e64e8d66-c4c5-4910-9b42-0b80fc67b5ca",
+        "nodePosition": {
+          "x": 0.0,
+          "y": 0.0
+        }
+      },
+      "Blackboard": {
+        "Variables": [
+          {
+            "Name": "bb_Player",
+            "Type": {
+              "$type": "MODNativeType",
+              "type": "MOD.Core.MODEntity, MOD.Core, Version=26.5.0.0, Culture=neutral, PublicKeyToken=null"
+            },
+            "ObjectValue": {
+              "tempEntityId": null,
+              "IsRelative": false,
+              "EntityId": "",
+              "Version2": false
+            }
+          },
+          {
+            "Name": "bb_MoveSpeed",
+            "Type": {
+              "$type": "MODNativeType",
+              "type": "System.Double, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+            },
+            "ObjectValue": 5.0
+          },
+          {
+            "Name": "bb_Waypoint1",
+            "Type": {
+              "$type": "MODNativeType",
+              "type": "MOD.Core.MODVector3, MOD.Core, Version=26.5.0.0, Culture=neutral, PublicKeyToken=null"
+            },
+            "ObjectValue": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            }
+          },
+          {
+            "Name": "bb_Waypoint2",
+            "Type": {
+              "$type": "MODNativeType",
+              "type": "MOD.Core.MODVector3, MOD.Core, Version=26.5.0.0, Culture=neutral, PublicKeyToken=null"
+            },
+            "ObjectValue": {
+              "x": 5.0,
+              "y": 0.0,
+              "z": 0.0
+            }
+          }
+        ]
+      },
+      "Nodes": [
+        {
+          "nodeId": "8c5a7d32-d28b-4e27-8f51-c6a9bc45bd69",
+          "nodeName": "MoveToTarget",
+          "definitionId": "codeblock://32f3e268-c1dd-44e4-84b0-cac0335c494e",
+          "btNodeType": 0,
+          "nodeParentId": "3c0aa912-e1e6-46ed-b8fa-fd2fa075fa9f",
+          "nodeProperties": [
+            {
+              "propertyKey": "TargetEntityKey",
+              "propertyType": {
+                "$type": "MODNativeType",
+                "type": "System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+              },
+              "propertyValue": "bb_Player"
+            },
+            {
+              "propertyKey": "ArrivalThreshold",
+              "propertyType": {
+                "$type": "MODNativeType",
+                "type": "System.Double, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+              },
+              "propertyValue": 1.5
+            }
+          ],
+          "nodePosition": {
+            "x": -219.777771,
+            "y": -352.889038
+          }
+        },
+        {
+          "nodeId": "e64e8d66-c4c5-4910-9b42-0b80fc67b5ca",
+          "nodeName": "SelectorNode",
+          "definitionId": "SelectorNode",
+          "btNodeType": 1,
+          "nodeParentId": "",
+          "nodePosition": {
+            "x": -12.5556107,
+            "y": -130.666473
+          },
+          "childNodes": [
+            "3c0aa912-e1e6-46ed-b8fa-fd2fa075fa9f",
+            "bed481e7-1a14-441c-bd79-58fe489665c9"
+          ]
+        },
+        {
+          "nodeId": "fb8a37cb-b594-49b7-9b67-2c66530d1f6e",
+          "nodeName": "SequenceNode",
+          "definitionId": "SequenceNode",
+          "btNodeType": 1,
+          "nodeParentId": "bed481e7-1a14-441c-bd79-58fe489665c9",
+          "nodePosition": {
+            "x": 148.333282,
+            "y": -377.000244
+          },
+          "childNodes": [
+            "efa3521c-1806-449f-9e08-45f837815fd8",
+            "7aabcf01-d3ea-458e-b6b8-327314314b81"
+          ]
+        },
+        {
+          "nodeId": "7aabcf01-d3ea-458e-b6b8-327314314b81",
+          "nodeName": "MoveToDirection",
+          "definitionId": "codeblock://ac1d7cb0-ce00-4383-b4b6-c6992c1fb33b",
+          "btNodeType": 0,
+          "nodeParentId": "fb8a37cb-b594-49b7-9b67-2c66530d1f6e",
+          "nodeProperties": [
+            {
+              "propertyKey": "LookAtPositionKey",
+              "propertyType": {
+                "$type": "MODNativeType",
+                "type": "System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+              },
+              "propertyValue": "bb_Waypoint2"
+            },
+            {
+              "propertyKey": "ArrivalThreshold",
+              "propertyType": {
+                "$type": "MODNativeType",
+                "type": "System.Double, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+              },
+              "propertyValue": 3.0
+            }
+          ],
+          "nodePosition": {
+            "x": 282.333344,
+            "y": -565.222
+          }
+        },
+        {
+          "nodeId": "3c0aa912-e1e6-46ed-b8fa-fd2fa075fa9f",
+          "nodeName": "BlackboardCondition_Entity",
+          "definitionId": "codeblock://95a95d55-635c-40c4-926e-8c013a43d14d",
+          "btNodeType": 2,
+          "nodeParentId": "e64e8d66-c4c5-4910-9b42-0b80fc67b5ca",
+          "nodeProperties": [
+            {
+              "propertyKey": "Key",
+              "propertyType": {
+                "$type": "MODNativeType",
+                "type": "System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+              },
+              "propertyValue": "bb_Player"
+            }
+          ],
+          "decoChildNodes": "8c5a7d32-d28b-4e27-8f51-c6a9bc45bd69"
+        },
+        {
+          "nodeId": "efa3521c-1806-449f-9e08-45f837815fd8",
+          "nodeName": "MoveToDirection",
+          "definitionId": "codeblock://ac1d7cb0-ce00-4383-b4b6-c6992c1fb33b",
+          "btNodeType": 0,
+          "nodeParentId": "fb8a37cb-b594-49b7-9b67-2c66530d1f6e",
+          "nodeProperties": [
+            {
+              "propertyKey": "LookAtPositionKey",
+              "propertyType": {
+                "$type": "MODNativeType",
+                "type": "System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+              },
+              "propertyValue": "bb_Waypoint1"
+            },
+            {
+              "propertyKey": "ArrivalThreshold",
+              "propertyType": {
+                "$type": "MODNativeType",
+                "type": "System.Double, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+              },
+              "propertyValue": 3.0
+            }
+          ],
+          "nodePosition": {
+            "x": 67.88886,
+            "y": -571.6666
+          }
+        },
+        {
+          "nodeId": "bed481e7-1a14-441c-bd79-58fe489665c9",
+          "nodeName": "BlackboardCondition_Entity",
+          "definitionId": "codeblock://95a95d55-635c-40c4-926e-8c013a43d14d",
+          "btNodeType": 2,
+          "nodeParentId": "e64e8d66-c4c5-4910-9b42-0b80fc67b5ca",
+          "nodeProperties": [
+            {
+              "propertyKey": "Key",
+              "propertyType": {
+                "$type": "MODNativeType",
+                "type": "System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+              },
+              "propertyValue": "bb_Player"
+            },
+            {
+              "propertyKey": "Operator",
+              "propertyType": {
+                "$type": "MODNativeType",
+                "type": "System.Int64, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+              },
+              "propertyValue": 1
+            }
+          ],
+          "decoChildNodes": "fb8a37cb-b594-49b7-9b67-2c66530d1f6e"
+        }
+      ]
+    }
+  }
+}

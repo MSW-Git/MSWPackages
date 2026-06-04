@@ -1,0 +1,54 @@
+@BTNode
+script MoveTo extends ActionNode
+
+	property string TargetPositionKey = ""
+
+	property string MoveSpeedKey = ""
+
+	property number ArrivalThreshold = 0
+
+	method any OnBehave(number delta)
+		local aiComponent = self.ParentAI
+		if aiComponent == nil then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		local moveSpeed = aiComponent.BlackBoard:GetNumber(self.MoveSpeedKey)
+		if moveSpeed <= 0 then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		local targetPosition = aiComponent.BlackBoard:GetVector3(self.TargetPositionKey)
+		if targetPosition == nil then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		local aiEntity = aiComponent.Entity
+		if aiEntity == nil then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		local transform = aiEntity.TransformComponent
+		if transform == nil then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		local currentPosition = transform.WorldPosition:ToVector2()
+		local toTarget = targetPosition:ToVector2() - currentPosition
+		local distance = toTarget:Magnitude()
+		if distance < self.ArrivalThreshold then
+			return BehaviourTreeStatus.Success
+		end
+		
+		local moveDistance = moveSpeed * delta
+		if moveDistance > distance then
+			transform.WorldPosition = targetPosition
+			return BehaviourTreeStatus.Success
+		end
+		
+		local normalizedDirection = toTarget:Normalize()
+		transform.WorldPosition = (currentPosition + normalizedDirection * moveDistance):ToVector3()
+		return BehaviourTreeStatus.Running
+	end
+
+end

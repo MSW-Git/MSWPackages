@@ -1,0 +1,51 @@
+@BTNode
+script MoveToTarget extends ActionNode
+
+	property string TargetEntityKey = ""
+
+	property number ArrivalThreshold = 0
+
+	method any OnBehave(number delta)
+		local aiComponent = self.ParentAI
+		if aiComponent == nil then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		local targetEntity = aiComponent.BlackBoard:GetEntity(self.TargetEntityKey)
+		if targetEntity == nil then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		local aiEntity = aiComponent.Entity
+		if aiEntity == nil then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		local transform = aiEntity.TransformComponent
+		if transform == nil then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		local targetTransform = targetEntity.TransformComponent
+		if targetTransform == nil then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		local movementComponent = aiEntity.MovementComponent
+		if movementComponent == nil then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		---@type Vector2
+		local toTarget = targetTransform.WorldPosition:ToVector2() - transform.WorldPosition:ToVector2()
+		local distance = toTarget:Magnitude()
+		if distance < self.ArrivalThreshold then
+			movementComponent:Stop()
+			return BehaviourTreeStatus.Success
+		end
+		
+		movementComponent:MoveToDirection(toTarget:Normalize(), delta)
+		return BehaviourTreeStatus.Running
+	end
+
+end

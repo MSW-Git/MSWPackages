@@ -1,0 +1,27 @@
+@BTNode
+script WaitBlackboardTime extends ActionNode
+
+	property string WaitTimeKey = ""
+
+	@HideFromInspector
+	property number ElapsedTime = 0.0
+
+	method void OnInit()
+		self.ElapsedTime = 0.0
+	end
+
+	method any OnBehave(number delta)
+		local waitTime = self.ParentAI.BlackBoard:GetNumber(self.WaitTimeKey)
+		if waitTime == nil then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		self.ElapsedTime = self.ElapsedTime + delta
+		if self.ElapsedTime >= waitTime then
+			return BehaviourTreeStatus.Success
+		end
+		
+		return BehaviourTreeStatus.Running
+	end
+
+end

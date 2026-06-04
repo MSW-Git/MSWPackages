@@ -1,0 +1,51 @@
+@Logic
+script OperatorPolicy extends Logic
+
+	property table OperatorsByType = {}
+
+	method void OnBeginPlay()
+		table.clear(self.OperatorsByType)
+		
+		local equality = {
+			[_Comparator.IsSet] = true,
+			[_Comparator.IsNotSet] = true,
+			[_Comparator.Equal] = true,
+			[_Comparator.NotEqual] = true,
+		}
+		
+		local ordered = {
+			[_Comparator.IsSet] = true,
+			[_Comparator.IsNotSet] = true,
+			[_Comparator.Equal] = true,
+			[_Comparator.NotEqual] = true,
+			[_Comparator.Greater] = true,
+			[_Comparator.GreaterOrEqual] = true,
+			[_Comparator.Less] = true,
+			[_Comparator.LessOrEqual] = true,
+		}
+		
+		self.OperatorsByType[_ValueType.Bool] = equality
+		self.OperatorsByType[_ValueType.String] = equality
+		self.OperatorsByType[_ValueType.Color] = equality
+		self.OperatorsByType[_ValueType.Vector2] = equality
+		self.OperatorsByType[_ValueType.Vector3] = equality
+		self.OperatorsByType[_ValueType.Vector4] = equality
+		self.OperatorsByType[_ValueType.Entity] = equality
+		self.OperatorsByType[_ValueType.EntityRef] = equality
+		self.OperatorsByType[_ValueType.Component] = equality
+		self.OperatorsByType[_ValueType.ComponentRef] = equality
+		
+		self.OperatorsByType[_ValueType.Int] = ordered
+		self.OperatorsByType[_ValueType.Number] = ordered
+	end
+
+	method boolean IsAllowed(integer valueType, integer operatorType)
+		local allowedOps = self.OperatorsByType[valueType]
+		if allowedOps == nil then
+			return false
+		end
+		
+		return allowedOps[operatorType] == true
+	end
+
+end

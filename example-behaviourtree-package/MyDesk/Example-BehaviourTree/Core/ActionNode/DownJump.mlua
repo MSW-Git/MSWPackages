@@ -1,0 +1,27 @@
+@BTNode
+script DownJump extends ActionNode
+
+	method any OnBehave(number delta)
+		local aiComponent = self.ParentAI
+		if aiComponent == nil then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		local aiEntity = aiComponent.Entity
+		if aiEntity == nil then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		local movementComponent = aiEntity.MovementComponent
+		if movementComponent == nil then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		if movementComponent:DownJump() == false then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		return BehaviourTreeStatus.Success
+	end
+
+end

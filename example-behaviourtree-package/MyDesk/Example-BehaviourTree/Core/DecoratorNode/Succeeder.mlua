@@ -1,0 +1,13 @@
+@BTNode
+script Succeeder extends DecoratorNode
+
+	method any OnBehave(number delta)
+		local result = self:ChildBehave(delta)
+		if result == BehaviourTreeStatus.Running then
+			return BehaviourTreeStatus.Running
+		end
+		
+		return BehaviourTreeStatus.Success
+	end
+
+end

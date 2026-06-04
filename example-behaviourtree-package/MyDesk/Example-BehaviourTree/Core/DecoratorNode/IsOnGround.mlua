@@ -1,0 +1,17 @@
+@BTNode
+script IsOnGround extends DecoratorNode
+
+	method any OnBehave(number delta)
+		local rigidbody = self.ParentAI.Entity.RigidbodyComponent
+		if rigidbody == nil then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		if not rigidbody:IsOnGround() then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		return self:ChildBehave(delta)
+	end
+
+end

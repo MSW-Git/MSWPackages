@@ -1,0 +1,18 @@
+@BTNode
+script SetBlackboardValue_Number extends ActionNode
+
+	property string Key = ""
+
+	property number Value = 0
+
+	method any OnBehave(number delta)
+		local aiComponent = self.ParentAI
+		if aiComponent == nil then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		aiComponent.BlackBoard:SetNumber(self.Key, self.Value)
+		return BehaviourTreeStatus.Success
+	end
+
+end

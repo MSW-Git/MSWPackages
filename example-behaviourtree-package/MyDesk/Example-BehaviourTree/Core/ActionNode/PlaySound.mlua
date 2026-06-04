@@ -1,0 +1,14 @@
+@BTNode
+script PlaySound extends ActionNode
+
+	property string SoundId = ""
+
+	property number Volume = 1
+
+	method any OnBehave(number delta)
+		_SoundService:PlaySound(self.SoundId, self.Volume, self.ParentAI.Entity)
+		
+		return BehaviourTreeStatus.Success
+	end
+
+end

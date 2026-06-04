@@ -1,0 +1,17 @@
+@BTNode
+script IsJumping extends DecoratorNode
+
+	method any OnBehave(number delta)
+		local rigidbody = self.ParentAI.Entity.RigidbodyComponent
+		if rigidbody == nil then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		if rigidbody.RealMoveVelocity.y <= 0 and rigidbody:IsOnGround()then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		return self:ChildBehave(delta)
+	end
+
+end

@@ -1,0 +1,16 @@
+@BTNode
+script Inverter extends DecoratorNode
+
+	method any OnBehave(number delta)
+		local result = self:ChildBehave(delta)
+		
+		if result == BehaviourTreeStatus.Success then
+			return BehaviourTreeStatus.Failure
+		elseif result == BehaviourTreeStatus.Failure then
+			return BehaviourTreeStatus.Success
+		else
+			return result
+		end
+	end
+
+end

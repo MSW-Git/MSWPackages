@@ -1,0 +1,28 @@
+@Logic
+script ValueType extends Logic
+
+	property integer Bool = 0
+
+	property integer Int = 1
+
+	property integer Number = 2
+
+	property integer String = 3
+
+	property integer Color = 4
+
+	property integer Vector2 = 5
+
+	property integer Vector3 = 6
+
+	property integer Vector4 = 7
+
+	property integer Entity = 8
+
+	property integer EntityRef = 9
+
+	property integer Component = 10
+
+	property integer ComponentRef = 11
+
+end

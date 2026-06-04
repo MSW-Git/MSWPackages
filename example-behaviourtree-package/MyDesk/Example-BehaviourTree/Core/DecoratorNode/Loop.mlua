@@ -1,0 +1,34 @@
+@BTNode
+script Loop extends DecoratorNode
+
+	property boolean IsInfinite = false
+
+	property integer LoopCount = 1
+
+	@HideFromInspector
+	property integer CurrentCount = 0
+
+	method void OnInit()
+		self.CurrentCount = 0
+	end
+
+	method any OnBehave(number delta)
+		local result = self:ChildBehave(delta)
+		
+		if self.IsInfinite then
+			return BehaviourTreeStatus.Running
+		end
+		
+		if result == BehaviourTreeStatus.Failure then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		self.CurrentCount += 1
+		if self.CurrentCount >= self.LoopCount then
+			return BehaviourTreeStatus.Success
+		end
+		
+		return BehaviourTreeStatus.Running
+	end
+
+end

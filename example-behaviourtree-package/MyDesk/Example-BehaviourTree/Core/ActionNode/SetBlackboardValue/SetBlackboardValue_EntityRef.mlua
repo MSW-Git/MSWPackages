@@ -1,0 +1,18 @@
+@BTNode
+script SetBlackboardValue_EntityRef extends ActionNode
+
+	property string Key = ""
+
+	property EntityRef Value = nil
+
+	method any OnBehave(number delta)
+		local aiComponent = self.ParentAI
+		if aiComponent == nil then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		aiComponent.BlackBoard:SetEntityRef(self.Key, self.Value)
+		return BehaviourTreeStatus.Success
+	end
+
+end

@@ -1,0 +1,18 @@
+@BTNode
+script SetBlackboardValue_Vector4 extends ActionNode
+
+	property string Key = ""
+
+	property Vector4 Value = Vector4(0.000, 0.000, 0.000, 0.000)
+
+	method any OnBehave(number delta)
+		local aiComponent = self.ParentAI
+		if aiComponent == nil then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		aiComponent.BlackBoard:SetVector4(self.Key, self.Value)
+		return BehaviourTreeStatus.Success
+	end
+
+end

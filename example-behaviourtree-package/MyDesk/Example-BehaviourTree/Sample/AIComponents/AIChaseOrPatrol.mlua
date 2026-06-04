@@ -1,0 +1,69 @@
+@Component
+script AIChaseOrPatrol extends AIComponent
+
+	property number DetectionRange = 5.0
+
+	method void OnBeginPlay()
+		self:DrawRange()		
+	end
+
+	method void OnUpdate(number delta)
+		self:DetectPlayer()
+		self:Flip()
+	end
+
+	@ExecSpace("ServerOnly")
+	method void DrawRange()
+		 ---@type PolygonRendererComponent
+		local polygon = self.Entity:AddComponent("PolygonRendererComponent")
+		polygon.Color = Color(0, 1, 0, 0.25)
+		
+		local res = 24
+		local radius = self.DetectionRange
+		for i = 1, res do
+			local rad = 2 * math.pi * (i / tonumber(res))
+			local x = math.cos(rad) * radius
+			local y = math.sin(rad) * radius
+			polygon.Points:Add(Vector2(x, y))
+		end
+	end
+
+	@ExecSpace("ServerOnly")
+	method void DetectPlayer()
+		local target = nil
+		local minDist = self.DetectionRange
+		local myPos = self.Entity.TransformComponent.WorldPosition:ToVector2()
+		
+		local users = _UserService.UserEntities
+		for userId, user in pairs(users) do
+			local userPos = user.TransformComponent.WorldPosition:ToVector2()
+			local dist = userPos:Distance(myPos)
+			if dist < minDist then
+				target = user
+				minDist = dist
+				break
+			end
+		end
+		
+		if target == nil then
+			self.BlackBoard:SetEntity("bb_Player", nil)
+		else
+			self.BlackBoard:SetEntity("bb_Player", target)
+		end
+	end
+
+	@ExecSpace("ServerOnly")
+	method void Flip()
+		local rigidbody = self.Entity.RigidbodyComponent
+		local sprite = self.Entity.SpriteRendererComponent
+		
+		if rigidbody.MoveVelocity:Magnitude() > 0 then
+			if rigidbody.MoveVelocity.x < 0 then
+				sprite.FlipX = false
+			else
+				sprite.FlipX = true
+			end
+		end
+	end
+
+end

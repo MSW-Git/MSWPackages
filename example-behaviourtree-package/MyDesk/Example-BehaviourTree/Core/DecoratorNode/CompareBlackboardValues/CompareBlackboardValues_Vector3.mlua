@@ -1,0 +1,20 @@
+@BTNode
+script CompareBlackboardValues_Vector3 extends DecoratorNode
+
+	property string LeftKey = ""
+
+	property string RightKey = ""
+
+	property integer Operator = 0
+
+	method any OnBehave(number delta)
+		local leftValue = self.ParentAI.BlackBoard:GetVector3(self.LeftKey)
+		local rightValue = self.ParentAI.BlackBoard:GetVector3(self.RightKey)
+		if _Comparator:Compare(_ValueType.Vector3, self.Operator, leftValue, rightValue) then
+			return self:ChildBehave(delta)
+		end
+		
+		return BehaviourTreeStatus.Failure
+	end
+
+end

@@ -1,0 +1,36 @@
+@BTNode
+script SpawnEntity extends ActionNode
+
+	property Entity SourceEntity = nil
+
+	property string SpawnEntityName = nil
+
+	property Vector3 SpawnPosition = Vector3(0, 0, 0)
+
+	property Entity ParentEntity = nil
+
+	property boolean IncludeChildren = true
+
+	property string ResultEntityKey = nil
+
+	method any OnBehave(number delta)
+		if self.SourceEntity == nil then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		if self.ParentEntity == nil then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		local spawnedEntity = _SpawnService:SpawnByEntity(self.SourceEntity, self.SpawnEntityName, self.SpawnPosition, self.ParentEntity, self.IncludeChildren)
+		if not _UtilLogic:IsNilorEmptyString(self.ResultEntityKey) and spawnedEntity ~= nil then
+			local aiComponent = self.ParentAI
+			if aiComponent ~= nil then
+				aiComponent.BlackBoard:SetEntity(self.ResultEntityKey, spawnedEntity)
+			end
+		end
+		
+		return BehaviourTreeStatus.Success
+	end
+
+end

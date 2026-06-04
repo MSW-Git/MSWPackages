@@ -1,0 +1,31 @@
+@BTNode
+script SetForce extends ActionNode
+
+	property string ForceKey = nil
+
+	method any OnBehave(number delta)
+		local aiComponent = self.ParentAI
+		if aiComponent == nil then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		local aiEntity = aiComponent.Entity
+		if aiEntity == nil then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		local rigidbodyComponent = aiEntity.RigidbodyComponent
+		if rigidbodyComponent == nil then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		local force = aiComponent.BlackBoard:GetVector2(self.ForceKey)
+		if force == nil then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		rigidbodyComponent:SetForce(force)
+		return BehaviourTreeStatus.Success
+	end
+
+end

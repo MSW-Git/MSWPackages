@@ -1,0 +1,23 @@
+@BTNode
+script BlackboardCondition_Color extends DecoratorNode
+
+	property string Key = ""
+
+	property integer Operator = 0
+
+	property Color CompareValue = Color(1.000, 1.000, 1.000, 1.000)
+
+	method any OnBehave(number delta)
+		if _UtilLogic:IsNilorEmptyString(self.Key) then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		local compareValue = self.ParentAI.BlackBoard:GetColor(self.Key)
+		if _Comparator:Compare(_ValueType.Color, self.Operator, compareValue, self.CompareValue) then
+			return self:ChildBehave(delta)
+		end
+		
+		return BehaviourTreeStatus.Failure
+	end
+
+end
