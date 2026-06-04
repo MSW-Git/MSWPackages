@@ -1,0 +1,26 @@
+@State
+script JumpBase extends StateType
+	
+	method Entity GetParentEntity()
+		local parentEntity = nil
+		
+		local parentStateComponent = self.ParentComponent
+		if parentStateComponent ~= nil then
+			parentEntity = parentStateComponent.Entity
+		end
+		
+		return parentEntity
+	end
+	
+	method MovementComponent GetParentMovementComponent()
+		local parentMovementComponent = nil
+		
+		local parentEntity = self:GetParentEntity()
+		if parentEntity ~= nil then
+			parentMovementComponent = parentEntity.MovementComponent
+		end
+		
+		return parentMovementComponent
+	end
+	
+end

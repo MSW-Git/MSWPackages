@@ -1,0 +1,26 @@
+@Logic
+script NetworkLogic extends Logic
+	
+	method boolean HasAuthority(Entity entity)
+		local hasAuthority = false
+
+		if entity ~= nil then
+			local entityOwnerId = entity.OwnerId
+			if _UtilLogic:IsNilorEmptyString(entityOwnerId) then
+				if entity.Localize then
+					hasAuthority = self:IsClient()
+				else
+					hasAuthority = self:IsServer()
+				end
+			else
+				local localPlayerEntity = _UserService.LocalPlayer
+				if localPlayerEntity ~= nil then
+					hasAuthority = (entityOwnerId == localPlayerEntity.OwnerId)
+				end
+			end
+		end
+
+		return hasAuthority
+	end
+	
+end

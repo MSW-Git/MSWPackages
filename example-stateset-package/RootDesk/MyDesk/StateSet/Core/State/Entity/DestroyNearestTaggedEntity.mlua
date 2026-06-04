@@ -1,0 +1,54 @@
+@State
+script DestroyNearestTaggedEntity extends EntityBase
+	
+	property string Tag = ""
+	
+	property number Delay = 0
+	
+	method void OnEnter()
+		local delay = math.max(0, self.Delay)
+
+		local parentTransformComponent = self:GetParentTransformComponent()
+		if parentTransformComponent == nil then
+			return
+		end
+		
+		local parentWorldPosition = parentTransformComponent.WorldPosition
+
+		local taggedEntities = _EntityService:GetEntitiesByTag(self.Tag)
+
+		local nearestDistance2D = nil
+		local nearestTaggedEntity = nil
+		for _, taggedEntity in pairs(taggedEntities) do
+			local taggedTransformComponent = taggedEntity.TransformComponent
+			if taggedTransformComponent == nil then
+				continue
+			end
+
+			local taggedWorldPosition = taggedTransformComponent.WorldPosition
+
+			local parentWorldPosition2D = parentWorldPosition:ToVector2()
+			local taggedWorldPosition2D = taggedWorldPosition:ToVector2()
+
+			local difference2D = taggedWorldPosition2D - parentWorldPosition2D
+			local distance2D = difference2D:Magnitude()
+			if nearestDistance2D ~= nil and nearestDistance2D < distance2D then
+				continue
+			end
+
+			nearestDistance2D = distance2D
+			nearestTaggedEntity = taggedEntity
+		end
+
+		if nearestTaggedEntity == nil then
+			return
+		end
+
+		if _NetworkLogic:HasAuthority(nearestTaggedEntity) == false then
+			return
+		end
+		
+		_EntityService:Destroy(nearestTaggedEntity, delay)
+	end
+
+end

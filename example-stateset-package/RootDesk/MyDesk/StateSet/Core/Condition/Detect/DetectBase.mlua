@@ -1,0 +1,4 @@
+@Condition
+script DetectBase extends ConditionType
+
+end

@@ -1,0 +1,17 @@
+@Condition
+script CanRigidbodyMove extends RigidbodyBase
+
+	property number Distance = 0
+
+	property boolean IsForward = false
+	
+	method boolean OnConditionCheck(string nextStateName)
+		local parentRigidbodyComponent = self:GetParentRigidbodyComponent()
+		if parentRigidbodyComponent == nil then
+			return false
+		end
+
+		return parentRigidbodyComponent:PredictFootholdEnd(self.Distance, self.IsForward)
+	end
+	
+end

@@ -1,0 +1,21 @@
+@State
+script SetEntityEnable extends EntityBase
+
+	property Entity Target = nil
+
+	property boolean Enable = false
+
+	method void OnEnter()
+		local target = self.Target
+		if target == nil then
+			return
+		end
+
+		if _NetworkLogic:HasAuthority(target) == false then
+			return
+		end
+
+		target:SetEnable(self.Enable)
+	end
+
+end

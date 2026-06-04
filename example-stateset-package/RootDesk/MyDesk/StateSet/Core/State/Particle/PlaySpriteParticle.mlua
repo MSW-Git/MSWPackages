@@ -1,0 +1,34 @@
+@State
+script PlaySpriteParticle extends ParticleBase
+
+	property string SpriteRUID = ""
+
+	method void OnEnter()
+		local parentEntity = self:GetParentEntity()
+		if parentEntity == nil then
+			return
+		end
+		
+		if parentEntity.Localize then
+			if _NetworkLogic:IsServer() then
+				return
+			end
+		else
+			if _NetworkLogic:IsClient() then
+				return
+			end
+		end
+		
+		local particleType = SpriteParticleType.CastFrom(self.ParticleType)
+		if particleType == SpriteParticleType.None then
+			return
+		end
+		
+		if self.AttachToParentEntity then
+			_ParticleService:PlaySpriteParticleAttached(particleType, self.SpriteRUID, parentEntity, self.Position, self.ZRotation, self.Scale, self.IsLoop, nil)
+		else
+			_ParticleService:PlaySpriteParticle(particleType, self.SpriteRUID, parentEntity, self.Position, self.ZRotation, self.Scale, self.IsLoop, nil)
+		end
+	end
+
+end

@@ -1,0 +1,53 @@
+{
+  "Id": "",
+  "GameId": "",
+  "EntryKey": "stateset://81c347a6-5e12-4dea-bc6a-2bc55705b6c2",
+  "ContentType": "x-mod/stateset",
+  "Content": "",
+  "Usage": 0,
+  "UsePublish": 1,
+  "UseService": 0,
+  "CoreVersion": "26.5.0.0",
+  "StudioVersion": "0.1.0.0",
+  "DynamicLoading": 0,
+  "ContentProto": {
+    "Use": "Json",
+    "Json": {
+      "id": "stateset://81c347a6-5e12-4dea-bc6a-2bc55705b6c2",
+      "name": "Reward",
+      "stateset": {
+        "InitialStateNodeId": "e5886092-001f-40df-b75c-56691738a642",
+        "Nodes": [
+          {
+            "Id": "e5886092-001f-40df-b75c-56691738a642",
+            "PositionX": 0.0,
+            "PositionY": 0.0,
+            "IsNative": false,
+            "Name": "POPOUT",
+            "NativeStateType": {
+              "$type": "MODNativeType",
+              "type": "MOD.Core.NSDoNothing, MOD.Core, Version=26.5.0.0, Culture=neutral, PublicKeyToken=null"
+            },
+            "ScriptStateTypeId": "codeblock://576a42c7-bb4d-4026-b96b-143c3e99bd1a",
+            "ModifiedProperties": {
+              "Properties": [
+                {
+                  "Name": "Force",
+                  "Type": {
+                    "$type": "MODNativeType",
+                    "type": "MOD.Core.MODVector2, MOD.Core, Version=26.5.0.0, Culture=neutral, PublicKeyToken=null"
+                  },
+                  "Value": {
+                    "x": -2.5,
+                    "y": 3.5
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "Transitions": []
+      }
+    }
+  }
+}

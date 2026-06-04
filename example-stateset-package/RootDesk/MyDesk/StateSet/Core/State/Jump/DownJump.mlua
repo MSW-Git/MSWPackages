@@ -1,0 +1,17 @@
+@State
+script DownJump extends JumpBase
+	
+	method void OnEnter()
+		local parentMovementComponent = self:GetParentMovementComponent()
+		if parentMovementComponent == nil then
+			return
+		end
+		
+		if _NetworkLogic:HasAuthority(parentMovementComponent.Entity) == false then
+			return
+		end
+		
+		parentMovementComponent:DownJump()
+	end
+	
+end

@@ -1,0 +1,15 @@
+@State
+script SoundBase extends StateType
+	
+	method Entity GetParentEntity()
+		local parentEntity = nil
+		
+		local parentStateComponent = self.ParentComponent
+		if parentStateComponent ~= nil then
+			parentEntity = parentStateComponent.Entity
+		end
+		
+		return parentEntity
+	end
+	
+end

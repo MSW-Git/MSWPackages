@@ -1,0 +1,51 @@
+@Condition
+script DetectTaggedEntityBase extends DetectBase
+	
+	property string Tag = ""
+
+	property number Tolerance = 10
+
+	method boolean DoesTaggedEntityExist()
+
+		local parentStateComponent = self.ParentComponent
+		if parentStateComponent == nil then
+			return false
+		end
+
+		local parentEntity = parentStateComponent.Entity
+		if parentEntity == nil then
+			return false
+		end
+
+		local parentTransformComponent = parentEntity.TransformComponent
+		if parentTransformComponent == nil then
+			return false
+		end
+
+		local taggedEntities = _EntityService:GetEntitiesByTag(self.Tag)
+		for _, taggedEntity in pairs(taggedEntities) do
+			if taggedEntity == nil then
+				continue
+			end
+
+			local taggedTransformComponent = taggedEntity.TransformComponent
+			if taggedTransformComponent == nil then
+				continue
+			end
+
+			local parentWorldPosition2D = parentTransformComponent.WorldPosition:ToVector2()
+			local taggedWorldPosition2D = taggedTransformComponent.WorldPosition:ToVector2()
+			
+			local difference2D = taggedWorldPosition2D - parentWorldPosition2D
+			local distance2D = difference2D:Magnitude()
+			if distance2D > self.Tolerance then
+				continue
+			end
+
+			return true
+		end
+
+		return false
+	end
+	
+end

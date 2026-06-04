@@ -1,0 +1,4 @@
+@Condition
+script BasicRandom extends RandomBase
+
+end

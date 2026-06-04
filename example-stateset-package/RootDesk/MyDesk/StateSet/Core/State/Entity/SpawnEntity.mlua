@@ -1,0 +1,44 @@
+@State
+script SpawnEntity extends EntityBase
+	
+	property Entity Source = nil
+
+	property string Name = ""
+
+	property Vector3 SpawnPosition = Vector3(0, 0, 0)
+
+	property Entity Parent = nil
+
+	property boolean IncludeChildren = true
+	
+	@HideFromInspector
+	property Entity Spawned = nil
+
+	method void OnEnter()
+		local source = self.Source
+		if source == nil then
+			return
+		end
+
+		local parent = self.Parent
+		if parent == nil then
+			parent = self:GetParentEntity()
+			if parent == nil then
+				return
+			end
+		end
+
+		if parent.Localize then
+			if _NetworkLogic:IsServer() then
+				return
+			end
+		else
+			if _NetworkLogic:IsClient() then
+				return
+			end
+		end
+
+		self.Spawned = _SpawnService:SpawnByEntity(source, self.Name, self.SpawnPosition, parent, self.IncludeChildren)
+	end
+	
+end

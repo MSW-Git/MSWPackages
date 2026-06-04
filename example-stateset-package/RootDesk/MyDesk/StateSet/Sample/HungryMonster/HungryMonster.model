@@ -1,0 +1,226 @@
+{
+  "Id": "",
+  "GameId": "",
+  "EntryKey": "model://c46613c0-cb85-44a8-847c-bc98c044e9bd",
+  "ContentType": "x-mod/model",
+  "Content": "",
+  "Usage": 0,
+  "UsePublish": 1,
+  "UseService": 0,
+  "CoreVersion": "26.5.0.0",
+  "StudioVersion": "0.1.0.0",
+  "DynamicLoading": 0,
+  "ContentProto": {
+    "Use": "Json",
+    "Json": {
+      "Version": 1,
+      "Name": "HungryMonster",
+      "BaseModelId": null,
+      "Id": "c46613c0-cb85-44a8-847c-bc98c044e9bd",
+      "Components": [
+        "MOD.Core.TransformComponent",
+        "MOD.Core.SpriteRendererComponent",
+        "MOD.Core.StateComponent",
+        "MOD.Core.RigidbodyComponent",
+        "MOD.Core.MovementComponent"
+      ],
+      "Properties": [],
+      "Values": [
+        {
+          "TargetType": "MOD.Core.StateComponent",
+          "Name": "StateSetId",
+          "ValueType": {
+            "$type": "MODNativeType",
+            "type": "System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+          },
+          "Value": "stateset://40919353-bbd4-4bea-9e78-6e674a91ac59"
+        },
+        {
+          "TargetType": "MOD.Core.TransformComponent",
+          "Name": "QuaternionRotation",
+          "ValueType": {
+            "$type": "MODNativeType",
+            "type": "MOD.Core.MODQuaternion, MOD.Core, Version=26.5.0.0, Culture=neutral, PublicKeyToken=null"
+          },
+          "Value": {
+            "$type": "MOD.Core.MODQuaternion, MOD.Core",
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0,
+            "w": 1.0
+          }
+        },
+        {
+          "TargetType": "MOD.Core.SpriteRendererComponent",
+          "Name": "ActionSheet",
+          "ValueType": {
+            "$type": "MODNativeType",
+            "type": "System.Collections.Generic.Dictionary`2[[System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089],[System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089]], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+          },
+          "Value": {
+            "$type": "System.Collections.Generic.Dictionary`2[[System.String, mscorlib],[System.String, mscorlib]], mscorlib"
+          }
+        },
+        {
+          "TargetType": "MOD.Core.SpriteRendererComponent",
+          "Name": "EndFrameIndex",
+          "ValueType": {
+            "$type": "MODNativeType",
+            "type": "System.Int32, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+          },
+          "Value": 2147483647
+        },
+        {
+          "TargetType": "MOD.Core.SpriteRendererComponent",
+          "Name": "RenderSetting",
+          "ValueType": {
+            "$type": "MODNativeType",
+            "type": "MOD.Core.RenderSettingType, MOD.Core, Version=26.5.0.0, Culture=neutral, PublicKeyToken=null"
+          },
+          "Value": 0
+        },
+        {
+          "TargetType": "MOD.Core.SpriteRendererComponent",
+          "Name": "SpriteRUID",
+          "ValueType": {
+            "$type": "MODNativeType",
+            "type": "System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+          },
+          "Value": "517752d499c2443d8abe2709da75244b"
+        },
+        {
+          "TargetType": "MOD.Core.SpriteRendererComponent",
+          "Name": "StartFrameIndex",
+          "ValueType": {
+            "$type": "MODNativeType",
+            "type": "System.Int32, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+          },
+          "Value": 0
+        },
+        {
+          "TargetType": "MOD.Core.SpriteRendererComponent",
+          "Name": "Enable",
+          "ValueType": {
+            "$type": "MODNativeType",
+            "type": "System.Boolean, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+          },
+          "Value": true
+        },
+        {
+          "TargetType": "MOD.Core.StateComponent",
+          "Name": "IsLegacy",
+          "ValueType": {
+            "$type": "MODNativeType",
+            "type": "System.Boolean, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+          },
+          "Value": false
+        },
+        {
+          "TargetType": "MOD.Core.StateComponent",
+          "Name": "Enable",
+          "ValueType": {
+            "$type": "MODNativeType",
+            "type": "System.Boolean, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+          },
+          "Value": true
+        },
+        {
+          "TargetType": "MOD.Core.MODEntity",
+          "Name": "Enable",
+          "ValueType": {
+            "$type": "MODNativeType",
+            "type": "System.Boolean, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+          },
+          "Value": true
+        },
+        {
+          "TargetType": "MOD.Core.MODEntity",
+          "Name": "Visible",
+          "ValueType": {
+            "$type": "MODNativeType",
+            "type": "System.Boolean, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+          },
+          "Value": true
+        },
+        {
+          "TargetType": "MOD.Core.RigidbodyComponent",
+          "Name": "MoveVelocity",
+          "ValueType": {
+            "$type": "MODNativeType",
+            "type": "MOD.Core.MODVector2, MOD.Core, Version=26.5.0.0, Culture=neutral, PublicKeyToken=null"
+          },
+          "Value": {
+            "$type": "MOD.Core.MODVector2, MOD.Core",
+            "x": 0.0,
+            "y": 0.0
+          }
+        },
+        {
+          "TargetType": "MOD.Core.RigidbodyComponent",
+          "Name": "RealMoveVelocity",
+          "ValueType": {
+            "$type": "MODNativeType",
+            "type": "MOD.Core.MODVector2, MOD.Core, Version=26.5.0.0, Culture=neutral, PublicKeyToken=null"
+          },
+          "Value": {
+            "$type": "MOD.Core.MODVector2, MOD.Core",
+            "x": 0.0,
+            "y": 0.0
+          }
+        },
+        {
+          "TargetType": "MOD.Core.RigidbodyComponent",
+          "Name": "Enable",
+          "ValueType": {
+            "$type": "MODNativeType",
+            "type": "System.Boolean, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+          },
+          "Value": true
+        },
+        {
+          "TargetType": "MOD.Core.MovementComponent",
+          "Name": "Enable",
+          "ValueType": {
+            "$type": "MODNativeType",
+            "type": "System.Boolean, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+          },
+          "Value": true
+        },
+        {
+          "TargetType": "MOD.Core.TransformComponent",
+          "Name": "Scale",
+          "ValueType": {
+            "$type": "MODNativeType",
+            "type": "MOD.Core.MODVector3, MOD.Core, Version=26.5.0.0, Culture=neutral, PublicKeyToken=null"
+          },
+          "Value": {
+            "$type": "MOD.Core.MODVector3, MOD.Core",
+            "x": 2.0,
+            "y": 2.0,
+            "z": 1.0
+          }
+        },
+        {
+          "TargetType": "MOD.Core.SpriteRendererComponent",
+          "Name": "OrderInLayer",
+          "ValueType": {
+            "$type": "MODNativeType",
+            "type": "System.Int32, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+          },
+          "Value": 2
+        },
+        {
+          "TargetType": "MOD.Core.SpriteRendererComponent",
+          "Name": "IgnoreMapLayerCheck",
+          "ValueType": {
+            "$type": "MODNativeType",
+            "type": "System.Boolean, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+          },
+          "Value": false
+        }
+      ],
+      "EventLinks": [],
+      "Children": []
+    }
+  }
+}

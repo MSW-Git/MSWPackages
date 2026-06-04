@@ -1,0 +1,17 @@
+@Condition
+script HasTimePassed extends TimeBase
+
+	property number Duration = 1
+
+	@HideFromInspector
+	property number OnPreviousStateEnteredTime = 0
+
+	method void OnPreviousStateEnter()
+		self.OnPreviousStateEnteredTime = _UtilLogic.ServerElapsedSeconds
+	end
+
+	method boolean OnConditionCheck(string nextStateName)
+		return (_UtilLogic.ServerElapsedSeconds - self.OnPreviousStateEnteredTime) >= self.Duration
+	end
+
+end

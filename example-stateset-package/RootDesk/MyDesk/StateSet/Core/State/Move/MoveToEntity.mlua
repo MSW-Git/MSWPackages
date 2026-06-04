@@ -1,0 +1,32 @@
+@State
+script MoveToEntity extends MoveBase
+
+	property Entity Target = nil
+
+	method void OnUpdate()
+		local parentTransformComponent = self:GetParentTransformComponent()
+		if parentTransformComponent == nil then
+			return
+		end
+		
+		local parentMovementComponent = self:GetParentMovementComponent()
+		if parentMovementComponent == nil then
+			return
+		end
+
+		local parentWorldPosition = parentTransformComponent.WorldPosition
+		local targetWorldPosition = nil
+
+		local target = self.Target
+		if target ~= nil then
+			local targetTransformComponent = target.TransformComponent
+			if targetTransformComponent ~= nil then
+				targetWorldPosition = targetTransformComponent.WorldPosition
+			end
+			
+		end
+
+		self:Move(parentMovementComponent, parentWorldPosition, targetWorldPosition)
+	end
+
+end

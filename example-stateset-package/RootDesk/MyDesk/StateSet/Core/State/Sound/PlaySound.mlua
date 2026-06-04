@@ -1,0 +1,27 @@
+@State
+script PlaySound extends SoundBase
+	
+	property string SoundId = ""
+	
+	property number Volume = 1
+	
+	method void OnEnter()
+		local parentEntity = self:GetParentEntity()
+		if parentEntity == nil then
+			return
+		end
+		
+		if parentEntity.Localize then
+			if _NetworkLogic:IsServer() then
+				return
+			end
+		else
+			if _NetworkLogic:IsClient() then
+				return
+			end
+		end
+
+		_SoundService:PlaySound(self.SoundId, self.Volume, parentEntity)
+	end
+	
+end

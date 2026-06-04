@@ -1,0 +1,306 @@
+{
+  "Id": "",
+  "GameId": "",
+  "EntryKey": "stateset://40919353-bbd4-4bea-9e78-6e674a91ac59",
+  "ContentType": "x-mod/stateset",
+  "Content": "",
+  "Usage": 0,
+  "UsePublish": 1,
+  "UseService": 0,
+  "CoreVersion": "26.5.0.0",
+  "StudioVersion": "0.1.0.0",
+  "DynamicLoading": 0,
+  "ContentProto": {
+    "Use": "Json",
+    "Json": {
+      "id": "stateset://40919353-bbd4-4bea-9e78-6e674a91ac59",
+      "name": "HungryMonster",
+      "stateset": {
+        "InitialStateNodeId": "428ce6f0-3d20-4359-8374-061a356060ef",
+        "Nodes": [
+          {
+            "Id": "428ce6f0-3d20-4359-8374-061a356060ef",
+            "PositionX": 11.0,
+            "PositionY": 6.0,
+            "IsNative": true,
+            "Name": "DEFAULT",
+            "NativeStateType": {
+              "$type": "MODNativeType",
+              "type": "MOD.Core.NSDoNothing, MOD.Core, Version=26.5.0.0, Culture=neutral, PublicKeyToken=null"
+            },
+            "ScriptStateTypeId": "",
+            "ModifiedProperties": {
+              "Properties": []
+            }
+          },
+          {
+            "Id": "19f581da-955a-46ea-a11a-4ba05bd5eaf8",
+            "PositionX": -181.269775,
+            "PositionY": -215.293945,
+            "IsNative": false,
+            "Name": "HUNT",
+            "NativeStateType": {
+              "$type": "MODNativeType",
+              "type": "MOD.Core.NSDoNothing, MOD.Core, Version=26.5.0.0, Culture=neutral, PublicKeyToken=null"
+            },
+            "ScriptStateTypeId": "codeblock://93f23d5e-f5db-4516-9953-84ac9fe6ed48",
+            "ModifiedProperties": {
+              "Properties": [
+                {
+                  "Name": "Tag",
+                  "Type": {
+                    "$type": "MODNativeType",
+                    "type": "System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+                  },
+                  "Value": "Food"
+                },
+                {
+                  "Name": "InputSpeed",
+                  "Type": {
+                    "$type": "MODNativeType",
+                    "type": "System.Double, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+                  },
+                  "Value": 0.35
+                },
+                {
+                  "Name": "Tolerance",
+                  "Type": {
+                    "$type": "MODNativeType",
+                    "type": "System.Double, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+                  },
+                  "Value": 0.5
+                }
+              ]
+            }
+          },
+          {
+            "Id": "9ddeabbf-1a2b-48a6-b79c-4b5d4a60806c",
+            "PositionX": 202.730225,
+            "PositionY": -215.293945,
+            "IsNative": false,
+            "Name": "EAT",
+            "NativeStateType": {
+              "$type": "MODNativeType",
+              "type": "MOD.Core.NSDoNothing, MOD.Core, Version=26.5.0.0, Culture=neutral, PublicKeyToken=null"
+            },
+            "ScriptStateTypeId": "codeblock://dff3d212-cd09-43a2-8d8b-3c7984de2c39",
+            "ModifiedProperties": {
+              "Properties": [
+                {
+                  "Name": "Tag",
+                  "Type": {
+                    "$type": "MODNativeType",
+                    "type": "System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+                  },
+                  "Value": "Food"
+                },
+                {
+                  "Name": "Delay",
+                  "Type": {
+                    "$type": "MODNativeType",
+                    "type": "System.Double, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+                  },
+                  "Value": 0.0
+                }
+              ]
+            }
+          },
+          {
+            "Id": "06aacc17-a0f6-464d-bbce-db6fa0de6089",
+            "PositionX": 10.9651489,
+            "PositionY": -218.293945,
+            "IsNative": true,
+            "Name": "WAIT",
+            "NativeStateType": {
+              "$type": "MODNativeType",
+              "type": "MOD.Core.NSDoNothing, MOD.Core, Version=26.5.0.0, Culture=neutral, PublicKeyToken=null"
+            },
+            "ScriptStateTypeId": "",
+            "ModifiedProperties": {
+              "Properties": []
+            }
+          }
+        ],
+        "Transitions": [
+          {
+            "PrevStateNodeId": "428ce6f0-3d20-4359-8374-061a356060ef",
+            "NextStateNodeId": "19f581da-955a-46ea-a11a-4ba05bd5eaf8",
+            "TransitionConditions": [
+              {
+                "IsNative": false,
+                "NativeConditionType": {
+                  "$type": "MODNativeType",
+                  "type": "MOD.Core.NCNever, MOD.Core, Version=26.5.0.0, Culture=neutral, PublicKeyToken=null"
+                },
+                "ScriptConditionTypeId": "codeblock://66a57db3-15f7-4211-b1b5-635f239ba6b5",
+                "ModifiedProperties": {
+                  "Properties": [
+                    {
+                      "Name": "Tag",
+                      "Type": {
+                        "$type": "MODNativeType",
+                        "type": "System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+                      },
+                      "Value": "Food"
+                    }
+                  ]
+                }
+              },
+              {
+                "IsNative": false,
+                "NativeConditionType": {
+                  "$type": "MODNativeType",
+                  "type": "MOD.Core.NCNever, MOD.Core, Version=26.5.0.0, Culture=neutral, PublicKeyToken=null"
+                },
+                "ScriptConditionTypeId": "codeblock://b1d068da-7dad-4509-bdc3-c6282fb23f47",
+                "ModifiedProperties": {
+                  "Properties": []
+                }
+              }
+            ],
+            "TransitIfAnyConditionIsTrue": false,
+            "OrderInTransit": 0
+          },
+          {
+            "PrevStateNodeId": "19f581da-955a-46ea-a11a-4ba05bd5eaf8",
+            "NextStateNodeId": "428ce6f0-3d20-4359-8374-061a356060ef",
+            "TransitionConditions": [
+              {
+                "IsNative": false,
+                "NativeConditionType": {
+                  "$type": "MODNativeType",
+                  "type": "MOD.Core.NCNever, MOD.Core, Version=26.5.0.0, Culture=neutral, PublicKeyToken=null"
+                },
+                "ScriptConditionTypeId": "codeblock://12e1dfac-25b4-4e7c-ba89-b6d8fc283590",
+                "ModifiedProperties": {
+                  "Properties": [
+                    {
+                      "Name": "Tag",
+                      "Type": {
+                        "$type": "MODNativeType",
+                        "type": "System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+                      },
+                      "Value": "Food"
+                    }
+                  ]
+                }
+              }
+            ],
+            "TransitIfAnyConditionIsTrue": true,
+            "OrderInTransit": 0
+          },
+          {
+            "PrevStateNodeId": "19f581da-955a-46ea-a11a-4ba05bd5eaf8",
+            "NextStateNodeId": "06aacc17-a0f6-464d-bbce-db6fa0de6089",
+            "TransitionConditions": [
+              {
+                "IsNative": false,
+                "NativeConditionType": {
+                  "$type": "MODNativeType",
+                  "type": "MOD.Core.NCNever, MOD.Core, Version=26.5.0.0, Culture=neutral, PublicKeyToken=null"
+                },
+                "ScriptConditionTypeId": "codeblock://66a57db3-15f7-4211-b1b5-635f239ba6b5",
+                "ModifiedProperties": {
+                  "Properties": [
+                    {
+                      "Name": "Tag",
+                      "Type": {
+                        "$type": "MODNativeType",
+                        "type": "System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+                      },
+                      "Value": "Food"
+                    },
+                    {
+                      "Name": "Tolerance",
+                      "Type": {
+                        "$type": "MODNativeType",
+                        "type": "System.Double, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+                      },
+                      "Value": 0.5
+                    }
+                  ]
+                }
+              }
+            ],
+            "TransitIfAnyConditionIsTrue": false,
+            "OrderInTransit": 10
+          },
+          {
+            "PrevStateNodeId": "06aacc17-a0f6-464d-bbce-db6fa0de6089",
+            "NextStateNodeId": "9ddeabbf-1a2b-48a6-b79c-4b5d4a60806c",
+            "TransitionConditions": [
+              {
+                "IsNative": false,
+                "NativeConditionType": {
+                  "$type": "MODNativeType",
+                  "type": "MOD.Core.NCNever, MOD.Core, Version=26.5.0.0, Culture=neutral, PublicKeyToken=null"
+                },
+                "ScriptConditionTypeId": "codeblock://fd6364d7-6cd7-4c20-8729-7d4b1b7578ab",
+                "ModifiedProperties": {
+                  "Properties": []
+                }
+              }
+            ],
+            "TransitIfAnyConditionIsTrue": false,
+            "OrderInTransit": 0
+          },
+          {
+            "PrevStateNodeId": "06aacc17-a0f6-464d-bbce-db6fa0de6089",
+            "NextStateNodeId": "428ce6f0-3d20-4359-8374-061a356060ef",
+            "TransitionConditions": [
+              {
+                "IsNative": false,
+                "NativeConditionType": {
+                  "$type": "MODNativeType",
+                  "type": "MOD.Core.NCNever, MOD.Core, Version=26.5.0.0, Culture=neutral, PublicKeyToken=null"
+                },
+                "ScriptConditionTypeId": "codeblock://12e1dfac-25b4-4e7c-ba89-b6d8fc283590",
+                "ModifiedProperties": {
+                  "Properties": [
+                    {
+                      "Name": "Tolerance",
+                      "Type": {
+                        "$type": "MODNativeType",
+                        "type": "System.Double, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+                      },
+                      "Value": 1.0
+                    },
+                    {
+                      "Name": "Tag",
+                      "Type": {
+                        "$type": "MODNativeType",
+                        "type": "System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+                      },
+                      "Value": "Food"
+                    }
+                  ]
+                }
+              }
+            ],
+            "TransitIfAnyConditionIsTrue": true,
+            "OrderInTransit": 0
+          },
+          {
+            "PrevStateNodeId": "9ddeabbf-1a2b-48a6-b79c-4b5d4a60806c",
+            "NextStateNodeId": "428ce6f0-3d20-4359-8374-061a356060ef",
+            "TransitionConditions": [
+              {
+                "IsNative": true,
+                "NativeConditionType": {
+                  "$type": "MODNativeType",
+                  "type": "MOD.Core.NCAlways, MOD.Core, Version=26.5.0.0, Culture=neutral, PublicKeyToken=null"
+                },
+                "ScriptConditionTypeId": "",
+                "ModifiedProperties": {
+                  "Properties": []
+                }
+              }
+            ],
+            "TransitIfAnyConditionIsTrue": true,
+            "OrderInTransit": 0
+          }
+        ]
+      }
+    }
+  }
+}

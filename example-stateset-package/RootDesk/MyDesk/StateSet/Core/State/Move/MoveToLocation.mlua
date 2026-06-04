@@ -1,0 +1,23 @@
+@State
+script MoveToLocation extends MoveBase
+
+	property Vector3 Location = Vector3.zero
+
+	method void OnUpdate()
+		local parentTransformComponent = self:GetParentTransformComponent()
+		if parentTransformComponent == nil then
+			return
+		end
+
+		local parentMovementComponent = self:GetParentMovementComponent()
+		if parentMovementComponent == nil then
+			return
+		end
+
+		local parentWorldPosition = parentTransformComponent.WorldPosition
+		local targetWorldPosition = self.Location
+
+		self:Move(parentMovementComponent, parentWorldPosition, targetWorldPosition)
+	end
+
+end

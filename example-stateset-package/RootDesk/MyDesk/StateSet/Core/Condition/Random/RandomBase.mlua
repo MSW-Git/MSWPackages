@@ -1,0 +1,17 @@
+@Condition
+script RandomBase extends ConditionType
+
+	property number Chance = 0.5
+
+	@HideFromInspector
+	property number Result = 0.0
+
+	method void OnPreviousStateEnter()
+		self.Result = _UtilLogic:RandomDouble()
+	end
+
+	method boolean OnConditionCheck(string nextStateName)
+		return self.Result <= self.Chance
+	end
+
+end

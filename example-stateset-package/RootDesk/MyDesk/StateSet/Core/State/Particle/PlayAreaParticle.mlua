@@ -1,0 +1,34 @@
+@State
+script PlayAreaParticle extends ParticleBase
+
+	property Vector2 AreaSize = Vector2(1, 1)
+
+	method void OnEnter()
+		local parentEntity = self:GetParentEntity()
+		if parentEntity == nil then
+			return
+		end
+
+		if parentEntity.Localize then
+			if _NetworkLogic:IsServer() then
+				return
+			end
+		else
+			if _NetworkLogic:IsClient() then
+				return
+			end
+		end
+		
+		local particleType = AreaParticleType.CastFrom(self.ParticleType)
+		if particleType == AreaParticleType.None then
+			return
+		end
+		
+		if self.AttachToParentEntity then
+			_ParticleService:PlayAreaParticleAttached(particleType, self.AreaSize, parentEntity, self.Position, self.ZRotation, self.Scale, self.IsLoop, nil)
+		else
+			_ParticleService:PlayAreaParticle(particleType, self.AreaSize, parentEntity, self.Position, self.ZRotation, self.Scale, self.IsLoop, nil)
+		end
+	end
+
+end

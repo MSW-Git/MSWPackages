@@ -1,0 +1,26 @@
+@State
+script EntityBase extends StateType
+	
+	method Entity GetParentEntity()
+		local parentEntity = nil
+		
+		local parentStateComponent = self.ParentComponent
+		if parentStateComponent ~= nil then
+			parentEntity = parentStateComponent.Entity
+		end
+		
+		return parentEntity
+	end
+	
+	method TransformComponent GetParentTransformComponent()
+		local parentTransformComponent = nil
+		
+		local parentEntity = self:GetParentEntity()
+		if parentEntity ~= nil then
+			parentTransformComponent = parentEntity.TransformComponent
+		end
+		
+		return parentTransformComponent
+	end
+	
+end

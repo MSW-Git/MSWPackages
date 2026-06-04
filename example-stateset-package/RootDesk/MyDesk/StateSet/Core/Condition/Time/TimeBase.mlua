@@ -1,0 +1,4 @@
+@Condition
+script TimeBase extends ConditionType
+
+end

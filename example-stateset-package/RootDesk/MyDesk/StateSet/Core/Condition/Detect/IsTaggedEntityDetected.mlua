@@ -1,0 +1,8 @@
+@Condition
+script IsTaggedEntityDetected extends DetectTaggedEntityBase
+	
+	method boolean OnConditionCheck(string nextStateName)
+		return self:DoesTaggedEntityExist()
+	end
+	
+end

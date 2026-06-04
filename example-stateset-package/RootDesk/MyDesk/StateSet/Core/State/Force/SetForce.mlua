@@ -1,0 +1,19 @@
+@State
+script SetForce extends ForceBase
+	
+	property Vector2 Force = Vector2.zero
+	
+	method void OnEnter()
+		local parentRigidbodyComponent = self:GetParentRigidbodyComponent()
+		if parentRigidbodyComponent == nil then
+			return
+		end
+		
+		if _NetworkLogic:HasAuthority(parentRigidbodyComponent.Entity) == false then
+			return
+		end
+		
+		parentRigidbodyComponent:SetForce(self.Force)
+	end
+	
+end

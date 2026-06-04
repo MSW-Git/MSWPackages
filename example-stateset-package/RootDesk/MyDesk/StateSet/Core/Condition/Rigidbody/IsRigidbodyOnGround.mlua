@@ -1,0 +1,13 @@
+@Condition
+script IsRigidbodyOnGround extends RigidbodyBase
+
+	method boolean OnConditionCheck(string nextStateName)
+		local parentRigidbodyComponent = self:GetParentRigidbodyComponent()
+		if parentRigidbodyComponent == nil then
+			return false
+		end
+
+		return parentRigidbodyComponent:IsOnGround()
+	end
+
+end

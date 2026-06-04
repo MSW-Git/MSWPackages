@@ -39,6 +39,7 @@ See the README file in each package for detailed usage information.
 | ui-resource-minimalcombat | A UI resource pack collected from Maple Auto Battler, providing icon UI models. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/ui-resource-minimalcombat-package/ui-resource-minimalcombat.modpackage)| 1.0 |
 | ui-resource-simplefantasy | A UI resource pack collected from MapleSlash, providing UI models and sample screens. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/ui-resource-simplefantasy-package/ui-resource-simplefantasy.modpackage)| 1.0 |
 | ui-resource-supersimple | A UI resource pack collected from Getting Over It Maker, providing UI models and sample screens. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/ui-resource-supersimple-package/ui-resource-supersimple.modpackage)| 1.0 |
+| example-stateset | Provides basic StateType entries, ConditionType entries, sample StateSet entries, and utility logic for samples. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/example-stateset-package/example-stateset.modpackage)| 1.0 |
 
 
 

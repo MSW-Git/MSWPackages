@@ -1,0 +1,13 @@
+@Condition
+script IsRigidbodyJumping extends RigidbodyBase
+	
+	method boolean OnConditionCheck(string nextStateName)
+		local parentRigidbodyComponent = self:GetParentRigidbodyComponent()
+		if parentRigidbodyComponent == nil then
+			return false
+		end
+
+		return parentRigidbodyComponent.RealMoveVelocity.y > 0 and not parentRigidbodyComponent:IsOnGround()
+	end
+	
+end

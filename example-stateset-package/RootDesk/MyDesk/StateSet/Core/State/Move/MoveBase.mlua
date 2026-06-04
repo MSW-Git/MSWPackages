@@ -1,0 +1,108 @@
+@State
+script MoveBase extends StateType
+
+	property number InputSpeed = 1
+
+	property number Tolerance = 0
+
+	method void OnEnter()
+		local parentMovementComponent = self:GetParentMovementComponent()
+		if parentMovementComponent == nil then
+			return
+		end
+
+		if _NetworkLogic:HasAuthority(parentMovementComponent.Entity) == false then
+			return
+		end
+		
+		parentMovementComponent.InputSpeed = self.InputSpeed
+	end
+
+	method void OnExit()
+		local parentMovementComponent = self:GetParentMovementComponent()
+		if parentMovementComponent == nil then
+			return
+		end
+
+		if _NetworkLogic:HasAuthority(parentMovementComponent.Entity) == false then
+			return
+		end
+		
+		parentMovementComponent:MoveToDirection(Vector2.zero, nil)
+	end
+
+	method Entity GetParentEntity()
+		local parentEntity = nil
+		
+		local parentStateComponent = self.ParentComponent
+		if parentStateComponent ~= nil then
+			parentEntity = parentStateComponent.Entity
+		end
+		
+		return parentEntity
+	end
+
+	method TransformComponent GetParentTransformComponent()
+		local parentTransformComponent = nil
+		
+		local parentEntity = self:GetParentEntity()
+		if parentEntity ~= nil then
+			parentTransformComponent = parentEntity.TransformComponent
+		end
+		
+		return parentTransformComponent
+	end
+
+	method MovementComponent GetParentMovementComponent()
+		local parentMovementComponent = nil
+		
+		local parentEntity = self:GetParentEntity()
+		if parentEntity ~= nil then
+			parentMovementComponent = parentEntity.MovementComponent
+		end
+		
+		return parentMovementComponent
+	end
+
+	method SpriteRendererComponent GetParentSpriteRendererComponent()
+		local parentSpriteRendererComponent = nil
+		
+		local parentEntity = self:GetParentEntity()
+		if parentEntity ~= nil then
+			parentSpriteRendererComponent = parentEntity.SpriteRendererComponent
+		end
+		
+		return parentSpriteRendererComponent
+	end
+
+	method void Move(MovementComponent parentMovementComponent, Vector3 parentWorldPosition, Vector3 targetWorldPosition)
+		if parentMovementComponent == nil then
+			return
+		end
+		
+		if _NetworkLogic:HasAuthority(parentMovementComponent.Entity) == false then
+			return
+		end
+		
+		local moveDirection2D = Vector2.zero
+		if parentWorldPosition ~= nil and targetWorldPosition ~= nil then
+			local parentWorldPosition2D = parentWorldPosition:ToVector2()
+			local targetWorldPosition2D = targetWorldPosition:ToVector2()
+			local difference2D = targetWorldPosition2D - parentWorldPosition2D
+			local distance2D = difference2D:Magnitude()
+			if distance2D > self.Tolerance then
+				moveDirection2D = difference2D:Normalize()
+			end
+		end
+
+		if moveDirection2D.x ~= 0 then
+			local parentSpriteRendererComponent = self:GetParentSpriteRendererComponent()
+			if parentSpriteRendererComponent ~= nil then
+				parentSpriteRendererComponent.FlipX = moveDirection2D.x > 0
+			end
+		end
+		
+		parentMovementComponent:MoveToDirection(moveDirection2D, nil)
+	end
+
+end

@@ -1,0 +1,47 @@
+@State
+script MoveToNearestTaggedEntity extends MoveBase
+
+	property string Tag = ""
+
+	method void OnUpdate()
+		local parentTransformComponent = self:GetParentTransformComponent()
+		if parentTransformComponent == nil then
+			return
+		end
+
+		local parentMovementComponent = self:GetParentMovementComponent()
+		if parentMovementComponent == nil then
+			return
+		end
+
+		local parentWorldPosition = parentTransformComponent.WorldPosition
+
+		local taggedEntities = _EntityService:GetEntitiesByTag(self.Tag)
+
+		local nearestDistance2D = nil
+		local nearestWorldPosition = nil
+		for _, taggedEntity in pairs(taggedEntities) do
+			local taggedTransformComponent = taggedEntity.TransformComponent
+			if taggedTransformComponent == nil then
+				continue
+			end
+
+			local taggedWorldPosition = taggedTransformComponent.WorldPosition
+
+			local parentWorldPosition2D = parentWorldPosition:ToVector2()
+			local taggedWorldPosition2D = taggedWorldPosition:ToVector2()
+
+			local difference2D = taggedWorldPosition2D - parentWorldPosition2D
+			local distance2D = difference2D:Magnitude()
+			if nearestDistance2D ~= nil and nearestDistance2D < distance2D then
+				continue
+			end
+
+			nearestDistance2D = distance2D
+			nearestWorldPosition = taggedWorldPosition
+		end
+
+		self:Move(parentMovementComponent, parentWorldPosition, nearestWorldPosition)
+	end
+
+end

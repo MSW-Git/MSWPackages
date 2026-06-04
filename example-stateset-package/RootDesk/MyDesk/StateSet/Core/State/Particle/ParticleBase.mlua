@@ -1,0 +1,29 @@
+@State
+script ParticleBase extends StateType
+	
+	property integer ParticleType = 0
+	
+	property Entity Instigator = nil
+	
+	property Vector3 Position = Vector3(0, 0, 0)
+	
+	property number ZRotation = 0
+	
+	property Vector3 Scale = Vector3(1, 1, 1)
+	
+	property boolean IsLoop = false
+	
+	property boolean AttachToParentEntity = false
+	
+	method Entity GetParentEntity()
+		local parentEntity = nil
+		
+		local parentStateComponent = self.ParentComponent
+		if parentStateComponent ~= nil then
+			parentEntity = parentStateComponent.Entity
+		end
+		
+		return parentEntity
+	end
+	
+end

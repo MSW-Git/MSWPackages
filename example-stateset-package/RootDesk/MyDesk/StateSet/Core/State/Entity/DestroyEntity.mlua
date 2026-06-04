@@ -1,0 +1,23 @@
+@State
+script DestroyEntity extends EntityBase
+
+	property Entity Target = nil
+
+	property number Delay = 0
+
+	method void OnEnter()
+		local delay = math.max(0, self.Delay)
+
+		local target = self.Target
+		if target == nil then
+			return
+		end
+
+		if _NetworkLogic:HasAuthority(target) == false then
+			return
+		end
+
+		_EntityService:Destroy(target, delay)
+	end
+
+end

@@ -1,0 +1,26 @@
+@Condition
+script RigidbodyBase extends ConditionType
+	
+	method Entity GetParentEntity()
+		local parentEntity = nil
+		
+		local parentStateComponent = self.ParentComponent
+		if parentStateComponent ~= nil then
+			parentEntity = parentStateComponent.Entity
+		end
+		
+		return parentEntity
+	end
+	
+	method RigidbodyComponent GetParentRigidbodyComponent()
+		local parentRigidbodyComponent = nil
+		
+		local parentEntity = self:GetParentEntity()
+		if parentEntity ~= nil then
+			parentRigidbodyComponent = parentEntity.RigidbodyComponent
+		end
+		
+		return parentRigidbodyComponent
+	end
+	
+end

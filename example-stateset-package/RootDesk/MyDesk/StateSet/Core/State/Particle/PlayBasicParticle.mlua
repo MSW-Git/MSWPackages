@@ -1,0 +1,32 @@
+@State
+script PlayBasicParticle extends ParticleBase
+	
+	method void OnEnter()
+		local parentEntity = self:GetParentEntity()
+		if parentEntity == nil then
+			return
+		end
+		
+		if parentEntity.Localize then
+			if _NetworkLogic:IsServer() then
+				return
+			end
+		else
+			if _NetworkLogic:IsClient() then
+				return
+			end
+		end
+		
+		local particleType = BasicParticleType.CastFrom(self.ParticleType)
+		if particleType == BasicParticleType.None then
+			return
+		end
+
+		if self.AttachToParentEntity then
+			_ParticleService:PlayBasicParticleAttached(particleType, parentEntity, self.Position, self.ZRotation, self.Scale, self.IsLoop, nil)
+		else
+			_ParticleService:PlayBasicParticle(particleType, parentEntity, self.Position, self.ZRotation, self.Scale, self.IsLoop, nil)
+		end
+	end
+	
+end
