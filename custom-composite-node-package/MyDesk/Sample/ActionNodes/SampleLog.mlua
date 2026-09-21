@@ -1,0 +1,40 @@
+@BTNode
+script SampleLog extends ActionNode
+
+	@Description("Name printed to the Console. Used to tell which child ran and when.")
+	property string Label = ""
+
+	@Description("How long (seconds) to stay Running before returning. 0 finishes immediately.")
+	property number Duration = 0.0
+
+	@Description("Return Failure instead of Success. Used by the selector demos.")
+	property boolean ReturnFailure = false
+
+	@HideFromInspector
+	@Description("Seconds spent Running in the current execution.")
+	property number Elapsed = 0.0
+
+	method void OnInit()
+		-- Resets the timer so Duration is consumed once per execution.
+		self.Elapsed = 0.0
+		log("[Sample] " .. self.Label .. " begin")
+	end
+
+	method any OnBehave(number delta)
+		-- Stays Running for Duration, then returns according to ReturnFailure.
+		self.Elapsed = self.Elapsed + delta
+		
+		if self.Elapsed < self.Duration then
+			return BehaviourTreeStatus.Running
+		end
+		
+		if self.ReturnFailure then
+			log("[Sample] " .. self.Label .. " end -> Failure")
+			return BehaviourTreeStatus.Failure
+		end
+		
+		log("[Sample] " .. self.Label .. " end -> Success")
+		return BehaviourTreeStatus.Success
+	end
+
+end

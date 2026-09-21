@@ -1,0 +1,63 @@
+@BTNode
+script ParallelSuccessThreshold extends CompositeNode
+
+	@MinValue(1)
+	@Description("Number of successful children required for Success. Setting it above the child count makes the node always fail.")
+	property integer SuccessThreshold = 1
+
+	@HideFromInspector
+	@Description("Results of children that already finished in the current pass. No value means still running.")
+	property table Results = {}
+
+	method void OnInit()
+		-- Clears the results of the previous pass, including one abandoned while still Running.
+		local results = self.Results
+
+		for k in pairs(results) do
+			results[k] = nil
+		end
+	end
+
+	method any OnBehave(number delta)
+		-- Runs every child in parallel and judges against SuccessThreshold once all have finished.
+		-- The behavior contract lives in the package ReadMe.
+		local count = self.ChildCount
+
+		if count <= 0 then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		local results = self.Results
+		local finishedCount = 0
+		local successCount = 0
+		
+		for i = 1, count do
+			local result = results[i]
+		
+			if result == nil then
+				result = self:ChildBehave(i, delta)
+				if result ~= BehaviourTreeStatus.Running then
+					results[i] = result
+				end
+			end
+		
+			if result ~= BehaviourTreeStatus.Running then
+				finishedCount = finishedCount + 1
+				if result == BehaviourTreeStatus.Success then
+					successCount = successCount + 1
+				end
+			end
+		end
+		
+		if finishedCount < count then
+			return BehaviourTreeStatus.Running
+		end
+
+		if successCount >= self.SuccessThreshold then
+			return BehaviourTreeStatus.Success
+		end
+		
+		return BehaviourTreeStatus.Failure
+	end
+
+end

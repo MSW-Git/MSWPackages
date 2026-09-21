@@ -1,0 +1,61 @@
+@BTNode
+script ShuffleSelector extends CompositeNode
+
+	@HideFromInspector
+	@Description("Execution order for the current pass, as 1-based child indices.")
+	property table Order = {}
+
+	@HideFromInspector
+	@Description("Position within Order for the current pass.")
+	property integer Cursor = 0
+
+	method void OnInit()
+		-- Entering the node starts a new pass: reshuffle and point the cursor at the front.
+		self:BuildShuffledOrder(self.ChildCount)
+		self.Cursor = 1
+	end
+
+	method any OnBehave(number delta)
+		-- Runs one pass over the shuffled order. The behavior contract lives in the package ReadMe.
+		local count = self.ChildCount
+		
+		if count <= 0 then
+			return BehaviourTreeStatus.Failure
+		end
+		
+		local cursor = self.Cursor
+		
+		while cursor <= count do
+			local result = self:ChildBehave(self.Order[cursor], delta)
+		
+			if result == BehaviourTreeStatus.Running then
+				self.Cursor = cursor
+				return BehaviourTreeStatus.Running
+			end
+		
+			if result == BehaviourTreeStatus.Success then
+				return BehaviourTreeStatus.Success
+			end
+		
+			cursor = cursor + 1
+		end
+		
+		return BehaviourTreeStatus.Failure
+	end
+
+	method void BuildShuffledOrder(integer count)
+		-- Shuffles 1..count into the Order table in place, so a pass allocates nothing.
+		local order = self.Order
+		
+		for i = 1, count do
+			order[i] = i
+		end
+		
+		for i = count, 2, -1 do
+			-- The range must be 1..i for the order to come out evenly distributed.
+			local j = _UtilLogic:RandomIntegerRange(1, i)
+			order[i], order[j] = order[j], order[i]
+		end
+	end
+
+end

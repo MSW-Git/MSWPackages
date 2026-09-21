@@ -1,0 +1,133 @@
+@BTNode
+script WeightedRandomSelector extends CompositeNode
+
+	@Description("Comma-separated weights, e.g. 3,1,1. Children without a weight default to 1.0. An empty field still occupies a slot (1,,8 puts 8 on the third child). If the total is 0, the pick falls back to uniform.")
+	property string WeightsText = ""
+
+	@HideFromInspector
+	@Description("Child index locked in for the current pass. 0 means nothing has been picked yet.")
+	property integer SelectedIndex = 0
+
+	@HideFromInspector
+	@Description("Table a pick is rolled against: each entry is the running total up to that child, so the last one is the overall total.")
+	property table CachedWeightTable = {}
+
+	@HideFromInspector
+	@Description("WeightsText the cache was built from. Starts as a NUL string no real text can equal.")
+	property string CachedText = "\0"
+
+	method void OnInit()
+		-- Clearing the selection makes the next OnBehave pick again.
+		self.SelectedIndex = 0
+	end
+
+	method any OnBehave(number delta)
+		-- Picks one child by weight and returns its result. The behavior contract lives in the package ReadMe.
+		local index = self.SelectedIndex
+
+		if index <= 0 then
+			local count = self.ChildCount
+
+			if count <= 0 then
+				return BehaviourTreeStatus.Failure
+			end
+
+			index = self:SelectChildIndex(count)
+		end
+
+		local result = self:ChildBehave(index, delta)
+		
+		if result == BehaviourTreeStatus.Running then
+			self.SelectedIndex = index
+		else
+			self.SelectedIndex = 0
+		end
+		
+		return result
+	end
+
+	method integer SelectChildIndex(integer count)
+		-- Rolls against the weight table and returns the first child the roll falls into.
+		-- Falls back to a uniform pick when every weight is 0.
+		local text = self.WeightsText
+
+		if self.CachedText ~= text then
+			self.CachedWeightTable = self:BuildWeightTable(text, count)
+			self.CachedText = text
+		end
+
+		local weightTable = self.CachedWeightTable
+		local total = weightTable[count]
+
+		if total <= 0.0 then
+			return _UtilLogic:RandomIntegerRange(1, count)
+		end
+
+		local roll = _UtilLogic:RandomDouble() * total
+
+		for i = 1, count do
+			if roll < weightTable[i] then
+				return i
+			end
+		end
+
+		-- Only reachable when roll lands exactly on total. Return the last child that has any
+		-- weight, so a zero-weight child can never be picked through this edge.
+		for i = count, 2, -1 do
+			if weightTable[i] > weightTable[i - 1] then
+				return i
+			end
+		end
+
+		return 1
+	end
+
+	method table BuildWeightTable(string text, integer count)
+		-- Reads the CSV into per-child weights, then turns them into running totals.
+		-- The pattern must be "[^,]*", not "[^,]+" - the latter skips empty fields and shifts slots.
+		local weights = {}
+
+		for i = 1, count do
+			weights[i] = 1.0
+		end
+
+		local slot = 0
+		local invalidCount = 0
+
+		for token in string.gmatch(text .. ",", "([^,]*),") do
+			slot = slot + 1
+
+			-- Slots past the last child are still counted so the warning can report the real total.
+			if slot <= count then
+				local parsed = tonumber(token)
+
+				if parsed ~= nil and parsed >= 0.0 then
+					weights[slot] = parsed
+				elseif token ~= "" then
+					-- An empty field is a deliberate "leave this child at 1.0"; anything else is a typo.
+					invalidCount = invalidCount + 1
+				end
+			end
+		end
+
+		-- Every mistake below still produces a usable table, so it would otherwise pass unnoticed.
+		if text ~= "" and slot ~= count then
+			log_warning("[WeightedRandomSelector] WeightsText has " .. slot .. " weight(s) but the node has " .. count .. " child node(s).")
+		end
+
+		if invalidCount > 0 then
+			log_warning("[WeightedRandomSelector] WeightsText has " .. invalidCount .. " field(s) that are not a number >= 0.")
+		end
+
+		for i = 2, count do
+			weights[i] = weights[i] + weights[i - 1]
+		end
+
+		if weights[count] <= 0.0 then
+			log_warning("[WeightedRandomSelector] Every weight in WeightsText is 0.")
+		end
+
+		return weights
+	end
+
+end

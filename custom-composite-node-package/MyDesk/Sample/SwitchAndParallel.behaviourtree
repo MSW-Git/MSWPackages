@@ -1,0 +1,224 @@
+{
+  "Id": "",
+  "GameId": "",
+  "EntryKey": "behaviourtree://d949e3c5-4256-4318-a8e2-e8af4968a843",
+  "ContentType": "x-mod/behaviourtree",
+  "Content": "",
+  "Usage": 0,
+  "UsePublish": 1,
+  "UseService": 0,
+  "CoreVersion": "26.7.0.0",
+  "StudioVersion": "0.1.0.0",
+  "DynamicLoading": 0,
+  "ContentProto": {
+    "Use": "Json",
+    "Json": {
+      "id": "behaviourtree://d949e3c5-4256-4318-a8e2-e8af4968a843",
+      "name": "SwitchAndParallel",
+      "RootNode": {
+        "startNodeId": "5cb9125c-009d-43f7-9d5e-8b3c427020fe",
+        "nodePosition": {
+          "x": 0.0,
+          "y": 0.0
+        }
+      },
+      "Blackboard": {
+        "Variables": [
+          {
+            "Name": "bb_State",
+            "Type": {
+              "$type": "MODNativeType",
+              "type": "System.Int64, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+            },
+            "ObjectValue": 1
+          }
+        ]
+      },
+      "Nodes": [
+        {
+          "nodeId": "5cb9125c-009d-43f7-9d5e-8b3c427020fe",
+          "nodeName": "SwitchSelector",
+          "definitionId": "codeblock://6b89748d-1419-44e4-80b3-7c351faf5315",
+          "btNodeType": 1,
+          "nodeParentId": "",
+          "nodeProperties": [
+            {
+              "propertyKey": "SwitchKey",
+              "propertyType": {
+                "$type": "MODNativeType",
+                "type": "System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+              },
+              "propertyValue": "bb_State"
+            },
+            {
+              "propertyKey": "DefaultChildIndex",
+              "propertyType": {
+                "$type": "MODNativeType",
+                "type": "System.Int64, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+              },
+              "propertyValue": 1
+            }
+          ],
+          "nodePosition": {
+            "x": 0.0,
+            "y": -200.0
+          },
+          "childNodes": [
+            "10e01a1b-7848-433d-b6bc-d3d588ca8cf5",
+            "16332239-ebfe-4373-8d55-44c873f4936c"
+          ]
+        },
+        {
+          "nodeId": "10e01a1b-7848-433d-b6bc-d3d588ca8cf5",
+          "nodeName": "SampleLog",
+          "definitionId": "codeblock://705ad8c4-12fc-4729-b6cc-14ec0ae42cf9",
+          "btNodeType": 0,
+          "nodeParentId": "5cb9125c-009d-43f7-9d5e-8b3c427020fe",
+          "nodeProperties": [
+            {
+              "propertyKey": "Label",
+              "propertyType": {
+                "$type": "MODNativeType",
+                "type": "System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+              },
+              "propertyValue": "Idle"
+            },
+            {
+              "propertyKey": "Duration",
+              "propertyType": {
+                "$type": "MODNativeType",
+                "type": "System.Double, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+              },
+              "propertyValue": 1.0
+            }
+          ],
+          "nodePosition": {
+            "x": -200.0,
+            "y": -400.0
+          }
+        },
+        {
+          "nodeId": "16332239-ebfe-4373-8d55-44c873f4936c",
+          "nodeName": "ParallelSuccessThreshold",
+          "definitionId": "codeblock://07953fb3-4b76-4e45-9582-fb01c5cf502c",
+          "btNodeType": 1,
+          "nodeParentId": "5cb9125c-009d-43f7-9d5e-8b3c427020fe",
+          "nodeProperties": [
+            {
+              "propertyKey": "SuccessThreshold",
+              "propertyType": {
+                "$type": "MODNativeType",
+                "type": "System.Int64, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+              },
+              "propertyValue": 2
+            }
+          ],
+          "nodePosition": {
+            "x": 250.0,
+            "y": -400.0
+          },
+          "childNodes": [
+            "1e0e089d-37fb-4c24-9c74-54da9d23bef5",
+            "52f92175-a323-43d8-962e-09e217903c88",
+            "369921c1-1156-40a9-97ad-d7c1f093f82a"
+          ]
+        },
+        {
+          "nodeId": "1e0e089d-37fb-4c24-9c74-54da9d23bef5",
+          "nodeName": "SampleLog",
+          "definitionId": "codeblock://705ad8c4-12fc-4729-b6cc-14ec0ae42cf9",
+          "btNodeType": 0,
+          "nodeParentId": "16332239-ebfe-4373-8d55-44c873f4936c",
+          "nodeProperties": [
+            {
+              "propertyKey": "Label",
+              "propertyType": {
+                "$type": "MODNativeType",
+                "type": "System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+              },
+              "propertyValue": "P-fast(0.5s)"
+            },
+            {
+              "propertyKey": "Duration",
+              "propertyType": {
+                "$type": "MODNativeType",
+                "type": "System.Double, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+              },
+              "propertyValue": 0.5
+            }
+          ],
+          "nodePosition": {
+            "x": 100.0,
+            "y": -600.0
+          }
+        },
+        {
+          "nodeId": "52f92175-a323-43d8-962e-09e217903c88",
+          "nodeName": "SampleLog",
+          "definitionId": "codeblock://705ad8c4-12fc-4729-b6cc-14ec0ae42cf9",
+          "btNodeType": 0,
+          "nodeParentId": "16332239-ebfe-4373-8d55-44c873f4936c",
+          "nodeProperties": [
+            {
+              "propertyKey": "Label",
+              "propertyType": {
+                "$type": "MODNativeType",
+                "type": "System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+              },
+              "propertyValue": "P-slow(1.5s)"
+            },
+            {
+              "propertyKey": "Duration",
+              "propertyType": {
+                "$type": "MODNativeType",
+                "type": "System.Double, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+              },
+              "propertyValue": 1.5
+            }
+          ],
+          "nodePosition": {
+            "x": 250.0,
+            "y": -600.0
+          }
+        },
+        {
+          "nodeId": "369921c1-1156-40a9-97ad-d7c1f093f82a",
+          "nodeName": "SampleLog",
+          "definitionId": "codeblock://705ad8c4-12fc-4729-b6cc-14ec0ae42cf9",
+          "btNodeType": 0,
+          "nodeParentId": "16332239-ebfe-4373-8d55-44c873f4936c",
+          "nodeProperties": [
+            {
+              "propertyKey": "Label",
+              "propertyType": {
+                "$type": "MODNativeType",
+                "type": "System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+              },
+              "propertyValue": "P-fail(0.8s)"
+            },
+            {
+              "propertyKey": "Duration",
+              "propertyType": {
+                "$type": "MODNativeType",
+                "type": "System.Double, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+              },
+              "propertyValue": 0.8
+            },
+            {
+              "propertyKey": "ReturnFailure",
+              "propertyType": {
+                "$type": "MODNativeType",
+                "type": "System.Boolean, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+              },
+              "propertyValue": true
+            }
+          ],
+          "nodePosition": {
+            "x": 400.0,
+            "y": -600.0
+          }
+        }
+      ]
+    }
+  }
+}

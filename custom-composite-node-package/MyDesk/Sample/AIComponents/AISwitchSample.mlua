@@ -1,0 +1,58 @@
+@Component
+script AISwitchSample extends AIComponent
+
+	@Description("How often (seconds) bb_State moves to the next value.")
+	property number SwitchInterval = 4.0
+
+	@MinValue(1)
+	@Description("Number of switch cases bb_State cycles through (1..StateCount).")
+	property integer StateCount = 2
+
+	@HideFromInspector
+	@Description("Seconds elapsed since the last switch.")
+	property number Elapsed = 0.0
+
+	@HideFromInspector
+	@Description("Value currently written into bb_State.")
+	property integer StateIndex = 1
+
+	@ExecSpace("ServerOnly")
+	method void OnBeginPlay()
+		-- Initializes the Blackboard value that SwitchSelector reads.
+		self.StateIndex = 1
+		self.Elapsed = 0.0
+
+		if self.BlackBoard == nil then
+			log_warning("[Sample] BlackBoard is nil. Check AIComponent.BehaviourTreeId on this entity.")
+			return
+		end
+
+		self.BlackBoard:SetInt("bb_State", self.StateIndex)
+		log("[Sample] bb_State = " .. self.StateIndex)
+	end
+
+	@ExecSpace("ServerOnly")
+	method void OnUpdate(number delta)
+		-- Rotates bb_State to the next value every SwitchInterval seconds.
+		if self.BlackBoard == nil then
+			return
+		end
+
+		self.Elapsed = self.Elapsed + delta
+
+		if self.Elapsed < self.SwitchInterval then
+			return
+		end
+
+		self.Elapsed = 0.0
+		self.StateIndex = self.StateIndex + 1
+
+		if self.StateIndex > self.StateCount then
+			self.StateIndex = 1
+		end
+
+		self.BlackBoard:SetInt("bb_State", self.StateIndex)
+		log("[Sample] bb_State = " .. self.StateIndex)
+	end
+
+end

@@ -1,0 +1,97 @@
+@BTNode
+script SwitchSelector extends CompositeNode
+
+	@Description("Name of the Blackboard variable (Integer) holding the switch value. The value is the 1-based index of the child to run. When empty, the node logs a warning and falls back to DefaultChildIndex.")
+	property string SwitchKey = ""
+
+	@Description("Child to run when the switch value is outside the child range. Returns Failure when it is 0 or outside the child range.")
+	property integer DefaultChildIndex = 0
+
+	@HideFromInspector
+	@Description("Child index locked in for the current pass. 0 means nothing has been selected yet.")
+	property integer SelectedIndex = 0
+
+	@HideFromInspector
+	@Description("Whether the switch value can be read from the Blackboard. False makes every pass use DefaultChildIndex.")
+	property boolean BoardReady = false
+
+	@HideFromInspector
+	@Description("Whether the one-time validity check below has already run.")
+	property boolean Checked = false
+
+	method void OnInit()
+		-- Clearing the selection makes the next OnBehave read the switch value again.
+		self.SelectedIndex = 0
+		
+		-- SwitchKey and the BlackBoard are fixed once the tree starts, so they are checked once here.
+		if self.Checked then
+			return
+		end
+		
+		self.Checked = true
+		
+		if self.SwitchKey == "" then
+			log_warning("[SwitchSelector] SwitchKey is empty.")
+			return
+		end
+		
+		-- ParentAI is filled in for every node of a tree once it is set, so it is never nil here.
+		if self.ParentAI.BlackBoard == nil then
+			log_warning("[SwitchSelector] BlackBoard is unavailable.")
+			return
+		end
+		
+		self.BoardReady = true
+	end
+
+	method any OnBehave(number delta)
+		-- Runs only the child the Blackboard value points at. The behavior contract lives in the package ReadMe.
+		local index = self.SelectedIndex
+		
+		if index <= 0 then
+			local count = self.ChildCount
+		
+			if count <= 0 then
+				return BehaviourTreeStatus.Failure
+			end
+		
+			index = self:SelectChildIndex(count)
+		
+			if index <= 0 then
+				return BehaviourTreeStatus.Failure
+			end
+		end
+		
+		local result = self:ChildBehave(index, delta)
+		
+		if result == BehaviourTreeStatus.Running then
+			self.SelectedIndex = index
+		else
+			self.SelectedIndex = 0
+		end
+		
+		return result
+	end
+
+	method integer SelectChildIndex(integer count)
+		-- Resolves the child to run: the Blackboard value when it points at a real child, and
+		-- DefaultChildIndex otherwise. Returns 0 when neither does, and the caller fails.
+		local index = self.DefaultChildIndex
+		
+		if self.BoardReady then
+			local switchValue = self.ParentAI.BlackBoard:GetInt(self.SwitchKey)
+		
+			if switchValue >= 1 and switchValue <= count then
+				index = switchValue
+			end
+		end
+		
+		-- DefaultChildIndex is typed in by hand, so it is range-checked here as well.
+		if index >= 1 and index <= count then
+			return index
+		end
+		
+		return 0
+	end
+
+end

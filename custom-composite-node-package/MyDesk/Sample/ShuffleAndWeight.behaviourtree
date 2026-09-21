@@ -1,0 +1,307 @@
+{
+  "Id": "",
+  "GameId": "",
+  "EntryKey": "behaviourtree://a187100e-81bd-4494-8e51-60f932e41cfe",
+  "ContentType": "x-mod/behaviourtree",
+  "Content": "",
+  "Usage": 0,
+  "UsePublish": 1,
+  "UseService": 0,
+  "CoreVersion": "26.7.0.0",
+  "StudioVersion": "0.1.0.0",
+  "DynamicLoading": 0,
+  "ContentProto": {
+    "Use": "Json",
+    "Json": {
+      "id": "behaviourtree://a187100e-81bd-4494-8e51-60f932e41cfe",
+      "name": "ShuffleAndWeight",
+      "RootNode": {
+        "startNodeId": "4b4c436d-4369-404b-86bf-3c78d78f88ee",
+        "nodePosition": {
+          "x": 0.0,
+          "y": 0.0
+        }
+      },
+      "Blackboard": {},
+      "Nodes": [
+        {
+          "nodeId": "4b4c436d-4369-404b-86bf-3c78d78f88ee",
+          "nodeName": "ShuffleSequence",
+          "definitionId": "codeblock://348891b8-b993-46b6-b41e-ea8f17eed720",
+          "btNodeType": 1,
+          "nodeParentId": "",
+          "nodePosition": {
+            "x": 0.0,
+            "y": -200.0
+          },
+          "childNodes": [
+            "f48e9ae2-b3d1-4674-b42c-6b6f0b7faac4",
+            "fb02d019-4193-4dac-ab13-7514908acf99",
+            "801bd271-ce38-482b-8e83-e8c69769fd24"
+          ]
+        },
+        {
+          "nodeId": "f48e9ae2-b3d1-4674-b42c-6b6f0b7faac4",
+          "nodeName": "WeightedRandomSelector",
+          "definitionId": "codeblock://1ff2834e-36bb-4101-82e5-acc3d14a5272",
+          "btNodeType": 1,
+          "nodeParentId": "4b4c436d-4369-404b-86bf-3c78d78f88ee",
+          "nodeProperties": [
+            {
+              "propertyKey": "WeightsText",
+              "propertyType": {
+                "$type": "MODNativeType",
+                "type": "System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+              },
+              "propertyValue": "6,3,1"
+            }
+          ],
+          "nodePosition": {
+            "x": -400.0,
+            "y": -400.0
+          },
+          "childNodes": [
+            "2fc9a22d-af6e-4b95-8299-5d87c58c4695",
+            "f32ffe87-b041-495b-b714-960e8407b93e",
+            "0982a5e1-48af-4c1e-8694-ee629c8d64ef"
+          ]
+        },
+        {
+          "nodeId": "2fc9a22d-af6e-4b95-8299-5d87c58c4695",
+          "nodeName": "SampleLog",
+          "definitionId": "codeblock://705ad8c4-12fc-4729-b6cc-14ec0ae42cf9",
+          "btNodeType": 0,
+          "nodeParentId": "f48e9ae2-b3d1-4674-b42c-6b6f0b7faac4",
+          "nodeProperties": [
+            {
+              "propertyKey": "Label",
+              "propertyType": {
+                "$type": "MODNativeType",
+                "type": "System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+              },
+              "propertyValue": "W-heavy(6)"
+            },
+            {
+              "propertyKey": "Duration",
+              "propertyType": {
+                "$type": "MODNativeType",
+                "type": "System.Double, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+              },
+              "propertyValue": 0.3
+            }
+          ],
+          "nodePosition": {
+            "x": -550.0,
+            "y": -600.0
+          }
+        },
+        {
+          "nodeId": "f32ffe87-b041-495b-b714-960e8407b93e",
+          "nodeName": "SampleLog",
+          "definitionId": "codeblock://705ad8c4-12fc-4729-b6cc-14ec0ae42cf9",
+          "btNodeType": 0,
+          "nodeParentId": "f48e9ae2-b3d1-4674-b42c-6b6f0b7faac4",
+          "nodeProperties": [
+            {
+              "propertyKey": "Label",
+              "propertyType": {
+                "$type": "MODNativeType",
+                "type": "System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+              },
+              "propertyValue": "W-mid(3)"
+            },
+            {
+              "propertyKey": "Duration",
+              "propertyType": {
+                "$type": "MODNativeType",
+                "type": "System.Double, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+              },
+              "propertyValue": 0.3
+            }
+          ],
+          "nodePosition": {
+            "x": -400.0,
+            "y": -600.0
+          }
+        },
+        {
+          "nodeId": "0982a5e1-48af-4c1e-8694-ee629c8d64ef",
+          "nodeName": "SampleLog",
+          "definitionId": "codeblock://705ad8c4-12fc-4729-b6cc-14ec0ae42cf9",
+          "btNodeType": 0,
+          "nodeParentId": "f48e9ae2-b3d1-4674-b42c-6b6f0b7faac4",
+          "nodeProperties": [
+            {
+              "propertyKey": "Label",
+              "propertyType": {
+                "$type": "MODNativeType",
+                "type": "System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+              },
+              "propertyValue": "W-rare(1)"
+            },
+            {
+              "propertyKey": "Duration",
+              "propertyType": {
+                "$type": "MODNativeType",
+                "type": "System.Double, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+              },
+              "propertyValue": 0.3
+            }
+          ],
+          "nodePosition": {
+            "x": -250.0,
+            "y": -600.0
+          }
+        },
+        {
+          "nodeId": "fb02d019-4193-4dac-ab13-7514908acf99",
+          "nodeName": "ShuffleSelector",
+          "definitionId": "codeblock://444a78e2-3618-4f88-8cef-df9e07b819b6",
+          "btNodeType": 1,
+          "nodeParentId": "4b4c436d-4369-404b-86bf-3c78d78f88ee",
+          "nodePosition": {
+            "x": 0.0,
+            "y": -400.0
+          },
+          "childNodes": [
+            "59e7b1ac-cae4-4280-bb18-73b6423f4f57",
+            "b4800398-6971-472f-808f-8e3accd8fb9c",
+            "b3a4af84-fd88-4148-ae3a-f0722589a8e2"
+          ]
+        },
+        {
+          "nodeId": "59e7b1ac-cae4-4280-bb18-73b6423f4f57",
+          "nodeName": "SampleLog",
+          "definitionId": "codeblock://705ad8c4-12fc-4729-b6cc-14ec0ae42cf9",
+          "btNodeType": 0,
+          "nodeParentId": "fb02d019-4193-4dac-ab13-7514908acf99",
+          "nodeProperties": [
+            {
+              "propertyKey": "Label",
+              "propertyType": {
+                "$type": "MODNativeType",
+                "type": "System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+              },
+              "propertyValue": "S-fail-a"
+            },
+            {
+              "propertyKey": "Duration",
+              "propertyType": {
+                "$type": "MODNativeType",
+                "type": "System.Double, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+              },
+              "propertyValue": 0.2
+            },
+            {
+              "propertyKey": "ReturnFailure",
+              "propertyType": {
+                "$type": "MODNativeType",
+                "type": "System.Boolean, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+              },
+              "propertyValue": true
+            }
+          ],
+          "nodePosition": {
+            "x": -150.0,
+            "y": -600.0
+          }
+        },
+        {
+          "nodeId": "b4800398-6971-472f-808f-8e3accd8fb9c",
+          "nodeName": "SampleLog",
+          "definitionId": "codeblock://705ad8c4-12fc-4729-b6cc-14ec0ae42cf9",
+          "btNodeType": 0,
+          "nodeParentId": "fb02d019-4193-4dac-ab13-7514908acf99",
+          "nodeProperties": [
+            {
+              "propertyKey": "Label",
+              "propertyType": {
+                "$type": "MODNativeType",
+                "type": "System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+              },
+              "propertyValue": "S-fail-b"
+            },
+            {
+              "propertyKey": "Duration",
+              "propertyType": {
+                "$type": "MODNativeType",
+                "type": "System.Double, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+              },
+              "propertyValue": 0.2
+            },
+            {
+              "propertyKey": "ReturnFailure",
+              "propertyType": {
+                "$type": "MODNativeType",
+                "type": "System.Boolean, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+              },
+              "propertyValue": true
+            }
+          ],
+          "nodePosition": {
+            "x": 0.0,
+            "y": -600.0
+          }
+        },
+        {
+          "nodeId": "b3a4af84-fd88-4148-ae3a-f0722589a8e2",
+          "nodeName": "SampleLog",
+          "definitionId": "codeblock://705ad8c4-12fc-4729-b6cc-14ec0ae42cf9",
+          "btNodeType": 0,
+          "nodeParentId": "fb02d019-4193-4dac-ab13-7514908acf99",
+          "nodeProperties": [
+            {
+              "propertyKey": "Label",
+              "propertyType": {
+                "$type": "MODNativeType",
+                "type": "System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+              },
+              "propertyValue": "S-ok"
+            },
+            {
+              "propertyKey": "Duration",
+              "propertyType": {
+                "$type": "MODNativeType",
+                "type": "System.Double, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+              },
+              "propertyValue": 0.2
+            }
+          ],
+          "nodePosition": {
+            "x": 150.0,
+            "y": -600.0
+          }
+        },
+        {
+          "nodeId": "801bd271-ce38-482b-8e83-e8c69769fd24",
+          "nodeName": "SampleLog",
+          "definitionId": "codeblock://705ad8c4-12fc-4729-b6cc-14ec0ae42cf9",
+          "btNodeType": 0,
+          "nodeParentId": "4b4c436d-4369-404b-86bf-3c78d78f88ee",
+          "nodeProperties": [
+            {
+              "propertyKey": "Label",
+              "propertyType": {
+                "$type": "MODNativeType",
+                "type": "System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+              },
+              "propertyValue": "Tail"
+            },
+            {
+              "propertyKey": "Duration",
+              "propertyType": {
+                "$type": "MODNativeType",
+                "type": "System.Double, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+              },
+              "propertyValue": 0.3
+            }
+          ],
+          "nodePosition": {
+            "x": 400.0,
+            "y": -400.0
+          }
+        }
+      ]
+    }
+  }
+}
