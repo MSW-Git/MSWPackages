@@ -1,0 +1,232 @@
+@Component
+script ObjectPoolContainerComponent extends Component
+
+	@HideFromInspector
+	@Description("Hidden clone every pooled entity is spawned from. Never @Sync this: the client instance of a server-created pool keeping the nil default is how Spawn / Release / DestroyPool detect they are not on the owning side.")
+	property Entity TemplateEntity = nil
+
+	@HideFromInspector
+	@Description("table<string, PooledObjectInfo> - every entity the pool owns, keyed by entity id.")
+	property table PooledEntities = {}
+
+	@HideFromInspector
+	@Description("table<integer, string> - ids of the entities the next Spawn can hand out, newly created or released, most recently added last.")
+	property table AvailableEntities = {}
+
+	@Description("How many entities the pool owns, in use and available together.")
+	property integer PooledCount = 0
+
+	@HideFromInspector
+	@Description("Guards Inner_DestroyPool against re-entry while the container is being torn down.")
+	property boolean IsDestroying = false
+
+	@HideFromInspector
+	@Description("Copy of the ObjectPoolOption the pool was created with.")
+	property ObjectPoolOption Option = ObjectPoolOption()
+
+	method Entity Spawn(Vector3 position)
+		-- Takes one entity out of the pool, places it at position, then enables it.
+		if not isvalid(self.TemplateEntity) then
+			log_error("ObjectPoolContainerComponent.Spawn: Pool was not created on this side.")
+			return nil
+		end
+		
+		local entity = self:Inner_TakeAvailable()
+		
+		if entity == nil then
+			local remainingCapacity = self.Option.MaxSize - self.PooledCount
+		
+			if remainingCapacity <= 0 then
+				log_error("ObjectPoolContainerComponent.Spawn: Pool has reached its maximum size (" .. self.Option.MaxSize .. ").")
+				return nil
+			end
+		
+			local expandSize = math.min(self.Option.ExpandSize, remainingCapacity)
+		
+			if expandSize <= 0 then
+				log_error("ObjectPoolContainerComponent.Spawn: ExpandSize is not positive.")
+				return nil
+			end
+		
+			for i = 1, expandSize do
+				if not isvalid(self:Inner_CreatePooledEntity()) then
+					log_error("ObjectPoolContainerComponent.Spawn: Failed to create pooled entity.")
+					return nil
+				end
+			end
+		
+			entity = self:Inner_TakeAvailable()
+		
+			if entity == nil then
+				log_error("ObjectPoolContainerComponent.Spawn: Failed to create pooled entity.")
+				return nil
+			end
+		end
+		
+		---@type PooledObjectInfo
+		local info = self.PooledEntities[entity.Id]
+		info.InUse = true
+		
+		if isvalid(entity.UITransformComponent) then
+			entity.UITransformComponent.anchoredPosition = Vector2(position.x, position.y)
+		else
+			entity.TransformComponent.Position = position
+		end
+		
+		entity:SetEnable(true)
+		
+		return entity
+	end
+
+	method boolean Release(Entity pooledObject)
+		-- Disables the entity and makes it available to the next Spawn.
+		if not isvalid(self.TemplateEntity) then
+			log_error("ObjectPoolContainerComponent.Release: Pool was not created on this side.")
+			return false
+		end
+		
+		if not isvalid(pooledObject) then
+			log_error("ObjectPoolContainerComponent.Release: Attempted to release a nil entity.")
+			return false
+		end
+		
+		---@type table<string, PooledObjectInfo>
+		local pooledEntities = self.PooledEntities
+		local info = pooledEntities[pooledObject.Id]
+		
+		if info == nil then
+			log_error("ObjectPoolContainerComponent.Release: Entity does not belong to this pool.")
+			return false
+		end
+		
+		if not info.InUse then
+			log_error("ObjectPoolContainerComponent.Release: Entity is already released.")
+			return false
+		end
+		
+		info.InUse = false
+		pooledObject:SetEnable(false)
+		table.insert(self.AvailableEntities, pooledObject.Id)
+		
+		return true
+	end
+
+	method boolean Inner_InitPool(Entity templateEntity, ObjectPoolOption option)
+		-- Stores the template, copies the options, and pre-warms the pool to InitialSize.
+		-- TemplateEntity is assigned only here, so a valid one means the pool is already initialized.
+		if isvalid(self.TemplateEntity) then
+			log_error("ObjectPoolContainerComponent.Inner_InitPool: Pool is already initialized.")
+			return false
+		end
+		
+		if option.MaxSize <= 0 then
+			log_error("ObjectPoolContainerComponent.Inner_InitPool: MaxSize must be greater than 0.")
+			return false
+		end
+		
+		self.TemplateEntity = templateEntity
+		self.TemplateEntity:SetEnable(false)
+		
+		local optionCopy = ObjectPoolOption()
+		optionCopy.InitialSize = option.InitialSize
+		optionCopy.MaxSize = option.MaxSize
+		optionCopy.ExpandSize = option.ExpandSize
+		self.Option = optionCopy
+		
+		local initialSize = math.min(optionCopy.InitialSize, optionCopy.MaxSize)
+		
+		if initialSize < optionCopy.InitialSize then
+			log_warning("ObjectPoolContainerComponent.Inner_InitPool: InitialSize is larger than MaxSize.")
+		end
+		
+		if optionCopy.ExpandSize <= 0 and initialSize < optionCopy.MaxSize then
+			log_warning("ObjectPoolContainerComponent.Inner_InitPool: ExpandSize is not positive.")
+		end
+		
+		for i = 1, initialSize do
+			if not isvalid(self:Inner_CreatePooledEntity()) then
+				log_error("ObjectPoolContainerComponent.Inner_InitPool: Failed to create pooled entity.")
+				return false
+			end
+		end
+		
+		return true
+	end
+
+	method void Inner_DestroyPool()
+		-- Destroys every entity the pool owns and clears its bookkeeping.
+		if self.IsDestroying then
+			return
+		end
+		
+		self.IsDestroying = true
+		
+		---@type table<string, PooledObjectInfo>
+		local pooledEntities = self.PooledEntities
+		
+		for id, info in pairs(pooledEntities) do
+			if isvalid(info.PooledObject) then
+				info.PooledObject:Destroy()
+			end
+		end
+		
+		self.PooledEntities = {}
+		self.AvailableEntities = {}
+		self.PooledCount = 0
+	end
+
+	method void OnDestroy()
+		-- Runs the same cleanup when the container is destroyed without going through DestroyPool.
+		local containerId = self.Entity.Id
+		
+		self:Inner_DestroyPool()
+		_ObjectPoolManagerLogic:Inner_UnregisterPool(containerId)
+	end
+
+	method Entity Inner_TakeAvailable()
+		-- Pops the next available entity, dropping any that was destroyed from outside the pool.
+		-- Ids are stored rather than entities so a dead one can still be matched back to its PooledObjectInfo.
+		while #self.AvailableEntities > 0 do
+			local id = table.remove(self.AvailableEntities)
+			---@type PooledObjectInfo
+			local info = self.PooledEntities[id]
+		
+			if info ~= nil then
+				if isvalid(info.PooledObject) then
+					return info.PooledObject
+				end
+		
+				log_warning("ObjectPoolContainerComponent: A pooled entity was destroyed from outside the pool.")
+				self.PooledEntities[id] = nil
+				self.PooledCount = self.PooledCount - 1
+			end
+		end
+		
+		return nil
+	end
+
+	method Entity Inner_CreatePooledEntity()
+		-- Clones one entity from the template and files it as available.
+		local name = "PooledObject_" .. (self.PooledCount + 1)
+		local poolEntity = _SpawnService:SpawnByEntity(self.TemplateEntity, name, Vector3.zero, self.Entity)
+		
+		if not isvalid(poolEntity) then
+			return nil
+		end
+		
+		poolEntity:SetEnable(false)
+		
+		---@type table<string, PooledObjectInfo>
+		local pooledEntities = self.PooledEntities
+		local info = PooledObjectInfo()
+		info.PooledObject = poolEntity
+		info.InUse = false
+		pooledEntities[poolEntity.Id] = info
+		
+		self.PooledCount = self.PooledCount + 1
+		table.insert(self.AvailableEntities, poolEntity.Id)
+		
+		return poolEntity
+	end
+
+end

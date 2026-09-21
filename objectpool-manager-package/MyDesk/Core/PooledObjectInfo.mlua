@@ -1,0 +1,10 @@
+@Struct
+script PooledObjectInfo
+
+	@Description("The pooled entity this info describes.")
+	property Entity PooledObject = nil
+
+	@Description("True while Spawn has handed the entity out and Release has not taken it back.")
+	property boolean InUse = false
+
+end

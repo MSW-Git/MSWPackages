@@ -1,0 +1,13 @@
+@Struct
+script ObjectPoolOption
+
+	@Description("How many entities to pre-create. Clamped to MaxSize.")
+	property integer InitialSize = 10
+
+	@Description("Hard cap on the total number of entities. Must be greater than 0.")
+	property integer MaxSize = 50
+
+	@Description("How many to add when nothing is available, capped by the remaining capacity. A non-positive value stops the pool from expanding.")
+	property integer ExpandSize = 5
+
+end

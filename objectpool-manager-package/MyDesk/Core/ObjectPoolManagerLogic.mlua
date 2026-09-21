@@ -1,0 +1,141 @@
+@Logic
+script ObjectPoolManagerLogic extends Logic
+
+	@HideFromInspector
+	@Description("table<string, ObjectPoolContainerComponent> - live pools keyed by their container entity id. Cleared pool by pool as they are destroyed, and in full when the world session ends.")
+	property table PoolContainers = {}
+
+	@HideFromInspector
+	@Description("Counter behind the PoolContainer_N container names.")
+	property integer ContainerSerial = 0
+
+	method ObjectPoolContainerComponent CreatePoolByModelId(string modelId, Entity parentEntity, ObjectPoolOption options)
+		-- Creates a pool whose template is spawned from modelId.
+		if _UtilLogic:IsNilorEmptyString(modelId) then
+			log_error("ObjectPoolManagerLogic.CreatePoolByModelId: modelId is nil or empty.")
+			return nil
+		end
+		
+		local container = self:Inner_CreateContainerEntity(parentEntity)
+		
+		if not isvalid(container) then
+			return nil
+		end
+		
+		local templateEntity = _SpawnService:SpawnByModelId(modelId, "PooledObjectTemplate", Vector3.zero, container)
+		
+		return self:Inner_AttachPool(container, templateEntity, options or ObjectPoolOption())
+	end
+
+	method ObjectPoolContainerComponent CreatePoolByEntity(Entity sourceEntity, Entity parentEntity, ObjectPoolOption options)
+		-- Creates a pool whose template is cloned from sourceEntity.
+		if not isvalid(sourceEntity) then
+			log_error("ObjectPoolManagerLogic.CreatePoolByEntity: Source entity is not valid.")
+			return nil
+		end
+		
+		local container = self:Inner_CreateContainerEntity(parentEntity)
+		
+		if not isvalid(container) then
+			return nil
+		end
+		
+		local templateEntity = _SpawnService:SpawnByEntity(sourceEntity, "PooledObjectTemplate", Vector3.zero, container)
+		
+		return self:Inner_AttachPool(container, templateEntity, options or ObjectPoolOption())
+	end
+
+	method ObjectPoolContainerComponent GetPool(string containerId)
+		-- Looks a live pool up by its container entity id.
+		-- A pool stays registered while it tears down, so hand out only one that is still usable.
+		---@type ObjectPoolContainerComponent
+		local pool = self.PoolContainers[containerId]
+
+		if not isvalid(pool) or pool.IsDestroying then
+			return nil
+		end
+
+		return pool
+	end
+
+	method boolean DestroyPool(ObjectPoolContainerComponent pool)
+		-- Destroys every pooled entity and the container, whether or not entities are in use.
+		if not isvalid(pool) then
+			log_error("ObjectPoolManagerLogic.DestroyPool: pool is not valid.")
+			return false
+		end
+		
+		if not isvalid(pool.TemplateEntity) then
+			log_error("ObjectPoolManagerLogic.DestroyPool: Pool was not created on this side.")
+			return false
+		end
+		
+		local containerEntity = pool.Entity
+		
+		pool:Inner_DestroyPool()
+		
+		self.PoolContainers[containerEntity.Id] = nil
+		containerEntity:Destroy()
+		
+		return true
+	end
+
+	method Entity Inner_CreateContainerEntity(Entity parentEntity)
+		-- Spawns the container entity that owns one pool, matching the parent's UI or world kind.
+		if not isvalid(parentEntity) then
+			log_error("ObjectPoolManagerLogic: parentEntity is required.")
+			return nil
+		end
+		
+		self.ContainerSerial = self.ContainerSerial + 1
+		
+		local containerName = "PoolContainer_" .. self.ContainerSerial
+		
+		if isvalid(parentEntity.UITransformComponent) then
+			return _SpawnService:SpawnByModelId("model://uiempty", containerName, Vector3.zero, parentEntity)
+		end
+		
+		return _SpawnService:SpawnByModelId("model://mapempty", containerName, Vector3.zero, parentEntity)
+	end
+
+	method ObjectPoolContainerComponent Inner_AttachPool(Entity container, Entity templateEntity, ObjectPoolOption option)
+		-- Attaches the pool component to the container and pre-warms it from the template.
+		if not isvalid(templateEntity) then
+			log_error("ObjectPoolManagerLogic: Failed to spawn the template entity. Check that the model / source entity is valid.")
+			container:Destroy()
+			return nil
+		end
+		
+		---@type ObjectPoolContainerComponent
+		local component = container:AddComponent(ObjectPoolContainerComponent)
+		
+		if not component:Inner_InitPool(templateEntity, option) then
+			container:Destroy()
+			return nil
+		end
+		
+		self.PoolContainers[container.Id] = component
+		
+		return component
+	end
+
+	method void Inner_UnregisterPool(string containerId)
+		-- Drops a pool that was destroyed through its own container rather than DestroyPool.
+		self.PoolContainers[containerId] = nil
+	end
+
+	method void OnEndPlay()
+		-- Releases the entities of every pool still tracked when the world session ends.
+		---@type table<string, ObjectPoolContainerComponent>
+		local poolContainers = self.PoolContainers
+
+		for id, pool in pairs(poolContainers) do
+			if isvalid(pool) then
+				pool:Inner_DestroyPool()
+			end
+		end
+		
+		self.PoolContainers = {}
+	end
+
+end
