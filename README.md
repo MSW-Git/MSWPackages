@@ -41,6 +41,8 @@ See the README file in each package for detailed usage information.
 | ui-resource-supersimple | A UI resource pack collected from Getting Over It Maker, providing UI models and sample screens. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/ui-resource-supersimple-package/ui-resource-supersimple.modpackage)| 1.0 |
 | example-stateset | Provides basic StateType entries, ConditionType entries, sample StateSet entries, and utility logic for samples. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/example-stateset-package/example-stateset.modpackage)| 1.0 |
 | example-behaviourtree-package | Provides basic nodes for building Behavior Trees. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/example-behaviourtree-package/example-behaviourTree.modpackage)| 1.0 |
+| objectpool-manager | Provides an object pool feature that lets you create entities in advance and reuse them. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/objectpool-manager-package/ObjectPoolManager.modpackage) | 1.0 |
+| custom-compositenode | Provides custom Composite Tree node samples. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/custom-composite-node-package/CustomCompositeNode.modpackage) | 1.0 |
 
 
 ## License
