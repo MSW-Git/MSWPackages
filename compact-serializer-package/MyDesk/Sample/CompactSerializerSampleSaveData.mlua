@@ -1,0 +1,80 @@
+@Struct
+script CompactSerializerSampleSaveData
+
+	property integer RunCount = 0
+
+	property Vector3 LastPosition = Vector3(0, 0, 0)
+
+	@Description("table<integer, string> - item name by slot number, with gaps between the slots (a sparse array).")
+	property table Inventory = nil
+
+	@Description("table<integer, integer> - level by slot id (integer keys).")
+	property table SlotLevels = nil
+
+	@Description("table - free-form flags; empty in this sample (an empty table).")
+	property table Flags = nil
+
+	@Description("table<integer, CompactSerializerSampleItem> - a list of structs.")
+	property table Items = nil
+
+	method table Serialize()
+		local items = {}
+		
+		---@type table<integer, CompactSerializerSampleItem>
+		local sourceItems = self.Items
+		
+		for i, item in ipairs(sourceItems) do
+			items[i] = item:Serialize()
+		end
+		
+		local position = self.LastPosition
+		
+		return {
+			RunCount = self.RunCount,
+			-- Engine values are not serialized as they are, so the position is stored as "x,y,z".
+			-- 9 significant digits restore a 32-bit float field exactly.
+			LastPosition = string.format("%.9g,%.9g,%.9g", position.x, position.y, position.z),
+			Inventory = self.Inventory,
+			SlotLevels = self.SlotLevels,
+			Flags = self.Flags,
+			Items = items,
+		}
+	end
+
+	method void Deserialize(table data)
+		self.RunCount = data.RunCount or 0
+		
+		local position = {}
+
+		if type(data.LastPosition) == "string" then
+			local index = 0
+
+			-- An unreadable part, such as "inf", stays nil in its own slot instead of shifting the rest.
+			for part in string.gmatch(data.LastPosition, "[^,]+") do
+				index = index + 1
+				position[index] = tonumber(part)
+			end
+		end
+
+		self.LastPosition = Vector3(position[1] or 0, position[2] or 0, position[3] or 0)
+		
+		self.Inventory = data.Inventory or {}
+		self.SlotLevels = data.SlotLevels or {}
+		self.Flags = data.Flags or {}
+		
+		local items = {}
+		
+		if type(data.Items) == "table" then
+			for _, itemData in ipairs(data.Items) do
+				if type(itemData) == "table" then
+					local item = CompactSerializerSampleItem()
+					item:Deserialize(itemData)
+					items[#items + 1] = item
+				end
+			end
+		end
+		
+		self.Items = items
+	end
+
+end

@@ -1,0 +1,181 @@
+@Logic
+script CompactSerializerSampleLogic extends Logic
+
+	@Description("true compresses the serialized string with Compress and restores it with Decompress.")
+	property boolean Compress = true
+
+	@Description("How many items the sample data holds. With only a few, the compressed string is longer than the uncompressed one.")
+	property integer ItemCount = 50
+
+	@HideFromInspector
+	@Description("CompactSerializerSampleSaveData - the sample data. Each run replaces it with the copy restored from the string, so a change carries over to the next run only if it survived the round trip.")
+	property any SaveData = nil
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		self.SaveData = self:CreateDefaultData()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Run()
+		---@type CompactSerializerSampleSaveData
+		local saveData = self.SaveData
+		
+		---@type table<integer, CompactSerializerSampleItem>
+		local items = saveData.Items
+		local itemCount = math.max(self.ItemCount, 1)
+		
+		while #items > itemCount do
+			table.remove(items)
+		end
+		
+		while #items < itemCount do
+			local index = #items + 1
+			local item = CompactSerializerSampleItem()
+			item.Id = 1000 + index
+			item.Count = index % 20 + 1
+			item.Level = index % 5
+			items[index] = item
+		end
+		
+		-- Changes values so the next run shows they survived the round trip.
+		saveData.RunCount = saveData.RunCount + 1
+		saveData.LastPosition = _UserService.LocalPlayer.TransformComponent.WorldPosition
+		
+		local firstItem = items[1]
+		firstItem.Level = firstItem.Level + 1
+		
+		local utility = _CompactSerializerLogic
+		local raw = utility:Serialize(saveData:Serialize())
+		
+		if raw == nil then
+			return
+		end
+		
+		local stored = raw
+		
+		if self.Compress then
+			stored = utility:Compress(raw)
+			log(string.format("CompactSerializerSampleLogic: %d bytes compressed (%d bytes uncompressed).", #stored, #raw))
+		else
+			log(string.format("CompactSerializerSampleLogic: %d bytes uncompressed: %s", #raw, raw))
+		end
+		
+		local text = stored
+		
+		if self.Compress then
+			text = utility:Decompress(stored)
+		end
+		
+		local restored = utility:Deserialize(text)
+		
+		if type(restored) ~= "table" then
+			return
+		end
+		
+		local restoredData = CompactSerializerSampleSaveData()
+		restoredData:Deserialize(restored)
+		self.SaveData = restoredData
+		
+		self:LogSaveData()
+	end
+
+	@ExecSpace("ClientOnly")
+	method CompactSerializerSampleSaveData CreateDefaultData()
+		-- Covers every shape JSONEncode cannot handle on its own.
+		local data = CompactSerializerSampleSaveData()
+		data.RunCount = 0
+		data.LastPosition = Vector3(0, 0, 0)
+		data.Inventory = { [1] = "sword", [5] = "potion" }
+		data.SlotLevels = { [101] = 3, [205] = 7 }
+		data.Flags = {}
+		
+		-- Run fills the items up to ItemCount.
+		data.Items = {}
+		
+		return data
+	end
+
+	@ExecSpace("ClientOnly")
+	method void LogSaveData()
+		---@type CompactSerializerSampleSaveData
+		local data = self.SaveData
+		
+		---@type table<integer, CompactSerializerSampleItem>
+		local items = data.Items
+		local firstItem = items[1]
+		local lastItem = items[#items]
+		
+		log(string.format("CompactSerializerSampleLogic: Restored RunCount=%s (%s) LastPosition=%s Inventory[5]=%s SlotLevels[205]=%s Flags=%s",
+			tostring(data.RunCount), tostring(math.type(data.RunCount)),
+			tostring(data.LastPosition),
+			tostring(data.Inventory[5]),
+			tostring(data.SlotLevels[205]),
+			type(data.Flags)))
+		
+		log(string.format("CompactSerializerSampleLogic: Restored %d items. First: Id=%d Count=%d Level=%d. Last: Id=%d Count=%d Level=%d.",
+			#items, firstItem.Id, firstItem.Count, firstItem.Level, lastItem.Id, lastItem.Count, lastItem.Level))
+	end
+
+	@ExecSpace("ClientOnly")
+	method table CreateTableData()
+		-- Edit this table to see how other data is written.
+		return {
+			player = { hp = 1, mp = 2 },
+			settings = { volume = 3, lang = "ko" },
+		}
+	end
+
+	@ExecSpace("ClientOnly")
+	method void RunTable()
+		local data = self:CreateTableData()
+		local raw = _CompactSerializerLogic:Serialize(data)
+		
+		if raw == nil then
+			return
+		end
+		
+		local compressed = _CompactSerializerLogic:Compress(raw)
+		
+		-- JSONEncode raises on a value it cannot write, such as an empty table or an engine value.
+		local isJsonWritable, json = pcall(function()
+			return _HttpService:JSONEncode({ data })
+		end)
+		local jsonLength = isJsonWritable and (#json .. " bytes") or "cannot write this data"
+		
+		log(string.format("CompactSerializerSampleLogic: Table -> Serialize %d bytes, Compress %d bytes, JSONEncode %s: %s", #raw, #compressed, jsonLength, raw))
+		log("CompactSerializerSampleLogic: Table restored equal to the original: " .. tostring(self:IsSameValue(data, _CompactSerializerLogic:Deserialize(_CompactSerializerLogic:Decompress(compressed)))))
+	end
+
+	@ExecSpace("ClientOnly")
+	method boolean IsSameValue(any a, any b)
+		if type(a) ~= "table" or type(b) ~= "table" then
+			return a == b and math.type(a) == math.type(b)
+		end
+		
+		for key, value in pairs(a) do
+			if not self:IsSameValue(value, b[key]) then
+				return false
+			end
+		end
+		
+		for key, _ in pairs(b) do
+			if a[key] == nil then
+				return false
+			end
+		end
+		
+		return true
+	end
+
+	@ExecSpace("ClientOnly")
+	@EventSender("Service", "InputService")
+	handler HandleKeyDownEvent(KeyDownEvent event)
+		if event.key == KeyboardKey.F2 then
+			self:Run()
+		elseif event.key == KeyboardKey.F3 then
+			self:RunTable()
+		end
+	end
+
+end

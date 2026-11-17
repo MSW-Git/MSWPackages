@@ -1,0 +1,13 @@
+@Struct
+script CompactSerializerColumnLayout
+
+	@Description("The keys shared by the rows, one per column.")
+	property table Keys = nil
+
+	@Description("The key of each row in the table that held the rows.")
+	property table RowKeys = nil
+
+	@Description("Columns[k][i] is row i's cell for Keys[k], or nil when the row lacks the key.")
+	property table Columns = nil
+
+end

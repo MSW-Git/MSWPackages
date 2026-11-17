@@ -1,0 +1,184 @@
+@Logic
+script CompactSerializerCompressor extends Logic
+
+	@HideFromInspector
+	@Description("Format constant: the dictionary starts with one entry per byte value. Changing it makes existing strings unreadable.")
+	property integer ByteValueCount = 256
+
+	@HideFromInspector
+	@Description("Format constant: the dictionary stops growing at this many entries. Changing it makes existing strings unreadable.")
+	property integer MaxDictionarySize = 65536
+
+	@HideFromInspector
+	@Description("Format constant: bits carried by one output character. Changing it makes existing strings unreadable.")
+	property integer BitsPerChar = 6
+
+	@HideFromInspector
+	@Description("Format constant: a code is never narrower than one byte. Changing it makes existing strings unreadable.")
+	property integer MinCodeWidth = 8
+
+	@HideFromInspector
+	@Description("Format constant: URL-safe base64, one character per BitsPerChar-bit value. Changing it makes existing strings unreadable.")
+	property string Base64UrlChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+
+	method string Compress(string input)
+		-- Internal implementation. Use CompactSerializerLogic:Compress.
+		local chars = self.Base64UrlChars
+		local byteValueCount = self.ByteValueCount
+		local maxDictionarySize = self.MaxDictionarySize
+		local bitsPerChar = self.BitsPerChar
+		local charMask = (1 << bitsPerChar) - 1
+		local dictionary = {}
+		
+		for i = 0, byteValueCount - 1 do
+			dictionary[string.char(i)] = i
+		end
+		
+		local dictionarySize = byteValueCount
+		local output = {}
+		local buffer = 0
+		local bits = 0
+		local codeCount = 0
+		
+		local function emit(code)
+			codeCount = codeCount + 1
+		
+			-- The dictionary holds byteValueCount + (n - 1) entries before the n-th code. Decompress counts a code after reading it, so it has no - 1.
+			local width = self:GetCodeWidth(math.min(byteValueCount + codeCount - 1, maxDictionarySize))
+		
+			buffer = (buffer << width) | code
+			bits = bits + width
+		
+			while bits >= bitsPerChar do
+				bits = bits - bitsPerChar
+		
+				local value = (buffer >> bits) & charMask
+				output[#output + 1] = string.sub(chars, value + 1, value + 1)
+			end
+		
+			-- Drops the emitted bits so buffer stays within 64 bits.
+			buffer = buffer & ((1 << bits) - 1)
+		end
+		
+		local current = ""
+		
+		for i = 1, #input do
+			local char = string.sub(input, i, i)
+			local extended = current .. char
+		
+			if dictionary[extended] ~= nil then
+				current = extended
+			else
+				emit(dictionary[current])
+		
+				if dictionarySize < maxDictionarySize then
+					dictionary[extended] = dictionarySize
+					dictionarySize = dictionarySize + 1
+				end
+		
+				current = char
+			end
+		end
+		
+		if current ~= "" then
+			emit(dictionary[current])
+		end
+		
+		if bits > 0 then
+			local value = (buffer << (bitsPerChar - bits)) & charMask
+			output[#output + 1] = string.sub(chars, value + 1, value + 1)
+		end
+		
+		return table.concat(output)
+	end
+
+	method string Decompress(string input)
+		local chars = self.Base64UrlChars
+		local byteValueCount = self.ByteValueCount
+		local maxDictionarySize = self.MaxDictionarySize
+		local bitsPerChar = self.BitsPerChar
+		local lookup = {}
+		
+		for i = 1, #chars do
+			lookup[string.sub(chars, i, i)] = i - 1
+		end
+		
+		local dictionary = {}
+		
+		for i = 0, byteValueCount - 1 do
+			dictionary[i] = string.char(i)
+		end
+		
+		local dictionarySize = byteValueCount
+		local output = {}
+		local buffer = 0
+		local bits = 0
+		local codeCount = 0
+		local position = 1
+		local previous = nil
+		
+		while true do
+			-- Must be the same size as emit() in Compress.
+			local width = self:GetCodeWidth(math.min(byteValueCount + codeCount, maxDictionarySize))
+		
+			while bits < width and position <= #input do
+				local value = lookup[string.sub(input, position, position)]
+		
+				if value == nil then
+					error("compressed data contains a character that is not URL-safe base64 at position " .. position .. ".", 0)
+					return nil
+				end
+		
+				buffer = (buffer << bitsPerChar) | value
+				bits = bits + bitsPerChar
+				position = position + 1
+			end
+		
+			-- Fewer bits left than one code are the padding of the last character.
+			if bits < width then
+				break
+			end
+		
+			bits = bits - width
+		
+			local code = (buffer >> bits) & ((1 << width) - 1)
+			buffer = buffer & ((1 << bits) - 1)
+			codeCount = codeCount + 1
+		
+			-- The only code missing from the dictionary is the entry being added now: previous + its first character.
+			local entry = dictionary[code]
+		
+			if entry == nil then
+				if previous == nil or code ~= dictionarySize then
+					error("compressed data refers to a dictionary entry that does not exist.", 0)
+					return nil
+				end
+		
+				entry = previous .. string.sub(previous, 1, 1)
+			end
+		
+			output[#output + 1] = entry
+		
+			-- The first code has no previous string to extend, so it adds no entry.
+			if previous ~= nil and dictionarySize < maxDictionarySize then
+				dictionary[dictionarySize] = previous .. string.sub(entry, 1, 1)
+				dictionarySize = dictionarySize + 1
+			end
+		
+			previous = entry
+		end
+		
+		return table.concat(output)
+	end
+
+	method integer GetCodeWidth(integer dictionarySize)
+		local width = self.MinCodeWidth
+		
+		while (1 << width) < dictionarySize do
+			width = width + 1
+		end
+		
+		return width
+	end
+
+end

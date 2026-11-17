@@ -1,0 +1,20 @@
+@Struct
+script CompactSerializerSampleItem
+
+	property integer Id = 0
+
+	property integer Count = 0
+
+	property integer Level = 0
+
+	method table Serialize()
+		return { Id = self.Id, Count = self.Count, Level = self.Level }
+	end
+
+	method void Deserialize(table data)
+		self.Id = data.Id or 0
+		self.Count = data.Count or 0
+		self.Level = data.Level or 0
+	end
+
+end

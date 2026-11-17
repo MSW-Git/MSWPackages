@@ -1,0 +1,39 @@
+@Logic
+script CompactSerializerLogic extends Logic
+
+	method string Serialize(any value)
+		return _CompactSerializerWriter:Write(value)
+	end
+
+	method any Deserialize(string data)
+		return _CompactSerializerReader:Read(data)
+	end
+
+	method string Compress(string text)
+		if type(text) ~= "string" then
+			log_warning("CompactSerializerLogic.Compress: text must be a string.")
+			return nil
+		end
+		
+		return _CompactSerializerCompressor:Compress(text)
+	end
+
+	method string Decompress(string data)
+		local ok, result = pcall(function()
+			if type(data) ~= "string" then
+				error("data must be a string.", 0)
+				return nil
+			end
+		
+			return _CompactSerializerCompressor:Decompress(data)
+		end)
+		
+		if not ok then
+			log_warning("CompactSerializerLogic.Decompress: " .. tostring(result))
+			return nil
+		end
+		
+		return result
+	end
+
+end

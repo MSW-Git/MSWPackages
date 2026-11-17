@@ -1,0 +1,273 @@
+@Logic
+script CompactSerializerWriter extends Logic
+
+	@HideFromInspector
+	@Description("Tables on the path from the root to the value being written; meeting one again is a circular reference. Empty between calls.")
+	property table Visiting = {}
+
+	method string Write(any value)
+		-- Internal implementation. Use CompactSerializerLogic:Serialize.
+		
+		local ok, result = pcall(function()
+			local encoded = nil
+		
+			if value ~= nil then
+				encoded = self:Encode(value, "root", 0)
+		
+				-- Every encoding step returns nil when it fails, so a nil here means the value could not be written.
+				if encoded == nil then
+					return nil
+				end
+			end
+		
+			return _CompactSerializerCodec:EncodeEnvelope(encoded)
+		end)
+		
+		-- Drops the path a failed walk leaves behind, so the caller's tables are not kept alive.
+		self.Visiting = {}
+		
+		if not ok then
+			log_warning("CompactSerializerLogic.Serialize: " .. tostring(result))
+			return nil
+		end
+		
+		if result == nil then
+			log_warning("CompactSerializerLogic.Serialize: the value could not be serialized.")
+			return nil
+		end
+		
+		return result
+	end
+
+	method any Encode(any item, string path, integer depth)
+		if type(item) ~= "table" then
+			return _CompactSerializerCodec:EncodeLeaf(item, path)
+		end
+		
+		if getmetatable(item) ~= nil then
+			error(path .. ": not supported. Only nil, boolean, number, string and plain tables can be serialized; convert other values, such as engine values or @Struct, first.", 0)
+			return nil
+		end
+		
+		local visiting = self.Visiting
+		
+		if visiting[item] then
+			error(path .. ": circular reference.", 0)
+			return nil
+		end
+		
+		visiting[item] = true
+		
+		local encoded = self:EncodeTable(item, path, depth)
+		
+		visiting[item] = nil
+		
+		return encoded
+	end
+
+	method any EncodeTable(table tbl, string path, integer depth)
+		-- Keys that are all positive integers with the largest equal to the count can only be 1..n with no gaps.
+		local count = 0
+		local maxKey = 0
+		local isArray = true
+		
+		for key, _ in pairs(tbl) do
+			count = count + 1
+		
+			if math.type(key) ~= "integer" or key < 1 then
+				isArray = false
+			elseif key > maxKey then
+				maxKey = key
+			end
+		end
+		
+		if count == 0 then
+			return _CompactSerializerCodec:EncodeLeaf(tbl, path)
+		end
+		
+		-- An empty table is written as a single value, so only a table with entries adds a nesting level.
+		if depth >= _CompactSerializerCodec.MaxDepth then
+			error(path .. ": nested deeper than " .. _CompactSerializerCodec.MaxDepth .. " levels.", 0)
+			return nil
+		end
+		
+		isArray = isArray and maxKey == count
+		
+		---@type table
+		local keys = nil
+		
+		-- A column layout puts its cells and dictionaries two levels below the table, so it is used only when that depth fits.
+		if count >= 2 and depth + 2 < _CompactSerializerCodec.MaxDepth then
+			keys = self:GetSharedKeys(tbl, isArray)
+		end
+		
+		if keys ~= nil then
+			return self:EncodeRowsAsColumns(tbl, count, isArray, keys, path, depth)
+		elseif isArray then
+			local array = {}
+		
+			for i = 1, count do
+				local encoded = self:Encode(tbl[i], path .. "." .. i, depth + 1)
+		
+				if encoded == nil then
+					return nil
+				end
+		
+				array[i] = encoded
+			end
+		
+			return array
+		else
+			local object = {}
+		
+			for key, item in pairs(tbl) do
+				local keyPath = path .. "." .. tostring(key)
+		
+				local encodedKey = _CompactSerializerCodec:EncodeKey(key, keyPath)
+		
+				if encodedKey == nil then
+					return nil
+				end
+		
+				local encoded = self:Encode(item, keyPath, depth + 1)
+		
+				if encoded == nil then
+					return nil
+				end
+		
+				object[encodedKey] = encoded
+			end
+		
+			return object
+		end
+	end
+
+	method table GetSharedKeys(table tbl, boolean isArray)
+		-- nil means the column layout cannot be used or would not be shorter, so the table is written as a plain array or object.
+		local keys = {}
+		local keySet = {}
+		local rowCount = 0
+		local cellCount = 0
+		
+		-- Lengths of everything except the values, which are written the same either way.
+		local plainLength = 1
+		local layoutLength = 8
+		
+		for rowKey, row in pairs(tbl) do
+			if type(row) ~= "table" or getmetatable(row) ~= nil then
+				return nil
+			end
+		
+			local presentCount = 0
+		
+			for key, _ in pairs(row) do
+				if type(key) ~= "string" then
+					return nil
+				end
+		
+				if not keySet[key] then
+					keySet[key] = true
+					keys[#keys + 1] = key
+					layoutLength = layoutLength + #key + 3
+				end
+		
+				presentCount = presentCount + 1
+				plainLength = plainLength + #key + 4
+			end
+		
+			rowCount = rowCount + 1
+			cellCount = cellCount + presentCount
+		
+			-- A row without keys is written as "~e" instead of braces.
+			plainLength = plainLength + ((presentCount == 0) and 5 or 2)
+		
+			if not isArray then
+				local isStringKey = type(rowKey) == "string"
+				local rowKeyLength = #tostring(rowKey)
+		
+				plainLength = plainLength + rowKeyLength + (isStringKey and 3 or 4)
+				layoutLength = layoutLength + rowKeyLength + (isStringKey and 2 or 0)
+			end
+		end
+		
+		if #keys == 0 then
+			return nil
+		end
+		
+		-- Each column costs its header and separators, and each cell a row lacks costs the "~" filler.
+		layoutLength = layoutLength + #keys * (rowCount + 6) + 3 * (#keys * rowCount - cellCount)
+		
+		if not isArray then
+			layoutLength = layoutLength + rowCount + 6
+		end
+		
+		if layoutLength >= plainLength then
+			return nil
+		end
+		
+		return keys
+	end
+
+	method table EncodeRowsAsColumns(table tbl, integer count, boolean isArray, table keys, string path, integer depth)
+		-- Depth counts as if the rows were walked one by one (row +1, cell +2).
+		local cellDepth = depth + 2
+		
+		local rows = {}
+		local rowKeys = {}
+		local rowPaths = {}
+		
+		if isArray then
+			for i = 1, count do
+				rows[i] = tbl[i]
+				rowKeys[i] = i
+				rowPaths[i] = path .. "." .. i
+			end
+		else
+			for key, row in pairs(tbl) do
+				local rowPath = path .. "." .. tostring(key)
+		
+				-- Checked before any cell is written, so an unsupported key fails before the rows are encoded.
+				if not _CompactSerializerCodec:CheckKey(key, rowPath) then
+					return nil
+				end
+		
+				rows[#rows + 1] = row
+				rowKeys[#rowKeys + 1] = key
+				rowPaths[#rowPaths + 1] = rowPath
+			end
+		end
+		
+		local visiting = self.Visiting
+		local columns = {}
+		
+		for k, key in ipairs(keys) do
+			local cells = {}
+		
+			for i, row in ipairs(rows) do
+				local cell = row[key]
+		
+				if cell ~= nil then
+					-- Only this row is on the path while its cell is written, so only a row met again from its own cell is circular (a repeated or shared row is not).
+					if visiting[row] then
+						error(rowPaths[i] .. ": circular reference.", 0)
+						return nil
+					end
+		
+					visiting[row] = true
+					cells[i] = self:Encode(cell, rowPaths[i] .. "." .. key, cellDepth)
+					visiting[row] = nil
+		
+					-- A missing cell is written as "~", so a failed one must stop here instead of being taken for missing.
+					if cells[i] == nil then
+						return nil
+					end
+				end
+			end
+		
+			columns[k] = cells
+		end
+		
+		return _CompactSerializerCodec:EncodeColumnLayout(isArray, keys, rowKeys, columns, #rows, path)
+	end
+
+end

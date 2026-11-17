@@ -1,0 +1,97 @@
+@Logic
+script CompactSerializerReader extends Logic
+
+	method any Read(string data)
+		-- Internal implementation. Use CompactSerializerLogic:Deserialize.
+		-- Data that Write cannot have produced is not checked piece by piece; the error it raises below is reported as the warning.
+		local ok, restored = pcall(function()
+			if type(data) ~= "string" or data == "" then
+				error("data must be a non-empty string.", 0)
+				return nil
+			end
+		
+			-- A serialized string always starts with "[", and a compressed one never does.
+			if string.sub(data, 1, 1) ~= "[" then
+				error("data is not a serialized string. If it was compressed, call Decompress first.", 0)
+				return nil
+			end
+		
+			local encoded = _CompactSerializerCodec:DecodeEnvelope(data)
+		
+			if encoded ~= nil then
+				return self:Decode(encoded, "root", 0)
+			end
+		
+			return nil
+		end)
+		
+		if not ok then
+			log_warning("CompactSerializerLogic.Deserialize: " .. tostring(restored))
+			return nil
+		end
+		
+		return restored
+	end
+
+	method any Decode(any encoded, string path, integer depth)
+		if type(encoded) ~= "table" then
+			return _CompactSerializerCodec:DecodeLeaf(encoded)
+		end
+		
+		if depth >= _CompactSerializerCodec.MaxDepth then
+			error(path .. ": nested deeper than " .. _CompactSerializerCodec.MaxDepth .. " levels.", 0)
+			return nil
+		end
+		
+		local layout = _CompactSerializerCodec:DecodeColumnLayout(encoded, path)
+		
+		if layout ~= nil then
+			return self:DecodeRowsFromColumns(layout, path, depth)
+		end
+		
+		local restored = {}
+		
+		-- JSON arrays come back with integer keys and JSON objects with string keys.
+		for encodedKey, item in pairs(encoded) do
+			local key = encodedKey
+		
+			if type(encodedKey) == "string" then
+				key = _CompactSerializerCodec:DecodeKey(encodedKey)
+			end
+		
+			restored[key] = self:Decode(item, path .. "." .. tostring(key), depth + 1)
+		end
+		
+		return restored
+	end
+
+	method table DecodeRowsFromColumns(CompactSerializerColumnLayout layout, string path, integer depth)
+		local rowDepth = depth + 1
+		local cellDepth = depth + 2
+		
+		-- Rows are built here without going through Decode, so their depth is checked here.
+		if rowDepth >= _CompactSerializerCodec.MaxDepth then
+			error(path .. ": nested deeper than " .. _CompactSerializerCodec.MaxDepth .. " levels.", 0)
+			return nil
+		end
+		
+		local rows = {}
+		
+		for i, rowKey in ipairs(layout.RowKeys) do
+			local row = {}
+		
+			for k, key in ipairs(layout.Keys) do
+				local cell = layout.Columns[k][i]
+		
+				if cell ~= nil then
+					row[key] = self:Decode(cell, path .. "." .. tostring(rowKey) .. "." .. key, cellDepth)
+				end
+			end
+		
+			rows[rowKey] = row
+		end
+		
+		return rows
+	end
+
+end

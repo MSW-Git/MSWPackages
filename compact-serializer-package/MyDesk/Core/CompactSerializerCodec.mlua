@@ -1,0 +1,372 @@
+@Logic
+script CompactSerializerCodec extends Logic
+
+	@HideFromInspector
+	@Description("Format constant: tables nested deeper than this are refused, when writing and when reading. JSONDecode reads at most 64 nesting levels and the serialized string wraps the value in one more array, so 63 is the deepest table that can be read back. Lowering it makes existing strings nested deeper than the new value unreadable.")
+	property integer MaxDepth = 63
+
+	method string EncodeEnvelope(any encoded)
+		-- Internal implementation. Every rule of the serialized string lives in this script; Writer and Reader only walk the value.
+		if encoded == nil then
+			return "[]"
+		end
+		
+		return _HttpService:JSONEncode({ encoded })
+	end
+
+	method any DecodeEnvelope(string text)
+		local ok, envelope = pcall(function()
+			return _HttpService:JSONDecode(text)
+		end)
+		
+		if not ok or type(envelope) ~= "table" then
+			error("the data is not valid JSON written by Serialize.", 0)
+			return nil
+		end
+		
+		return envelope[1]
+	end
+
+	method any EncodeLeaf(any value, string path)
+		-- A leaf is a value Writer does not walk into: scalars and the empty table.
+		local valueType = type(value)
+		
+		if valueType == "table" then
+			if next(value) ~= nil then
+				error(path .. ": only an empty table can be encoded as a single value.", 0)
+				return nil
+			end
+		
+			return "~e"
+		elseif valueType == "boolean" then
+			return value
+		elseif valueType == "string" then
+			if string.sub(value, 1, 1) == "~" then
+				return "~" .. value
+			end
+		
+			return value
+		elseif valueType == "number" then
+			-- NaN is most likely a calculation bug, so it is refused.
+			if value ~= value then
+				error(path .. ": NaN cannot be serialized.", 0)
+				return nil
+			elseif value == math.huge then
+				return "~+"
+			elseif value == -math.huge then
+				return "~-"
+			end
+		
+			return value
+		end
+		
+		error(path .. ": not supported. Only nil, boolean, number, string and plain tables can be serialized; convert other values, such as engine values or @Struct, first.", 0)
+		return nil
+	end
+
+	method any DecodeLeaf(any encoded)
+		if type(encoded) ~= "string" or string.sub(encoded, 1, 1) ~= "~" then
+			return encoded
+		end
+		
+		if string.sub(encoded, 2, 2) == "~" then
+			return string.sub(encoded, 2)
+		elseif encoded == "~e" then
+			return {}
+		elseif encoded == "~+" then
+			return math.huge
+		elseif encoded == "~-" then
+			return -math.huge
+		end
+		
+		error("unknown tag '" .. encoded .. "'.", 0)
+		return nil
+	end
+
+	method boolean CheckKey(any key, string path)
+		local keyType = type(key)
+
+		if keyType ~= "string" and keyType ~= "number" and keyType ~= "boolean" then
+			error(path .. ": key type '" .. keyType .. "' cannot be serialized.", 0)
+			return false
+		end
+
+		return true
+	end
+
+	method string EncodeKey(any key, string path)
+		if not self:CheckKey(key, path) then
+			return nil
+		end
+
+		local keyType = type(key)
+
+		if keyType == "string" then
+			if string.sub(key, 1, 1) == "~" then
+				return "~" .. key
+			end
+		
+			return key
+		elseif keyType == "boolean" then
+			return key and "~t" or "~f"
+		elseif keyType == "number" then
+			if key == math.huge then
+				return "~+"
+			elseif key == -math.huge then
+				return "~-"
+			end
+		
+			-- 17 significant digits restore a float exactly.
+			return "~" .. (math.type(key) == "integer" and key or string.format("%.17g", key))
+		end
+
+		return nil
+	end
+
+	method any DecodeKey(string encodedKey)
+		if string.sub(encodedKey, 1, 1) ~= "~" then
+			return encodedKey
+		end
+		
+		local rest = string.sub(encodedKey, 2)
+		
+		if string.sub(rest, 1, 1) == "~" then
+			return rest
+		elseif rest == "t" then
+			return true
+		elseif rest == "f" then
+			return false
+		elseif rest == "+" then
+			return math.huge
+		elseif rest == "-" then
+			return -math.huge
+		end
+		
+		return tonumber(rest)
+	end
+
+	method table EncodeColumnLayout(boolean isArray, table keys, table rowKeys, table columns, integer rowCount, string path)
+		-- columns[k][i] is row i's already-encoded cell for keys[k], or nil when the row lacks the key.
+		local encodedKeys = {}
+		
+		for k, key in ipairs(keys) do
+			encodedKeys[k] = self:EncodeKey(key, path)
+
+			if encodedKeys[k] == nil then
+				return nil
+			end
+		end
+		
+		local layout = { isArray and "~r" or "~d", encodedKeys }
+		
+		if not isArray then
+			local encodedRowKeys = {}
+		
+			-- Row keys are written like values, so numbers and booleans keep their type.
+			for i = 1, rowCount do
+				encodedRowKeys[i] = self:EncodeLeaf(rowKeys[i], path .. "." .. tostring(rowKeys[i]))
+
+				if encodedRowKeys[i] == nil then
+					return nil
+				end
+			end
+		
+			layout[3] = self:EncodeColumn(encodedRowKeys)
+		end
+		
+		for _, cells in ipairs(columns) do
+			for i = 1, rowCount do
+				if cells[i] == nil then
+					cells[i] = "~"
+				end
+			end
+		
+			layout[#layout + 1] = self:EncodeColumn(cells)
+		end
+		
+		return layout
+	end
+
+	method CompactSerializerColumnLayout DecodeColumnLayout(table encoded, string path)
+		-- A user string starting with "~" is escaped to "~~", so a leading "~r" / "~d" can only be the layout tag.
+		local tag = encoded[1]
+		
+		if tag ~= "~r" and tag ~= "~d" then
+			return nil
+		end
+		
+		local keys = {}
+		
+		for k, encodedKey in ipairs(encoded[2]) do
+			keys[k] = self:DecodeKey(encodedKey)
+		
+			-- A nil key would cut the key list short and silently drop the columns after it.
+			if keys[k] == nil then
+				error(path .. ": unknown column key '" .. tostring(encodedKey) .. "'.", 0)
+				return nil
+			end
+		end
+		
+		local rowKeys = {}
+		local firstColumn = 3
+		local rowCount = nil
+		
+		if tag == "~d" then
+			-- Row keys were written with EncodeLeaf, so they come back through DecodeLeaf.
+			for i, encodedRowKey in ipairs(self:DecodeColumn(encoded[3], path)) do
+				rowKeys[i] = self:DecodeLeaf(encodedRowKey)
+			end
+		
+			firstColumn = 4
+			rowCount = #rowKeys
+		end
+		
+		if #encoded ~= firstColumn - 1 + #keys then
+			error(path .. ": column layout has " .. (#encoded - firstColumn + 1) .. " columns for " .. #keys .. " keys.", 0)
+			return nil
+		end
+		
+		local columns = {}
+		
+		for k = 1, #keys do
+			local cells = self:DecodeColumn(encoded[firstColumn + k - 1], path)
+		
+			if rowCount == nil then
+				rowCount = #cells
+		
+				for i = 1, rowCount do
+					rowKeys[i] = i
+				end
+			elseif #cells ~= rowCount then
+				error(path .. ": column '" .. tostring(keys[k]) .. "' has " .. #cells .. " rows, expected " .. rowCount .. ".", 0)
+				return nil
+			end
+		
+			for i = 1, rowCount do
+				if cells[i] == "~" then
+					cells[i] = nil
+				end
+			end
+		
+			columns[k] = cells
+		end
+		
+		local layout = CompactSerializerColumnLayout()
+		layout.Keys = keys
+		layout.RowKeys = rowKeys
+		layout.Columns = columns
+		
+		return layout
+	end
+
+	method table EncodeColumn(table cells)
+		local plain = { "p" }
+		local plainLength = 0
+		local allScalar = true
+		local allIntegers = true
+		
+		for i, cell in ipairs(cells) do
+			plain[i + 1] = cell
+		
+			if type(cell) == "table" then
+				allScalar = false
+			else
+				plainLength = plainLength + self:EstimateTextLength(cell) + 1
+				allIntegers = allIntegers and math.type(cell) == "integer"
+			end
+		end
+		
+		if not allScalar then
+			return plain
+		end
+		
+		local best = plain
+		local bestLength = plainLength
+		
+		if allIntegers then
+			local deltas = { "d", cells[1] }
+			local length = self:EstimateTextLength(cells[1]) + 1
+		
+			for i = 2, #cells do
+				local delta = cells[i] - cells[i - 1]
+		
+				deltas[i + 1] = delta
+				length = length + self:EstimateTextLength(delta) + 1
+			end
+		
+			if length < bestLength then
+				best = deltas
+				bestLength = length
+			end
+		end
+		
+		-- 1 and 1.0 are the same Lua table key, so floats get their own lookup.
+		local dictionary = {}
+		local indexed = { "y", dictionary }
+		local integerIndex = {}
+		local floatIndex = {}
+		-- 2 is for the brackets around the dictionary array.
+		local length = 2
+		
+		for i, cell in ipairs(cells) do
+			local lookup = (math.type(cell) == "float") and floatIndex or integerIndex
+			local index = lookup[cell]
+		
+			if index == nil then
+				dictionary[#dictionary + 1] = cell
+				index = #dictionary - 1
+				lookup[cell] = index
+				length = length + self:EstimateTextLength(cell) + 1
+			end
+		
+			indexed[i + 2] = index
+			length = length + #tostring(index) + 1
+		end
+		
+		-- A dictionary gains nothing when no value repeats.
+		if #dictionary < #cells and length < bestLength then
+			best = indexed
+		end
+		
+		return best
+	end
+
+	method integer EstimateTextLength(any encoded)
+		local encodedType = type(encoded)
+		
+		if encodedType == "string" then
+			return #encoded + 2
+		elseif encodedType == "boolean" then
+			return encoded and 4 or 5
+		end
+		
+		return #tostring(encoded)
+	end
+
+	method table DecodeColumn(any column, string path)
+		local tag = column[1]
+		local cells = {}
+		
+		if tag == "p" then
+			for i = 2, #column do
+				cells[i - 1] = column[i]
+			end
+		elseif tag == "d" then
+			for i = 2, #column do
+				cells[i - 1] = (i == 2) and column[i] or (cells[i - 2] + column[i])
+			end
+		elseif tag == "y" then
+			local dictionary = column[2]
+		
+			for i = 3, #column do
+				cells[i - 2] = dictionary[column[i] + 1]
+			end
+		else
+			error(path .. ": unknown column encoding '" .. tostring(tag) .. "'.", 0)
+			return nil
+		end
+		
+		return cells
+	end
+
+end
