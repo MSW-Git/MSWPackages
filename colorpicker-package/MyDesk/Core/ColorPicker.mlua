@@ -1,0 +1,492 @@
+@Component
+script ColorPicker extends Component
+
+	property PixelGUIRendererComponent SVPad = nil
+
+	property Entity SVPointer = nil
+
+	property PixelGUIRendererComponent HueSlider = nil
+
+	property Entity HuePointer = nil
+
+	property PixelGUIRendererComponent CurrentColorPreview = nil
+
+	property PixelGUIRendererComponent InitialColorPreview = nil
+
+	property TextGUIRendererInputComponent HueInput = nil
+
+	property TextGUIRendererInputComponent SaturationInput = nil
+
+	property TextGUIRendererInputComponent ValueInput = nil
+
+	property TextGUIRendererInputComponent RedInput = nil
+
+	property TextGUIRendererInputComponent GreenInput = nil
+
+	property TextGUIRendererInputComponent BlueInput = nil
+
+	property TextGUIRendererInputComponent AlphaInput = nil
+
+	property TextGUIRendererInputComponent HexInput = nil
+
+	property Entity OKButton = nil
+
+	property Entity CancelButton = nil
+
+	@Description("Current color. Created in OnBeginPlay.")
+	property ColorHSV CurrentHSV = nil
+
+	property integer CurrentAlpha = 255
+
+	property boolean IsShowing = false
+
+	@Description("Touch that owns the pad and the hue slider until it lifts. 0 when none.")
+	property integer TouchId = 0
+
+	property any OnChanged = nil
+
+	property any OnConfirmed = nil
+
+	property any OnCanceled = nil
+
+	property table SVPadPixels = {}
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		-- Internal to the package: callers use ColorPickerLogic. This component sits on the picker UI model.
+		self.CurrentHSV = ColorHSV()
+		self:ResolveChildren()
+		self:DrawHueSlider()
+
+		self.SVPad.Entity:ConnectEvent(UITouchDownEvent, function(event) self:OnSVPadTouched(event.TouchId, event.TouchPoint) end)
+		self.SVPad.Entity:ConnectEvent(UITouchDragEvent, function(event) self:OnSVPadTouched(event.TouchId, event.TouchPoint) end)
+		self.SVPad.Entity:ConnectEvent(UITouchUpEvent, function(event) self:OnTouchUp(event.TouchId) end)
+		self.HueSlider.Entity:ConnectEvent(UITouchDownEvent, function(event) self:OnHueSliderTouched(event.TouchId, event.TouchPoint) end)
+		self.HueSlider.Entity:ConnectEvent(UITouchDragEvent, function(event) self:OnHueSliderTouched(event.TouchId, event.TouchPoint) end)
+		self.HueSlider.Entity:ConnectEvent(UITouchUpEvent, function(event) self:OnTouchUp(event.TouchId) end)
+		self.OKButton:ConnectEvent(ButtonClickEvent, function(event) self:Confirm() end)
+		self.CancelButton:ConnectEvent(ButtonClickEvent, function(event) self:Cancel() end)
+
+		self.HueInput.Entity:ConnectEvent(TextInputEndEditEvent, function(event) self:ApplyHueInput(event.text) end)
+		self.SaturationInput.Entity:ConnectEvent(TextInputEndEditEvent, function(event) self:ApplySaturationInput(event.text) end)
+		self.ValueInput.Entity:ConnectEvent(TextInputEndEditEvent, function(event) self:ApplyValueInput(event.text) end)
+		self.RedInput.Entity:ConnectEvent(TextInputEndEditEvent, function(event) self:ApplyRedInput(event.text) end)
+		self.GreenInput.Entity:ConnectEvent(TextInputEndEditEvent, function(event) self:ApplyGreenInput(event.text) end)
+		self.BlueInput.Entity:ConnectEvent(TextInputEndEditEvent, function(event) self:ApplyBlueInput(event.text) end)
+		self.AlphaInput.Entity:ConnectEvent(TextInputEndEditEvent, function(event) self:ApplyAlphaInput(event.text) end)
+		self.HexInput.Entity:ConnectEvent(TextInputEndEditEvent, function(event) self:ApplyHexInput(event.text) end)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ResolveChildren()
+		-- Walks the model's group hierarchy one level at a time. Every part is part of the model, so none is checked.
+		local panel = self.Entity:GetChildByName("ColorPicker")
+
+		local colorPanels = panel:GetChildByName("ColorPanels")
+		local svPad = colorPanels:GetChildByName("SVPad")
+		local hueSlider = colorPanels:GetChildByName("HueSlider")
+		self.SVPad = svPad.PixelGUIRendererComponent
+		self.SVPointer = svPad:GetChildByName("SVPointer")
+		self.HueSlider = hueSlider.PixelGUIRendererComponent
+		self.HuePointer = hueSlider:GetChildByName("HuePointer")
+
+		local colorPreviews = panel:GetChildByName("ColorPreviews")
+		self.CurrentColorPreview = colorPreviews:GetChildByName("CurrentColorPreview").PixelGUIRendererComponent
+		self.InitialColorPreview = colorPreviews:GetChildByName("InitialColorPreview").PixelGUIRendererComponent
+
+		local inputFields = panel:GetChildByName("InputFields")
+		local hsvInputs = inputFields:GetChildByName("HSV"):GetChildByName("Inputs")
+		self.HueInput = hsvInputs:GetChildByName("HueInput").TextGUIRendererInputComponent
+		self.SaturationInput = hsvInputs:GetChildByName("SaturationInput").TextGUIRendererInputComponent
+		self.ValueInput = hsvInputs:GetChildByName("ValueInput").TextGUIRendererInputComponent
+
+		local rgbInputs = inputFields:GetChildByName("RGB"):GetChildByName("Inputs")
+		self.RedInput = rgbInputs:GetChildByName("RedInput").TextGUIRendererInputComponent
+		self.GreenInput = rgbInputs:GetChildByName("GreenInput").TextGUIRendererInputComponent
+		self.BlueInput = rgbInputs:GetChildByName("BlueInput").TextGUIRendererInputComponent
+		self.AlphaInput = rgbInputs:GetChildByName("AlphaInput").TextGUIRendererInputComponent
+
+		self.HexInput = inputFields:GetChildByName("Hex"):GetChildByName("HexInput").TextGUIRendererInputComponent
+
+		local buttons = panel:GetChildByName("Buttons")
+		self.OKButton = buttons:GetChildByName("OKButton")
+		self.CancelButton = buttons:GetChildByName("CancelButton")
+	end
+
+	@ExecSpace("ClientOnly")
+	method boolean Show(Color initialColor, any onChanged, any onConfirmed, any onCanceled)
+		if self.IsShowing then
+			return false
+		end
+		
+		self.OnChanged = onChanged
+		self.OnConfirmed = onConfirmed
+		self.OnCanceled = onCanceled
+		
+		-- Hue and saturation are reset first so nothing carries over when initialColor leaves them undefined.
+		local rgb = _ColorUtilLogic:ColorToRGB(initialColor ~= nil and initialColor or Color(1, 1, 1, 1))
+		self.CurrentHSV.H = 0
+		self.CurrentHSV.S = 0
+		self:SetHSVFromRGB(rgb)
+		self.CurrentAlpha = rgb.A
+		
+		self.IsShowing = true
+		self.Entity:SetEnable(true)
+		self.InitialColorPreview:FillColor(self:GetCurrentColor())
+		self:RefreshUI(true)
+		return true
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Confirm()
+		-- Closes first so the callback may open a new session with Show.
+		if not self.IsShowing then
+			return
+		end
+		local onConfirmed = self.OnConfirmed
+		self:Close()
+		if onConfirmed ~= nil then
+			onConfirmed(self:GetCurrentColor())
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Cancel()
+		-- Closes first so the callback may open a new session with Show. Undoing a preview is the caller's job.
+		if not self.IsShowing then
+			return
+		end
+		local onCanceled = self.OnCanceled
+		self:Close()
+		if onCanceled ~= nil then
+			onCanceled()
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Close()
+		self.OnChanged = nil
+		self.OnConfirmed = nil
+		self.OnCanceled = nil
+		self.IsShowing = false
+		self.TouchId = 0
+		self.Entity:SetEnable(false)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetHSVFromRGB(ColorRGB rgb)
+		-- RGB cannot tell the hue of an achromatic color (S = 0), nor the saturation of black (V = 0), so those keep their current values.
+		local hsv = _ColorUtilLogic:RGBToHSV(rgb)
+		local current = self.CurrentHSV
+		if hsv.V > 0 then
+			if hsv.S > 0 then
+				current.H = hsv.H
+			end
+			current.S = hsv.S
+		end
+		current.V = hsv.V
+	end
+
+	@ExecSpace("ClientOnly")
+	method Color GetCurrentColor()
+		local rgb = _ColorUtilLogic:HSVToRGB(self.CurrentHSV)
+		rgb.A = self.CurrentAlpha
+		return _ColorUtilLogic:RGBToColor(rgb)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnSVPadTouched(integer touchId, Vector2 touchPoint)
+		-- Only the left mouse button (TouchId -1; middle is -2, right is -3) and mobile touches (1 and up) pick.
+		if touchId ~= -1 and touchId < 1 then
+			return
+		end
+		-- The first touch owns the pad and the hue slider until it lifts, so a second finger does not make the color jump.
+		if self.TouchId == 0 then
+			self.TouchId = touchId
+		end
+		if touchId ~= self.TouchId then
+			return
+		end
+		local ratio = self:ScreenPointToRelativeRatio(self.SVPad.Entity.UITransformComponent, touchPoint)
+		self.CurrentHSV.S = ratio.x
+		self.CurrentHSV.V = ratio.y
+		self:ApplyEdit(false)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnHueSliderTouched(integer touchId, Vector2 touchPoint)
+		if touchId ~= -1 and touchId < 1 then
+			return
+		end
+		if self.TouchId == 0 then
+			self.TouchId = touchId
+		end
+		if touchId ~= self.TouchId then
+			return
+		end
+		local ratio = self:ScreenPointToRelativeRatio(self.HueSlider.Entity.UITransformComponent, touchPoint)
+		self.CurrentHSV.H = ratio.y * 360
+		self:ApplyEdit(true)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void OnTouchUp(integer touchId)
+		if touchId == self.TouchId then
+			self.TouchId = 0
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method Vector2 ScreenPointToRelativeRatio(UITransformComponent uiComponent, Vector2 screenPoint)
+		-- ScreenToLocalUIPosition is pivot-relative, so add the pivot back.
+		local localUIPos = _UILogic:ScreenToLocalUIPosition(screenPoint, uiComponent)
+		local uiSize = uiComponent.RectSize
+		local pivot = uiComponent.Pivot
+		
+		return Vector2(
+			math.max(0, math.min(1, localUIPos.x / uiSize.x + pivot.x)),
+			math.max(0, math.min(1, localUIPos.y / uiSize.y + pivot.y))
+		)
+	end
+
+	@ExecSpace("ClientOnly")
+	method integer AcceptInput(string text, number current, number max)
+		-- Returns the typed whole number clamped to 0~max.
+		-- Returns -1 when the picker is closed, the text is not a number, or it equals the shown value, after rewriting every field from the current color.
+		if not self.IsShowing then
+			return -1
+		end
+		local value = tonumber(text)
+		if value ~= nil then
+			value = math.floor(math.max(0, math.min(max, value)))
+		end
+		if value == nil or value == tonumber(string.format("%.0f", current)) then
+			self:UpdateInputFields()
+			return -1
+		end
+		return value
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ApplyHueInput(string text)
+		local hue = self:AcceptInput(text, self.CurrentHSV.H, 360)
+		if hue < 0 then
+			return
+		end
+		self.CurrentHSV.H = hue
+		self:ApplyEdit(true)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ApplySaturationInput(string text)
+		-- The field shows 0~100 while CurrentHSV stores 0~1.
+		local saturation = self:AcceptInput(text, self.CurrentHSV.S * 100, 100)
+		if saturation < 0 then
+			return
+		end
+		self.CurrentHSV.S = saturation / 100
+		self:ApplyEdit(false)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ApplyValueInput(string text)
+		-- The field shows 0~100 while CurrentHSV stores 0~1.
+		local value = self:AcceptInput(text, self.CurrentHSV.V * 100, 100)
+		if value < 0 then
+			return
+		end
+		self.CurrentHSV.V = value / 100
+		self:ApplyEdit(false)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ApplyRedInput(string text)
+		local rgb = _ColorUtilLogic:HSVToRGB(self.CurrentHSV)
+		local red = self:AcceptInput(text, rgb.R, 255)
+		if red < 0 then
+			return
+		end
+		rgb.R = red
+		self:SetHSVFromRGB(rgb)
+		self:ApplyEdit(true)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ApplyGreenInput(string text)
+		local rgb = _ColorUtilLogic:HSVToRGB(self.CurrentHSV)
+		local green = self:AcceptInput(text, rgb.G, 255)
+		if green < 0 then
+			return
+		end
+		rgb.G = green
+		self:SetHSVFromRGB(rgb)
+		self:ApplyEdit(true)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ApplyBlueInput(string text)
+		local rgb = _ColorUtilLogic:HSVToRGB(self.CurrentHSV)
+		local blue = self:AcceptInput(text, rgb.B, 255)
+		if blue < 0 then
+			return
+		end
+		rgb.B = blue
+		self:SetHSVFromRGB(rgb)
+		self:ApplyEdit(true)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ApplyAlphaInput(string text)
+		local alpha = self:AcceptInput(text, self.CurrentAlpha, 255)
+		if alpha < 0 then
+			return
+		end
+		self.CurrentAlpha = alpha
+		self:ApplyEdit(false)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ApplyHexInput(string text)
+		-- The field takes RRGGBB only; alpha has its own field.
+		-- HSV is recomputed only when RGB actually changed, so re-entering the shown hex does not snap the hue to the rounded RGB.
+		if not self.IsShowing then
+			return
+		end
+		local current = _ColorUtilLogic:HSVToRGB(self.CurrentHSV)
+		local rgb = _ColorUtilLogic:HexToRGB(text)
+		if rgb.R == current.R and rgb.G == current.G and rgb.B == current.B then
+			self:UpdateInputFields()
+			return
+		end
+
+		self:SetHSVFromRGB(rgb)
+		self:ApplyEdit(true)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ApplyEdit(boolean redrawSVPad)
+		self:RefreshUI(redrawSVPad)
+		if self.OnChanged ~= nil then
+			self.OnChanged(self:GetCurrentColor())
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method void RefreshUI(boolean redrawSVPad)
+		if redrawSVPad then
+			self:DrawSVPad()
+		end
+		self:UpdateInputFields()
+		self:UpdatePointerPosition()
+		self.CurrentColorPreview:FillColor(self:GetCurrentColor())
+	end
+
+	@ExecSpace("ClientOnly")
+	method void UpdateInputFields()
+		local hsv = self.CurrentHSV
+		local rgb = _ColorUtilLogic:HSVToRGB(hsv)
+		self:SetFieldText(self.HueInput, string.format("%.0f", hsv.H))
+		self:SetFieldText(self.SaturationInput, string.format("%.0f", hsv.S * 100))
+		self:SetFieldText(self.ValueInput, string.format("%.0f", hsv.V * 100))
+		self:SetFieldText(self.RedInput, string.format("%d", rgb.R))
+		self:SetFieldText(self.GreenInput, string.format("%d", rgb.G))
+		self:SetFieldText(self.BlueInput, string.format("%d", rgb.B))
+		self:SetFieldText(self.AlphaInput, string.format("%d", self.CurrentAlpha))
+		self:SetFieldText(self.HexInput, _ColorUtilLogic:RGBToHex(rgb))
+	end
+
+	@ExecSpace("ClientOnly")
+	method void SetFieldText(TextGUIRendererInputComponent input, string text)
+		-- Keeps the field's input and text renderer in sync by writing the same text to both.
+		input.Text = text
+		input.Entity.TextGUIRendererComponent.Text = text
+	end
+
+	@ExecSpace("ClientOnly")
+	method void UpdatePointerPosition()
+		-- Both pointers are point-anchored children of their pad / slider.
+		local pointerTransform = self.SVPointer.UITransformComponent
+		local svPadSize = self.SVPad.Entity.UITransformComponent.RectSize
+		local anchor = pointerTransform.AnchorsMin
+		pointerTransform.anchoredPosition = Vector2(
+			(self.CurrentHSV.S - anchor.x) * svPadSize.x,
+			(self.CurrentHSV.V - anchor.y) * svPadSize.y
+		)
+
+		-- The pad under the pointer shows the current color, so the pointer turns black on a bright color and white on a dark one.
+		-- 0.299 / 0.587 / 0.114 weigh the channels by perceived brightness.
+		local rgb = _ColorUtilLogic:HSVToRGB(self.CurrentHSV)
+		local brightness = 0.299 * rgb.R + 0.587 * rgb.G + 0.114 * rgb.B
+		self.SVPointer.SpriteGUIRendererComponent.Color = brightness > 128 and Color(0, 0, 0, 1) or Color(1, 1, 1, 1)
+
+		local hueTransform = self.HuePointer.UITransformComponent
+		local sliderSize = self.HueSlider.Entity.UITransformComponent.RectSize
+		local hueAnchor = hueTransform.AnchorsMin
+		hueTransform.anchoredPosition = Vector2(
+			(0.5 - hueAnchor.x) * sliderSize.x,
+			(self.CurrentHSV.H / 360 - hueAnchor.y) * sliderSize.y
+		)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void DrawSVPad()
+		-- For a fixed hue, channel(x, y) = v(y) * (255 - s(x) * (255 - hueChannel)).
+		-- The parenthesized part depends only on x, so it is computed once per column and the inner loop is one multiply per channel.
+		local width = self.SVPad.Width
+		local height = self.SVPad.Height
+		local hue = ColorHSV()
+		hue.H = self.CurrentHSV.H
+		hue.S = 1
+		local pureHue = _ColorUtilLogic:HSVToRGB(hue)
+		local hr, hg, hb = pureHue.R, pureHue.G, pureHue.B
+		local pixels = self.SVPadPixels
+		
+		local columnR, columnG, columnB = {}, {}, {}
+		for x = 1, width do
+			local s = (x - 1) / math.max(1, width - 1)
+			columnR[x] = 255 - s * (255 - hr)
+			columnG[x] = 255 - s * (255 - hg)
+			columnB[x] = 255 - s * (255 - hb)
+		end
+		
+		for y = 0, height - 1 do
+			local v = y / math.max(1, height - 1)
+			local rowOffset = y * width
+			for x = 1, width do
+				local r = math.floor(v * columnR[x] + 0.5)
+				local g = math.floor(v * columnG[x] + 0.5)
+				local b = math.floor(v * columnB[x] + 0.5)
+				-- Same packing as ColorUtilLogic:RGBToPixelInt, inlined for speed.
+				pixels[rowOffset + x] = ((r << 24) | (g << 16) | (b << 8) | 255) & 0xFFFFFFFF
+			end
+		end
+		
+		-- The table length must equal Width * Height, so drop entries left over from a larger resolution.
+		for i = #pixels, width * height + 1, -1 do
+			pixels[i] = nil
+		end
+		
+		self.SVPad:SetPixelsByRGBAInt(pixels)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void DrawHueSlider()
+		local width = self.HueSlider.Width
+		local height = self.HueSlider.Height
+		local hueSliderPixels = {}
+		local hue = ColorHSV()
+		hue.S = 1
+		
+		for y = 0, height - 1 do
+			hue.H = (y / math.max(1, height - 1)) * 360
+			local rgbaInt = _ColorUtilLogic:RGBToPixelInt(_ColorUtilLogic:HSVToRGB(hue))
+		
+			for x = 0, width - 1 do
+				hueSliderPixels[(y * width) + x + 1] = rgbaInt
+			end
+		end
+		
+		self.HueSlider:SetPixelsByRGBAInt(hueSliderPixels)
+	end
+
+end

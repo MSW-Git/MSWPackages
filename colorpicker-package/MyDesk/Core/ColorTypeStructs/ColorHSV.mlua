@@ -1,0 +1,13 @@
+@Struct
+script ColorHSV
+
+	@Description("Hue, 0~360.")
+	property number H = 0
+
+	@Description("Saturation, 0~1.")
+	property number S = 0
+
+	@Description("Value (brightness), 0~1.")
+	property number V = 1
+
+end

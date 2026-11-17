@@ -43,6 +43,7 @@ See the README file in each package for detailed usage information.
 | example-behaviourtree-package | Provides basic nodes for building Behavior Trees. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/example-behaviourtree-package/example-behaviourTree.modpackage)| 1.0 |
 | objectpool-manager | Provides an object pool feature that lets you create entities in advance and reuse them. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/objectpool-manager-package/ObjectPoolManager.modpackage) | 1.0 |
 | custom-compositenode | Provides custom Composite Tree node samples. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/custom-composite-node-package/CustomCompositeNode.modpackage) | 1.0 |
+| colorpicker | Provides an HSV color picker UI that reports the selected color through callbacks. | [Download](https://github.com/MSW-Git/MSWPackages/raw/refs/heads/main/colorpicker-package/colorpicker-package.modpackage) | 1.0 |
 
 
 ## License

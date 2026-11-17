@@ -1,0 +1,44 @@
+@Component
+script ColorPickerUsageSample extends Component
+
+	property SpriteGUIRendererComponent SpriteGUIRenderer = nil
+
+	property Color SelectedColor = Color(1, 1, 1, 1)
+
+	@ExecSpace("ClientOnly")
+	method void OnBeginPlay()
+		-- Starts from the sprite's own color, so the first Show opens with it.
+		if not isvalid(self.SpriteGUIRenderer) then
+			log_warning("ColorPickerUsageSample: SpriteGUIRenderer is not set")
+			return
+		end
+		self.SelectedColor = self.SpriteGUIRenderer.Color
+	end
+
+	@ExecSpace("ClientOnly")
+	@InspectorButton("Show")
+	method void Show()
+		-- Confirming keeps the color for the next Show; canceling puts the sprite back to it.
+		_ColorPickerLogic:Show(
+			self.SelectedColor,
+			function(color) self:ApplyColor(color) end,
+			function(color) self.SelectedColor = color end,
+			function() self:ApplyColor(self.SelectedColor) end
+		)
+	end
+
+	@ExecSpace("ClientOnly")
+	@InspectorButton("Hide")
+	method void Hide()
+		-- Closes the picker as a cancel, which reverts the sprite to the last confirmed color.
+		_ColorPickerLogic:Hide()
+	end
+
+	@ExecSpace("ClientOnly")
+	method void ApplyColor(Color color)
+		if isvalid(self.SpriteGUIRenderer) then
+			self.SpriteGUIRenderer.Color = color
+		end
+	end
+
+end

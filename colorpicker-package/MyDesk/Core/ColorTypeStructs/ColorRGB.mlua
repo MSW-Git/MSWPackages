@@ -1,0 +1,16 @@
+@Struct
+script ColorRGB
+
+	@Description("Red, 0~255.")
+	property integer R = 0
+
+	@Description("Green, 0~255.")
+	property integer G = 0
+
+	@Description("Blue, 0~255.")
+	property integer B = 0
+
+	@Description("Alpha, 0~255. 255 is opaque.")
+	property integer A = 255
+
+end

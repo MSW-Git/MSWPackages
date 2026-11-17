@@ -1,0 +1,64 @@
+@Logic
+script ColorPickerLogic extends Logic
+
+	@Description("Picker entity spawned on the first Show and reused afterwards.")
+	property Entity PickerEntity = nil
+
+	@Description("Model spawned as the picker. Empty uses the model named Model_ColorPicker.")
+	property string PickerModelId = ""
+
+	@Description("UI entity the picker is spawned under. Empty uses /ui/DefaultGroup.")
+	property Entity ParentGroupEntity = nil
+
+	@ExecSpace("ClientOnly")
+	method boolean Show(Color initialColor, any onChanged, any onConfirmed, any onCanceled)
+		local picker = self:GetOrCreatePicker()
+		if picker == nil then
+			return false
+		end
+		return picker:Show(initialColor, onChanged, onConfirmed, onCanceled)
+	end
+
+	@ExecSpace("ClientOnly")
+	method void Hide()
+		if isvalid(self.PickerEntity) and isvalid(self.PickerEntity.ColorPicker) then
+			self.PickerEntity.ColorPicker:Cancel()
+		end
+	end
+
+	@ExecSpace("ClientOnly")
+	method ColorPicker GetOrCreatePicker()
+		-- Internal: Show calls this.
+		if not isvalid(self.PickerEntity) then
+			if not isvalid(self.ParentGroupEntity) then
+				self.ParentGroupEntity = _EntityService:GetEntityByPath("/ui/DefaultGroup")
+				if not isvalid(self.ParentGroupEntity) then
+					log_warning("ColorPickerLogic: ParentGroupEntity is empty and /ui/DefaultGroup was not found")
+					return nil
+				end
+			end
+		
+			if _UtilLogic:IsNilorEmptyString(self.PickerModelId) then
+				self.PickerModelId = _EntryService:GetModelIdByName("Model_ColorPicker")
+				if _UtilLogic:IsNilorEmptyString(self.PickerModelId) then
+					log_warning("ColorPickerLogic: PickerModelId is empty and no model is named Model_ColorPicker")
+					return nil
+				end
+			end
+		
+			self.PickerEntity = _SpawnService:SpawnByModelId(self.PickerModelId, "ColorPicker", Vector3.zero, self.ParentGroupEntity)
+			if not isvalid(self.PickerEntity) then
+				log_warning("ColorPickerLogic: Failed to spawn ColorPicker from " .. self.PickerModelId)
+				return nil
+			end
+		end
+		
+		local picker = self.PickerEntity.ColorPicker
+		if not isvalid(picker) then
+			log_warning("ColorPickerLogic: The spawned picker has no ColorPicker component")
+			return nil
+		end
+		return picker
+	end
+
+end

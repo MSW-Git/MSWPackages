@@ -1,0 +1,99 @@
+@Logic
+script ColorUtilLogic extends Logic
+
+	method ColorRGB HSVToRGB(ColorHSV hsv)
+		local h, s, v = hsv.H, hsv.S, hsv.V
+		local r, g, b
+		if s <= 0 then
+			r, g, b = v, v, v
+		else
+			h = (h % 360) / 60
+			local i = math.floor(h)
+			local f = h - i
+			local p = v * (1 - s)
+			local q = v * (1 - s * f)
+			local t = v * (1 - s * (1 - f))
+		
+			if i == 0 then r, g, b = v, t, p
+			elseif i == 1 then r, g, b = q, v, p
+			elseif i == 2 then r, g, b = p, v, t
+			elseif i == 3 then r, g, b = p, q, v
+			elseif i == 4 then r, g, b = t, p, v
+			else r, g, b = v, p, q
+			end
+		end
+		-- Rounding prevents RGB -> HSV -> RGB from drifting down by one.
+		local rgb = ColorRGB()
+		rgb.R = math.floor(r * 255 + 0.5)
+		rgb.G = math.floor(g * 255 + 0.5)
+		rgb.B = math.floor(b * 255 + 0.5)
+		return rgb
+	end
+
+	method ColorHSV RGBToHSV(ColorRGB rgb)
+		local r, g, b = rgb.R / 255, rgb.G / 255, rgb.B / 255
+		local max, min = math.max(r, g, b), math.min(r, g, b)
+		local d = max - min
+		local hsv = ColorHSV()
+		hsv.V = max
+		hsv.S = max == 0 and 0 or d / max
+		
+		if d == 0 then
+			hsv.H = 0
+		else
+			local h
+			if max == r then h = (g - b) / d
+			elseif max == g then h = (b - r) / d + 2
+			else h = (r - g) / d + 4
+			end
+			h = h * 60
+			if h < 0 then h = h + 360 end
+			hsv.H = h
+		end
+		return hsv
+	end
+
+	method ColorRGB ColorToRGB(Color color)
+		local function toByte(channel)
+			return math.floor(math.max(0, math.min(1, channel)) * 255 + 0.5)
+		end
+		local rgb = ColorRGB()
+		rgb.R = toByte(color.r)
+		rgb.G = toByte(color.g)
+		rgb.B = toByte(color.b)
+		rgb.A = toByte(color.a)
+		return rgb
+	end
+
+	method Color RGBToColor(ColorRGB rgb)
+		return Color(rgb.R / 255, rgb.G / 255, rgb.B / 255, rgb.A / 255)
+	end
+
+	method ColorRGB HexToRGB(string hex)
+		-- "RRGGBB" (optional leading '#', surrounding spaces ignored, either case) -> ColorRGB with A left opaque.
+		-- Like Paint, a short value is read as a number with its missing leading digits as 0, and digits past 6 are dropped.
+		-- A value that is not hex becomes 000000.
+		local digits = string.match(hex, "^%s*#?(%x*)%s*$")
+		if digits == nil then
+			digits = ""
+		end
+		digits = string.sub(digits, 1, 6)
+		digits = string.rep("0", 6 - #digits) .. digits
+
+		local rgb = ColorRGB()
+		rgb.R = tonumber(string.sub(digits, 1, 2), 16)
+		rgb.G = tonumber(string.sub(digits, 3, 4), 16)
+		rgb.B = tonumber(string.sub(digits, 5, 6), 16)
+		return rgb
+	end
+
+	method string RGBToHex(ColorRGB rgb)
+		return string.format("%02X%02X%02X", rgb.R, rgb.G, rgb.B)
+	end
+
+	method integer RGBToPixelInt(ColorRGB rgb)
+		-- ColorRGB -> 0xRRGGBBAA, the form PixelGUIRendererComponent.SetPixelsByRGBAInt expects.
+		return ((rgb.R << 24) | (rgb.G << 16) | (rgb.B << 8) | rgb.A) & 0xFFFFFFFF
+	end
+
+end
